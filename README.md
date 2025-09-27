@@ -24,11 +24,9 @@ Esta es una presentación de desarrollo inicial para API de Sistema de Gestión 
 - Integración frontend
 
 ## 🏗️ Arquitectura
-┌─────────────────┐ ┌──────────────────┐ ┌──────────────┐
-│     Auth0 (IDP) │─│   NestJS API     │─│ PostgreSQL   │
-│                 │ │ - Multi-tenant   │ │ - Prisma     │
-│        Identity │ │ - RBAC           │ │ - Neon       │
-└─────────────────┘ └──────────────────┘ └──────────────┘
+Auth0 (IDP)   - NestJS API    - PostgreSQL
+              -Multi-tenant   - Prisma
+              - RBAC          - Neon
 
 ## 🚀 Inicio rápido
 
@@ -52,10 +50,7 @@ npx prisma db push
 # Semillar los datos iniciales
 npx prisma db seed
 
-# Iniciar el servidor de desarrollo
-npm run start:dev
-
-**API Endpoints**
+# API Endpoints
 Autenticacion
 POST /auth/test-login - Endpoint de prueba
 
