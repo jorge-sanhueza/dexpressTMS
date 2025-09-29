@@ -1,0 +1,231 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model TipoTenant {
+  id          String   @id @default(uuid())
+  tipoTenant  String   @unique
+  createdAt   DateTime @default(now()) @map("created_at")
+  tenantId    String?  @map("tenant_id")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenants     Tenant[]
+
+  @@map("tipo_tenant")
+}
+
+model EstadoRegistro {
+  id          String   @id @default(uuid())
+  estado      String   @unique
+  createdAt   DateTime @default(now()) @map("created_at")
+  tenantId    String?  @map("tenant_id")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Reverse relations
+  tenants     Tenant[]
+  perfiles    Perfil[]
+  roles       Rol[]
+  usuarios    Usuario[]
+
+  @@map("estado_registro")
+}
+
+model TipoUsuario {
+  id          String   @id @default(uuid())
+  tipoUsuario String   @unique
+  createdAt   DateTime @default(now()) @map("created_at")
+  tenantId    String?  @map("tenant_id")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  usuarios    Usuario[]
+
+  @@map("tipo_usuario")
+}
+
+model TipoPerfil {
+  id          String   @id @default(uuid())
+  tipoPerfil  String   @unique
+  createdAt   DateTime @default(now()) @map("created_at")
+  tenantId    String?  @map("tenant_id")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  perfiles    Perfil[]
+
+  @@map("tipo_perfil")
+}
+
+model TipoAccion {
+  id          String   @id @default(uuid())
+  tipoAccion  String   @unique
+  createdAt   DateTime @default(now()) @map("created_at")
+  tenantId    String?  @map("tenant_id")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  roles       Rol[]
+
+  @@map("tipo_accion")
+}
+
+model Tenant {
+  id           String   @id @default(uuid())
+  activo       Boolean  @default(true)
+  contacto     String
+  estadoId     String   @map("estado_id")
+  logoUrl      String?  @map("logo_url")
+  nombre       String
+  rut          String
+  tipoTenantId String   @map("tipo_tenant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  estado       EstadoRegistro @relation(fields: [estadoId], references: [id])
+  tipoTenant   TipoTenant     @relation(fields: [tipoTenantId], references: [id])
+  
+  // Reverse relations
+  perfiles     Perfil[]
+  roles        Rol[]
+  usuarios     Usuario[]
+  perfilesRoles PerfilRol[]
+  usuarioCredenciales UsuarioCredencial[]
+  usuarioSesiones UsuarioSesion[]
+  
+  @@map("tenants")
+}
+
+model Perfil {
+  id          String   @id @default(uuid())
+  activo      Boolean  @default(true)
+  contacto    String?
+  descripcion String?
+  estadoId    String   @map("estado_id")
+  nombre      String
+  rut         String?
+  tenantId    String   @map("tenant_id")
+  tipoId      String   @map("tipo_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  estado      EstadoRegistro @relation(fields: [estadoId], references: [id])
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  tipo        TipoPerfil     @relation(fields: [tipoId], references: [id])
+  
+  // Reverse relations
+  usuarios    Usuario[]
+  perfilesRoles PerfilRol[]
+
+  @@map("perfiles")
+}
+
+model Rol {
+  id            String   @id @default(uuid())
+  activo        Boolean  @default(true)
+  codigo        String   @unique
+  estadoId      String   @map("estado_id")
+  modulo        String
+  nombre        String
+  orden         Int      @default(0)
+  tenantId      String   @map("tenant_id")
+  tipoAccionId  String   @map("tipo_accion_id")
+  visible       Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  estado        EstadoRegistro @relation(fields: [estadoId], references: [id])
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  tipoAccion    TipoAccion     @relation(fields: [tipoAccionId], references: [id])
+  
+  // Reverse relations
+  perfilesRoles PerfilRol[]
+
+  @@map("roles")
+}
+
+model Usuario {
+  id          String   @id @default(uuid())
+  activo      Boolean  @default(true)
+  contacto    String?
+  correo      String   @unique
+  estadoId    String   @map("estado_id")
+  nombre      String
+  perfilId    String   @map("perfil_id")
+  rut         String?
+  telefono    String?
+  tenantId    String   @map("tenant_id")
+  tipoId      String   @map("tipo_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  estado      EstadoRegistro @relation(fields: [estadoId], references: [id])
+  perfil      Perfil         @relation(fields: [perfilId], references: [id])
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  tipo        TipoUsuario    @relation(fields: [tipoId], references: [id])
+  
+  // Reverse relations
+  credencial  UsuarioCredencial?
+  sesiones    UsuarioSesion[]
+
+  @@map("usuarios")
+}
+
+model PerfilRol {
+  id        String   @id @default(uuid())
+  perfilId  String   @map("perfil_id")
+  rolId     String   @map("rol_id")
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  perfil    Perfil @relation(fields: [perfilId], references: [id])
+  rol       Rol   @relation(fields: [rolId], references: [id])
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([perfilId, rolId, tenantId])
+  @@map("perfiles_roles")
+}
+
+model UsuarioCredencial {
+  id                        String   @id @default(uuid())
+  activo                    Boolean  @default(true)
+  fechaUltimaAutenticacion  DateTime? @map("fecha_ultima_autenticacion")
+  passwordHash              String   @map("password_hash")
+  salt                      String?
+  tenantId                  String   @map("tenant_id")
+  usuarioId                 String   @map("usuario_id")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id])
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@unique([usuarioId])
+  @@map("usuario_credenciales")
+}
+
+model UsuarioSesion {
+  id              String   @id @default(uuid())
+  dispositivo     String?
+  fechaExpiracion DateTime @map("fecha_expiracion")
+  fechaGenerado   DateTime @default(now()) @map("fecha_generado")
+  ipOrigen        String?  @map("ip_origen")
+  tenantId        String   @map("tenant_id")
+  tokenJwt        String   @map("token_jwt")
+  usuarioId       String   @map("usuario_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@map("usuario_sesiones")
+  @@index([tokenJwt])
+  @@index([fechaExpiracion])
+}
