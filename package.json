@@ -8,10 +8,10 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev": "turbo run dev",
     "dev:api": "npm run start:dev --workspace=api",
     "dev:web": "npm run dev --workspace=web",
-    "build": "npm run build --workspaces",
+    "build": "turbo run build",
     "build:api": "npm run build --workspace=api",
     "build:web": "npm run build --workspace=web",
     "test": "npm run test --workspaces",
@@ -19,11 +19,16 @@
     "db:studio": "npm run db:studio --workspace=api",
     "db:push": "npm run db:push --workspace=api"
   },
+  "packageManager": "npm@10.9.3",
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "turbo": "^2.5.8"
   },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "react-router-dom": "^7.9.3"
   }
 }

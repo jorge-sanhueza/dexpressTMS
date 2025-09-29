@@ -263,7 +263,7 @@ export class AuthService {
     const actionType = await this.getOrCreateActionType();
 
     const defaultRoles = [
-      { codigo: 'ver_dashboard', nombre: 'Ver Dashboard', modulo: 'dashboard' },
+      { codigo: 'ver_dashboard', nombre: 'Ver Dashboard', modulo: 'usuarios' },
       { codigo: 'crear_ordenes', nombre: 'Crear Órdenes', modulo: 'ordenes' },
       { codigo: 'editar_perfil', nombre: 'Editar Perfil', modulo: 'usuarios' },
     ];

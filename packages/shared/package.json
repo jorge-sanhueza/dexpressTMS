@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "echo 'No dev script needed for shared package'"
   },
   "devDependencies": {
     "typescript": "^5.0.2"

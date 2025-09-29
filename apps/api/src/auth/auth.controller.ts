@@ -28,7 +28,6 @@ export class AuthController {
 
   @Post('test-login')
   async testLogin(@Body() body: { email: string }) {
-    // Simple test endpoint that mimics Auth0 user
     const testUser: Auth0User = {
       sub: 'test-' + Date.now(),
       email: body.email || 'test@example.com',
@@ -51,7 +50,6 @@ export class AuthController {
 
   @Post('refresh')
   async refreshToken(@Request() req) {
-    // Implement refresh token logic
     return { message: 'Refresh token endpoint' };
   }
 
@@ -61,7 +59,6 @@ export class AuthController {
     return req.user;
   }
 
-  // Simple health check endpoint
   @Get('health')
   healthCheck() {
     return { status: 'OK', message: 'Auth endpoint is working' };
