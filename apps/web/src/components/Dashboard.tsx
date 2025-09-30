@@ -1,12 +1,10 @@
 import React from "react";
-import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "../store/authStore";
 
 export const Dashboard: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, tenant, logout } = useAuthStore();
   const navigate = useNavigate();
-
-  console.log(user?.permissions);
 
   if (!user) return null;
 
@@ -38,7 +36,7 @@ export const Dashboard: React.FC = () => {
               <div>
                 <h2 className="font-bold text-[#798283]">TMS Portal</h2>
                 <p className="text-sm text-[#798283]/70">
-                  Sistema de Gestión de Transporte
+                  {tenant?.nombre || "Sistema de Gestión de Transporte"}
                 </p>
               </div>
             </div>
@@ -59,7 +57,7 @@ export const Dashboard: React.FC = () => {
               )}
               <button
                 onClick={logout}
-                className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
               >
                 Cerrar sesión
               </button>
@@ -67,6 +65,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </nav>
+
       <main className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
         <div className="px-4 sm:px-0">
           <div className="mb-8">
@@ -75,10 +74,12 @@ export const Dashboard: React.FC = () => {
             </h2>
             <p className="text-[#798283]/70 text-lg">
               Bienvenido de vuelta, {user.name}. Aquí tienes un resumen de tu
-              actividad.
+              actividad en {tenant?.nombre || "tu organización"}.
             </p>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {/* User Info Card - Updated with tenant name */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center mb-4">
                 <div className="h-10 w-10 bg-[#EFF4F9] rounded-lg flex items-center justify-center mr-3">
@@ -117,10 +118,18 @@ export const Dashboard: React.FC = () => {
                   <span className="text-sm text-[#798283]/70">
                     Organización
                   </span>
-                  <span className="font-mono text-xs bg-[#EFF4F9] px-2 py-1 rounded text-[#798283]">
-                    {user.tenant_id}
+                  <span className="font-medium text-[#798283] text-right">
+                    {tenant?.nombre || "Cargando..."}
                   </span>
                 </div>
+                {tenant?.contacto && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-[#798283]/70">Contacto</span>
+                    <span className="font-medium text-[#798283]">
+                      {tenant.contacto}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10 hover:shadow-md transition-shadow duration-200">

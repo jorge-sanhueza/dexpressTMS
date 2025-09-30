@@ -1,13 +1,20 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./hooks/useAuth";
+import React, { useEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { useAuthStore } from "./store/authStore";
 import { LoginForm } from "./components/LoginForm";
 import { Dashboard } from "./components/Dashboard";
 import { AdminDashboard } from "./components/AdminDashboard";
 
-// Protected Route component to handle authentication
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+// Protected Route component
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const { isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
     return (
@@ -17,16 +24,12 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     );
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
-// Admin Route component with permission check
+// Admin Route component
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
     return (
@@ -40,16 +43,50 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Check if user has admin access
-  if (!user?.permissions.includes("admin_access")) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  return user?.permissions.includes("admin_access") ? (
+    <>{children}</>
+  ) : (
+    <Navigate to="/dashboard" replace />
+  );
+};
+
+// Initialize auth on app start
+const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const { setUser, setLoading, fetchTenantData } = useAuthStore();
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    const userData = localStorage.getItem("user");
+
+    if (token && userData) {
+      try {
+        const user = JSON.parse(userData);
+        setUser(user);
+        setLoading(true);
+
+        if (user.tenant_id) {
+          fetchTenantData(user.tenant_id);
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("user");
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
+  }, [setUser, setLoading, fetchTenantData]);
 
   return <>{children}</>;
 };
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
     return (
@@ -61,57 +98,50 @@ const AppContent: React.FC = () => {
 
   return (
     <Routes>
-      {/* Public route - redirect to dashboard if already authenticated */}
-      <Route 
-        path="/login" 
+      <Route
+        path="/login"
         element={
           isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginForm />
-        } 
+        }
       />
-      
-      {/* Protected routes */}
-      <Route 
-        path="/dashboard" 
+
+      <Route
+        path="/dashboard"
         element={
           <ProtectedRoute>
             <Dashboard />
           </ProtectedRoute>
-        } 
+        }
       />
-      
-      <Route 
-        path="/admin" 
+
+      <Route
+        path="/admin"
         element={
           <AdminRoute>
             <AdminDashboard />
           </AdminRoute>
-        } 
+        }
       />
-      
-      {/* Default redirects */}
-      <Route 
-        path="/" 
+
+      <Route
+        path="/"
         element={
           <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
-        } 
+        }
       />
-      
-      {/* Catch all route - redirect to dashboard */}
-      <Route 
-        path="*" 
-        element={<Navigate to="/dashboard" replace />} 
-      />
+
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 };
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthInitializer>
         <AppContent />
-      </Router>
-    </AuthProvider>
+      </AuthInitializer>
+    </Router>
   );
 }
 

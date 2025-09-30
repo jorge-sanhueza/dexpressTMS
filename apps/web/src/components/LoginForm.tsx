@@ -1,15 +1,13 @@
 import React, { useState } from "react";
-import { useAuth } from "../hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "../store/authStore";
+import type { LoginResponse } from "../types/auth";
 
 export const LoginForm: React.FC = () => {
-  const [email, setEmail] = useState("");
+  const { login } = useAuthStore();
+  const [email, setEmail] = useState("admin@demo.cl");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const { login } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,13 +30,8 @@ export const LoginForm: React.FC = () => {
         throw new Error("Error al iniciar sesión");
       }
 
-      const data = await response.json();
-
-      // Use the login function from AuthContext
-      login(data);
-
-      // Navigate to dashboard after successful login
-      navigate("/dashboard");
+      const data: LoginResponse = await response.json();
+      await login(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al iniciar sesión");
     } finally {

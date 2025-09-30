@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { useAuth } from "../hooks/useAuth";
 import { ProfilesManager } from "./admin/ProfilesManager";
 import { RolesManager } from "./admin/RolesManager";
 import { useNavigate } from "react-router-dom"; // Add this import
+import { useAuthStore } from "../store/authStore";
 
 export const AdminDashboard: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuthStore();
   const [activeTab, setActiveTab] = useState<"profiles" | "roles">("profiles");
-  const navigate = useNavigate(); // Add this hook
+  const navigate = useNavigate();
 
   if (!user) return null;
 
