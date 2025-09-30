@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  // Create system-wide statuses
+  // estado_registro
   const estadoActivo = await prisma.estadoRegistro.upsert({
     where: { estado: 'activo' },
     update: {},
@@ -19,25 +19,28 @@ async function main() {
     create: { estado: 'inactivo', tenantId: null },
   });
 
-  // Create system-wide types
+  // tipo_tenant
   const tipoTenantAdmin = await prisma.tipoTenant.upsert({
     where: { tipoTenant: 'admin' },
     update: {},
     create: { tipoTenant: 'admin', tenantId: null },
   });
 
+  // tipo_usuario
   const tipoUsuarioStandard = await prisma.tipoUsuario.upsert({
     where: { tipoUsuario: 'standard' },
     update: {},
     create: { tipoUsuario: 'standard', tenantId: null },
   });
 
+  // tipo_perfil
   const tipoPerfilAdministrativo = await prisma.tipoPerfil.upsert({
     where: { tipoPerfil: 'administrativo' },
     update: {},
     create: { tipoPerfil: 'administrativo', tenantId: null },
   });
 
+  // tipo_accion
   const tipoAccionVer = await prisma.tipoAccion.upsert({
     where: { tipoAccion: 'ver' },
     update: {},
@@ -63,19 +66,19 @@ async function main() {
   });
 
   const tipoAccionAdministrar = await prisma.tipoAccion.upsert({
-    where: { tipoAccion: 'administrar' },
+    where: { tipoAccion: 'activar' },
     update: {},
-    create: { tipoAccion: 'administrar', tenantId: null },
+    create: { tipoAccion: 'activar', tenantId: null },
   });
 
-  // Create admin tenant - using nombre which is now unique
+  // admin tenant
   const adminTenant = await prisma.tenant.upsert({
     where: { nombre: 'Tenant Administrativo' },
     update: {},
     create: {
       nombre: 'Tenant Administrativo',
       contacto: 'admin@demo.cl',
-      rut: '12345678-9', // This is also unique
+      rut: '12345678-9',
       activo: true,
       estadoId: estadoActivo.id,
       tipoTenantId: tipoTenantAdmin.id,
