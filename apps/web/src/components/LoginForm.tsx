@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useAuthStore } from "../store/authStore";
 import type { LoginResponse } from "../types/auth";
+import { useNavigate } from "react-router-dom";
 
 export const LoginForm: React.FC = () => {
   const { login } = useAuthStore();
@@ -8,6 +9,7 @@ export const LoginForm: React.FC = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +34,7 @@ export const LoginForm: React.FC = () => {
 
       const data: LoginResponse = await response.json();
       await login(data);
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al iniciar sesión");
     } finally {
@@ -107,7 +110,6 @@ export const LoginForm: React.FC = () => {
             />
           </div>
 
-          {/* Password Input */}
           <div>
             <label
               htmlFor="password"
@@ -167,7 +169,6 @@ export const LoginForm: React.FC = () => {
           </div>
         </form>
 
-        {/* Footer */}
         <div className="text-center pt-6 border-t border-[#798283]/20">
           <p className="text-xs text-[#798283]/60">© Dexpress 2025</p>
         </div>

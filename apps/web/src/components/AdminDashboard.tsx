@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { ProfilesManager } from "./admin/ProfilesManager";
 import { RolesManager } from "./admin/RolesManager";
-import { useNavigate } from "react-router-dom"; // Add this import
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 
 export const AdminDashboard: React.FC = () => {
@@ -11,7 +11,6 @@ export const AdminDashboard: React.FC = () => {
 
   if (!user) return null;
 
-  // Add back navigation handler
   const handleBackToDashboard = () => {
     navigate("/dashboard");
   };

@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import { type LoginResponse } from "../types/auth";
+import { tenantService } from "../services/tenantService";
 
 interface Tenant {
   id: string;
@@ -8,6 +8,11 @@ interface Tenant {
   contacto: string;
   rut: string;
   activo: boolean;
+  logo_url?: string;
+  tipo_tenant_id?: string;
+  estado_id?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface User {
@@ -22,113 +27,143 @@ interface AuthState {
   user: User | null;
   tenant: Tenant | null;
   isLoading: boolean;
+  isInitialized: boolean;
 
-  // Computed properties (getters)
-  isAuthenticated: boolean;
-
-  // Sync actions
+  // Actions
   setUser: (user: User) => void;
   setTenant: (tenant: Tenant) => void;
   setLoading: (loading: boolean) => void;
-
-  // Auth actions
+  setInitialized: (initialized: boolean) => void;
   login: (response: LoginResponse) => Promise<void>;
   logout: () => void;
-
-  // Data fetching
   fetchTenantData: (tenantId: string) => Promise<void>;
+  initializeAuth: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
+export const useAuthStore = create<AuthState>()((set, get) => ({
+  user: null,
+  tenant: null,
+  isLoading: true,
+  isInitialized: false,
+
+  setUser: (user) => set({ user }),
+
+  setTenant: (tenant) => set({ tenant }),
+
+  setLoading: (isLoading) => set({ isLoading }),
+
+  setInitialized: (isInitialized) => set({ isInitialized }),
+
+  login: async (response: LoginResponse) => {
+    console.log("🔐 Login response:", response);
+    console.log("🔐 Access token type:", typeof response.access_token);
+    console.log("🔐 Access token length:", response.access_token?.length);
+    console.log(
+      "🔐 Access token first 50 chars:",
+      response.access_token?.substring(0, 50)
+    );
+
+    // Check if it's a JWT token
+    if (
+      response.access_token &&
+      response.access_token.split(".").length === 3
+    ) {
+      console.log("✅ Token appears to be a JWT");
+      try {
+        const payload = JSON.parse(atob(response.access_token.split(".")[1]));
+        console.log("🔐 JWT payload:", payload);
+      } catch (e) {
+        console.log("❌ Cannot decode JWT payload");
+      }
+    } else {
+      console.log("❌ Token is not a JWT");
+    }
+    localStorage.setItem("access_token", response.access_token);
+    localStorage.setItem("user", JSON.stringify(response.user));
+
+    set({
+      user: response.user,
+      isLoading: true,
+    });
+
+    // Fetch tenant data
+    if (response.user.tenant_id) {
+      await get().fetchTenantData(response.user.tenant_id);
+    } else {
+      set({ isLoading: false });
+    }
+  },
+
+  logout: () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("user");
+
+    set({
       user: null,
       tenant: null,
-      isLoading: true,
+      isLoading: false,
+      isInitialized: true,
+    });
+  },
 
-      // Computed property
-      isAuthenticated: false,
+  fetchTenantData: async (tenantId: string) => {
+    try {
+      set({ isLoading: true });
 
-      setUser: (user) =>
-        set({
-          user,
-          isAuthenticated: !!user,
-        }),
+      const tenantData = await tenantService.getTenantById(tenantId);
 
-      setTenant: (tenant) => set({ tenant }),
+      set({ tenant: tenantData });
+    } catch (error) {
+      const fallbackTenant: Tenant = {
+        id: tenantId,
+        nombre: "Organización Demo",
+        contacto: "contacto@demo.cl",
+        rut: "12345678-9",
+        activo: true,
+      };
 
-      setLoading: (isLoading) => set({ isLoading }),
-
-      login: async (response: LoginResponse) => {
-        // Store in localStorage
-        localStorage.setItem("access_token", response.access_token);
-        localStorage.setItem("user", JSON.stringify(response.user));
-
-        // Update store
-        set({
-          user: response.user,
-          isAuthenticated: true,
-          isLoading: true,
-        });
-
-        // Fetch tenant data
-        if (response.user.tenant_id) {
-          await get().fetchTenantData(response.user.tenant_id);
-        } else {
-          set({ isLoading: false });
-        }
-      },
-
-      logout: () => {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("user");
-        set({
-          user: null,
-          tenant: null,
-          isAuthenticated: false,
-          isLoading: false,
-        });
-      },
-
-      fetchTenantData: async (tenantId: string) => {
-        try {
-          set({ isLoading: true });
-
-          // Mock tenant data - replace with real API later
-          await new Promise((resolve) => setTimeout(resolve, 500));
-
-          const tenantData: Tenant = {
-            id: tenantId,
-            nombre: "Organización Demo",
-            contacto: "contacto@demo.cl",
-            rut: "12345678-9",
-            activo: true,
-          };
-
-          set({ tenant: tenantData });
-        } catch (error) {
-          console.error("Error fetching tenant data:", error);
-          set({
-            tenant: {
-              id: tenantId,
-              nombre: "Mi Organización",
-              contacto: "No disponible",
-              rut: "No disponible",
-              activo: true,
-            },
-          });
-        } finally {
-          set({ isLoading: false });
-        }
-      },
-    }),
-    {
-      name: "auth-storage",
-      partialize: (state) => ({
-        user: state.user,
-        tenant: state.tenant,
-        isAuthenticated: state.isAuthenticated,
-      }),
+      set({ tenant: fallbackTenant });
+    } finally {
+      set({ isLoading: false, isInitialized: true });
     }
-  )
-);
+  },
+
+  initializeAuth: async () => {
+    const token = localStorage.getItem("access_token");
+    const userData = localStorage.getItem("user");
+
+    if (!token || !userData) {
+      console.log("🔐 No auth data found");
+      set({ isLoading: false, isInitialized: true });
+      return;
+    }
+
+    try {
+      const user = JSON.parse(userData);
+
+      set({ user, isLoading: true });
+
+      if (user.tenant_id) {
+        await get().fetchTenantData(user.tenant_id);
+      } else {
+        try {
+          console.log("🔐 No tenant_id, fetching current tenant...");
+          const currentTenant = await tenantService.getCurrentUserTenant();
+          set({ tenant: currentTenant, isLoading: false, isInitialized: true });
+        } catch (error) {
+          console.error("❌ Error fetching current tenant:", error);
+          set({ isLoading: false, isInitialized: true });
+        }
+      }
+    } catch (error) {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
+      set({ isLoading: false, isInitialized: true });
+    }
+  },
+}));
+
+export const useIsAuthenticated = () => {
+  const user = useAuthStore((state) => state.user);
+  return !!user;
+};
