@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import { type LoginResponse } from "../types/auth";
+import { type LoginResponse, type Rol } from "../types/auth";
 import { tenantService } from "../services/tenantService";
+import { rolesService } from "../services/rolesService";
 
 interface Tenant {
   id: string;
@@ -20,29 +21,36 @@ interface User {
   email: string;
   name: string;
   tenant_id: string;
+  profile_id: string;
+  profile_type: string;
   permissions: string[];
 }
 
 interface AuthState {
   user: User | null;
   tenant: Tenant | null;
+  roles: Rol[];
   isLoading: boolean;
   isInitialized: boolean;
 
   // Actions
   setUser: (user: User) => void;
   setTenant: (tenant: Tenant) => void;
+  setRoles: (roles: Rol[]) => void;
   setLoading: (loading: boolean) => void;
   setInitialized: (initialized: boolean) => void;
   login: (response: LoginResponse) => Promise<void>;
   logout: () => void;
   fetchTenantData: (tenantId: string) => Promise<void>;
+  fetchUserRoles: (rolesIds: string[]) => Promise<void>;
   initializeAuth: () => Promise<void>;
+  hasPermission: (permissionCode: string) => boolean;
 }
 
 export const useAuthStore = create<AuthState>()((set, get) => ({
   user: null,
   tenant: null,
+  roles: [],
   isLoading: true,
   isInitialized: false,
 
@@ -50,34 +58,13 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   setTenant: (tenant) => set({ tenant }),
 
+  setRoles: (roles) => set({ roles }),
+
   setLoading: (isLoading) => set({ isLoading }),
 
   setInitialized: (isInitialized) => set({ isInitialized }),
 
   login: async (response: LoginResponse) => {
-    console.log("🔐 Login response:", response);
-    console.log("🔐 Access token type:", typeof response.access_token);
-    console.log("🔐 Access token length:", response.access_token?.length);
-    console.log(
-      "🔐 Access token first 50 chars:",
-      response.access_token?.substring(0, 50)
-    );
-
-    // Check if it's a JWT token
-    if (
-      response.access_token &&
-      response.access_token.split(".").length === 3
-    ) {
-      console.log("✅ Token appears to be a JWT");
-      try {
-        const payload = JSON.parse(atob(response.access_token.split(".")[1]));
-        console.log("🔐 JWT payload:", payload);
-      } catch (e) {
-        console.log("❌ Cannot decode JWT payload");
-      }
-    } else {
-      console.log("❌ Token is not a JWT");
-    }
     localStorage.setItem("access_token", response.access_token);
     localStorage.setItem("user", JSON.stringify(response.user));
 
@@ -89,6 +76,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     // Fetch tenant data
     if (response.user.tenant_id) {
       await get().fetchTenantData(response.user.tenant_id);
+      if (response.user.permissions && response.user.permissions.length > 0) {
+        await get().fetchUserRoles(response.user.permissions);
+      }
     } else {
       set({ isLoading: false });
     }
@@ -101,6 +91,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     set({
       user: null,
       tenant: null,
+      roles: [],
       isLoading: false,
       isInitialized: true,
     });
@@ -128,12 +119,26 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     }
   },
 
+  fetchUserRoles: async (rolesIds: string[]) => {
+    try {
+      const roles = await rolesService.getRolesByIds(rolesIds);
+      set({ roles });
+    } catch (error) {
+      console.error("Error fetching user roles:", error);
+      set({ roles: [] });
+    }
+  },
+
+  hasPermission: (permissionCode: string): boolean => {
+    const { roles } = get();
+    return roles.some((rol) => rol.codigo === permissionCode);
+  },
+
   initializeAuth: async () => {
     const token = localStorage.getItem("access_token");
     const userData = localStorage.getItem("user");
 
     if (!token || !userData) {
-      console.log("🔐 No auth data found");
       set({ isLoading: false, isInitialized: true });
       return;
     }
@@ -145,13 +150,14 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
       if (user.tenant_id) {
         await get().fetchTenantData(user.tenant_id);
+        if (user.permissions && user.permissions.length > 0) {
+          await get().fetchUserRoles(user.permissions);
+        }
       } else {
         try {
-          console.log("🔐 No tenant_id, fetching current tenant...");
           const currentTenant = await tenantService.getCurrentUserTenant();
           set({ tenant: currentTenant, isLoading: false, isInitialized: true });
         } catch (error) {
-          console.error("❌ Error fetching current tenant:", error);
           set({ isLoading: false, isInitialized: true });
         }
       }

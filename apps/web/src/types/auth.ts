@@ -3,7 +3,17 @@ export interface User {
   email: string;
   name: string;
   tenant_id: string;
+  profile_id: string;
+  profile_type: string;
   permissions: string[];
+}
+
+export interface Rol {
+  id: string;
+  codigo: string;
+  nombre: string;
+  modulo: string;
+  activo: boolean;
 }
 
 export interface LoginResponse {

@@ -6,10 +6,12 @@ import { PrismaModule } from 'prisma/prisma.module';
 import { AuthController } from './auth.controller';
 import { InternalJwtService } from './services/internal-jwt.service';
 import { AuthService } from './services/auth.service';
+import { RolesModule } from 'src/roles/roles.module';
 
 @Module({
   imports: [
     PrismaModule,
+    RolesModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

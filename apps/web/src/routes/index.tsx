@@ -1,19 +1,24 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
-import { RootLayout } from "../components/layouts/RootLayout";
 import { LoginForm } from "../components/LoginForm";
 import { Dashboard } from "../components/Dashboard";
 import { AdminDashboard } from "../components/AdminDashboard";
+import { UserProfile } from "../components/UserProfile";
 
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      <Route element={<RootLayout />}>
-        <Route path="/login" element={<LoginForm />} />
-      </Route>
+      {/* Public route with gradient background */}
+      <Route
+        path="/login"
+        element={
+          <div className="min-h-screen bg-gradient-to-br from-[#EFF4F9] to-blue-100">
+            <LoginForm />
+          </div>
+        }
+      />
 
-      {/* Protected routes */}
       <Route
         path="/dashboard"
         element={
@@ -22,11 +27,20 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+      {/* Protected routes */}
       <Route
         path="/admin"
         element={
-          <ProtectedRoute requiredPermission="admin_access">
+          <ProtectedRoute requiredRole="admin_access">
             <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/perfil"
+        element={
+          <ProtectedRoute>
+            <UserProfile />
           </ProtectedRoute>
         }
       />

@@ -3,13 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 
 export const Dashboard: React.FC = () => {
-  const { user, tenant, logout } = useAuthStore();
+  const { user, tenant, logout, hasPermission } = useAuthStore();
   const navigate = useNavigate();
+  console.log(hasPermission('admin_access'))
 
   if (!user) return null;
 
   const handleNavigateToAdmin = () => {
     navigate("/admin");
+  };
+
+  const handleNavigateToProfile = () => {
+    navigate("/perfil");
   };
 
   return (
@@ -47,7 +52,7 @@ export const Dashboard: React.FC = () => {
                 </p>
                 <p className="text-sm text-[#798283]/70">{user.email}</p>
               </div>
-              {user.permissions.includes("admin_access") && (
+              {hasPermission("admin_access") && (
                 <button
                   onClick={handleNavigateToAdmin}
                   className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 font-medium"
@@ -78,8 +83,8 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {/* User Info Card - Updated with tenant name */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-8">
+            {/* User Info Card - Updated with profile button */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center mb-4">
                 <div className="h-10 w-10 bg-[#EFF4F9] rounded-lg flex items-center justify-center mr-3">
@@ -101,7 +106,7 @@ export const Dashboard: React.FC = () => {
                   Información de Usuario
                 </h3>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 mb-6">
                 <div className="flex justify-between items-center pb-3 border-b border-[#798283]/10">
                   <span className="text-sm text-[#798283]/70">Nombre</span>
                   <span className="font-medium text-[#798283]">
@@ -131,40 +136,27 @@ export const Dashboard: React.FC = () => {
                   </div>
                 )}
               </div>
+              <button
+                onClick={handleNavigateToProfile}
+                className="w-full flex items-center justify-center px-4 py-2 border border-[#798283]/30 text-sm font-semibold rounded-lg text-[#798283] bg-white hover:bg-[#EFF4F9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#798283] transition-all duration-200"
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
+                </svg>
+                Ver Perfil Completo
+              </button>
             </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center mb-4">
-                <div className="h-10 w-10 bg-[#EFF4F9] rounded-lg flex items-center justify-center mr-3">
-                  <svg
-                    className="h-5 w-5 text-[#798283]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-lg text-[#798283]">
-                  Permisos del Sistema
-                </h3>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {user.permissions.map((permission) => (
-                  <span
-                    key={permission}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#D42B22]/10 text-[#D42B22] border border-[#D42B22]/20"
-                  >
-                    <span className="w-1.5 h-1.5 bg-[#D42B22] rounded-full mr-2"></span>
-                    {permission}
-                  </span>
-                ))}
-              </div>
-            </div>
+
             <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center mb-4">
                 <div className="h-10 w-10 bg-[#EFF4F9] rounded-lg flex items-center justify-center mr-3">
@@ -187,7 +179,7 @@ export const Dashboard: React.FC = () => {
                 </h3>
               </div>
               <div className="space-y-3">
-                <button className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-sm font-semibold rounded-lg text-[#798283] bg-[#D42B22] hover:bg-[#B3251E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D42B22] transition-all duration-200 shadow-sm hover:shadow-md">
+                <button className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-[#D42B22] hover:bg-[#B3251E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D42B22] transition-all duration-200 shadow-sm hover:shadow-md">
                   <svg
                     className="w-4 h-4 mr-2"
                     fill="none"
@@ -239,6 +231,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
+          {/* Activity Summary and other content remains the same */}
           <div className="bg-white rounded-xl shadow-sm border border-[#798283]/10 p-6 hover:shadow-md transition-shadow duration-200">
             <div className="flex items-center mb-6">
               <div className="h-10 w-10 bg-[#EFF4F9] rounded-lg flex items-center justify-center mr-3">

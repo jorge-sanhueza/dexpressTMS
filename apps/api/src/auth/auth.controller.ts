@@ -19,7 +19,7 @@ export class AuthController {
     this.logger.log('AuthController initialized');
   }
 
-  @UseGuards(Auth0Guard)
+  /*  @UseGuards(Auth0Guard) */
   @Post('login')
   async login(@Request() req) {
     this.logger.log('Auth0 login endpoint called');
@@ -40,6 +40,14 @@ export class AuthController {
 
     try {
       const result = await this.authService.handleAuth0Login(testUser);
+      this.logger.debug('Login response permissions:');
+      this.logger.debug(
+        `Number of permissions: ${result.user.permissions.length}`,
+      );
+      this.logger.debug(`First permission: ${result.user.permissions[0]}`);
+      this.logger.debug(
+        `All permissions: ${JSON.stringify(result.user.permissions)}`,
+      );
       this.logger.log('Test login successful for:', testUser.email);
       return result;
     } catch (error) {
@@ -53,7 +61,7 @@ export class AuthController {
     return { message: 'Refresh token endpoint' };
   }
 
-  @UseGuards(Auth0Guard)
+  /*  @UseGuards(Auth0Guard) */
   @Get('profile')
   getProfile(@Request() req) {
     return req.user;

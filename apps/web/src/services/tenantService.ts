@@ -17,18 +17,12 @@ export const tenantService = {
   async getTenantById(tenantId: string): Promise<Tenant> {
     const token = localStorage.getItem("access_token");
 
-    console.log("🔐 Token being sent:", token);
-    console.log("🔐 Token length:", token?.length);
-    console.log("🔐 Token starts with:", token?.substring(0, 20) + "...");
-
     const response = await fetch(`${API_BASE}/api/tenants/${tenantId}`, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     });
-
-    console.log("🔐 Response status:", response.status);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch tenant data: ${response.statusText}`);
