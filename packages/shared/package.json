@@ -1,0 +1,15 @@
+{
+  "name": "shared",
+  "version": "0.1.0",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "echo 'No dev script needed for shared package'"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.2"
+  }
+}
