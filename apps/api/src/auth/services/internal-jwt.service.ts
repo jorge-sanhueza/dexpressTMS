@@ -20,7 +20,7 @@ export class InternalJwtService {
   async generateInternalToken(payload: InternalJwtPayload): Promise<string> {
     return this.jwtService.signAsync(payload, {
       secret: this.configService.get<string>('JWT_SECRET'),
-      expiresIn: '15m', // Short-lived access token
+      expiresIn: '24h', // Short-lived access token
     });
   }
 

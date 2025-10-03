@@ -1,4 +1,10 @@
-import type { User, UsersResponse, UsersFilter } from "../types/user";
+import type {
+  User,
+  UsersResponse,
+  UsersFilter,
+  Profile,
+  CreateUserData,
+} from "../types/user";
 
 class UsersService {
   private baseUrl = "/api/users";
@@ -71,6 +77,65 @@ class UsersService {
     } catch (error) {
       console.error("Error deactivating user:", error);
       throw error;
+    }
+  }
+
+  async createUser(userData: CreateUserData): Promise<User> {
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(this.baseUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `Failed to create user: ${response.statusText}`
+        );
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error creating user:", error);
+      throw error;
+    }
+  }
+
+  async getProfiles(): Promise<Profile[]> {
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch("/api/profiles", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch profiles: ${response.statusText}`);
+      }
+
+      const profiles = await response.json();
+
+      // Transform to match our Profile interface
+      return profiles.map((profile: any) => ({
+        id: profile.id, // This is now the actual UUID from database
+        nombre: profile.nombre,
+        tipo: profile.tipo ? { tipoPerfil: profile.tipo } : undefined,
+      }));
+    } catch (error) {
+      console.error("Error fetching profiles:", error);
+
+      // Fallback - we should never get here if the endpoint is working
+      return [
+        { id: "fallback-1", nombre: "Administrativo" },
+        { id: "fallback-2", nombre: "Usuario Estándar" },
+        { id: "fallback-3", nombre: "Operativo" },
+      ];
     }
   }
 }

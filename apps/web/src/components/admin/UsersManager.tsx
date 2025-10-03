@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { usersService } from "../../services/usersService";
 import type { User, UsersFilter } from "../../types/user";
+import { UserCreationModal } from "./UserCreationModal";
 
 export const UsersManager: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -10,6 +11,7 @@ export const UsersManager: React.FC = () => {
     page: 1,
     limit: 10,
   });
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const loadUsers = async () => {
     try {
@@ -60,6 +62,13 @@ export const UsersManager: React.FC = () => {
       setError(err instanceof Error ? err.message : "Error deactivating user");
       console.error("Error deactivating user:", err);
     }
+  };
+
+  const handleUserCreated = (newUser: User) => {
+    // Reload users to show the new one
+    loadUsers();
+    // You could also add a success message here
+    console.log("User created successfully:", newUser);
   };
 
   const formatDate = (dateString: string) => {
@@ -120,14 +129,17 @@ export const UsersManager: React.FC = () => {
       <div className="bg-white rounded-lg shadow-sm border border-[#798283]/10 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-[#798283]">
+            <h2 className="text-2xl font-bold text-[#798283]">
               Gestión de Usuarios
             </h2>
             <p className="text-[#798283]/70 mt-1">
               Administra los usuarios del sistema
             </p>
           </div>
-          <button className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-4 py-2 rounded-lg transition-colors duration-200 font-semibold">
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-4 py-2 rounded-lg transition-colors duration-200 font-semibold"
+          >
             + Nuevo Usuario
           </button>
         </div>
@@ -321,6 +333,11 @@ export const UsersManager: React.FC = () => {
           </div>
         )}
       </div>
+      <UserCreationModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onUserCreated={handleUserCreated}
+      />
     </div>
   );
 };

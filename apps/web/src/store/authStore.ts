@@ -32,6 +32,7 @@ interface AuthState {
   roles: Rol[];
   isLoading: boolean;
   isInitialized: boolean;
+  rolesLoaded: boolean;
 
   // Actions
   setUser: (user: User) => void;
@@ -39,13 +40,26 @@ interface AuthState {
   setRoles: (roles: Rol[]) => void;
   setLoading: (loading: boolean) => void;
   setInitialized: (initialized: boolean) => void;
+  setRolesLoaded: (loaded: boolean) => void;
   login: (response: LoginResponse) => Promise<void>;
   logout: () => void;
+  clearAuth: () => void;
   fetchTenantData: (tenantId: string) => Promise<void>;
   fetchUserRoles: (rolesIds: string[]) => Promise<void>;
   initializeAuth: () => Promise<void>;
   hasPermission: (permissionCode: string) => boolean;
 }
+
+// JWT decoding utility function
+const decodeJWT = (token: string): any => {
+  try {
+    const payload = token.split(".")[1];
+    return JSON.parse(atob(payload));
+  } catch (error) {
+    console.error("Error decoding JWT:", error);
+    return null;
+  }
+};
 
 export const useAuthStore = create<AuthState>()((set, get) => ({
   user: null,
@@ -53,6 +67,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   roles: [],
   isLoading: true,
   isInitialized: false,
+  rolesLoaded: false,
 
   setUser: (user) => set({ user }),
 
@@ -64,6 +79,21 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   setInitialized: (isInitialized) => set({ isInitialized }),
 
+  setRolesLoaded: (rolesLoaded) => set({ rolesLoaded }),
+
+  clearAuth: () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("user");
+    set({
+      user: null,
+      tenant: null,
+      roles: [],
+      isLoading: false,
+      isInitialized: true,
+      rolesLoaded: false,
+    });
+  },
+
   login: async (response: LoginResponse) => {
     localStorage.setItem("access_token", response.access_token);
     localStorage.setItem("user", JSON.stringify(response.user));
@@ -71,6 +101,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     set({
       user: response.user,
       isLoading: true,
+      rolesLoaded: false,
     });
 
     // Fetch tenant data
@@ -78,9 +109,11 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       await get().fetchTenantData(response.user.tenant_id);
       if (response.user.permissions && response.user.permissions.length > 0) {
         await get().fetchUserRoles(response.user.permissions);
+      } else {
+        set({ rolesLoaded: true });
       }
     } else {
-      set({ isLoading: false });
+      set({ isLoading: false, rolesLoaded: true });
     }
   },
 
@@ -94,6 +127,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       roles: [],
       isLoading: false,
       isInitialized: true,
+      rolesLoaded: false,
     });
   },
 
@@ -122,10 +156,10 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   fetchUserRoles: async (rolesIds: string[]) => {
     try {
       const roles = await rolesService.getRolesByIds(rolesIds);
-      set({ roles });
+      set({ roles, rolesLoaded: true });
     } catch (error) {
       console.error("Error fetching user roles:", error);
-      set({ roles: [] });
+      set({ roles: [], rolesLoaded: true });
     }
   },
 
@@ -151,41 +185,41 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     const userData = localStorage.getItem("user");
 
     if (!token || !userData) {
-      set({ isLoading: false, isInitialized: true });
+      set({ isLoading: false, isInitialized: true, rolesLoaded: true });
       return;
     }
 
     try {
-      const user = JSON.parse(userData);
-      console.log("🔄 Initializing auth with user:", user);
-      console.log("🔄 User permissions (role IDs):", user.permissions);
+      // Check if token is expired before even trying to use it
+      const decodedToken = decodeJWT(token);
+      if (
+        decodedToken &&
+        decodedToken.exp &&
+        decodedToken.exp * 1000 < Date.now()
+      ) {
+        console.log("🔄 Token expired, clearing auth...");
+        get().clearAuth();
+        return;
+      }
 
-      set({ user, isLoading: true });
+      const user = JSON.parse(userData);
+
+      set({ user, isLoading: true, rolesLoaded: false });
 
       if (user.tenant_id) {
         await get().fetchTenantData(user.tenant_id);
         if (user.permissions && user.permissions.length > 0) {
-          console.log(
-            "🔄 Fetching roles for permission IDs:",
-            user.permissions
-          );
           await get().fetchUserRoles(user.permissions);
         } else {
-          console.log("🔄 No permissions found for user");
+          set({ rolesLoaded: true });
         }
       } else {
-        try {
-          const currentTenant = await tenantService.getCurrentUserTenant();
-          set({ tenant: currentTenant, isLoading: false, isInitialized: true });
-        } catch (error) {
-          set({ isLoading: false, isInitialized: true });
-        }
+        set({ isLoading: false, isInitialized: true, rolesLoaded: true });
       }
     } catch (error) {
       console.error("❌ Error initializing auth:", error);
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("user");
-      set({ isLoading: false, isInitialized: true });
+      // Clear auth on any error during initialization
+      get().clearAuth();
     }
   },
 }));

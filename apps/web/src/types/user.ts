@@ -29,3 +29,22 @@ export interface UsersFilter {
   page?: number;
   limit?: number;
 }
+
+export interface CreateUserData {
+  email: string;
+  nombre: string;
+  contacto?: string;
+  rut?: string;
+  telefono?: string;
+  perfilId: string;
+  tipoId?: string;
+}
+
+export interface Profile {
+  id: string;
+  nombre: string;
+  tipo?: {
+    id: string;
+    tipoPerfil: string;
+  };
+}

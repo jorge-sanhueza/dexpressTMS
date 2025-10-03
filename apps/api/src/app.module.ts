@@ -6,9 +6,18 @@ import { PrismaModule } from 'prisma/prisma.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { RolesModule } from './roles/roles.module';
 import { UsersModule } from './users/users.module';
+import { ProfilesModule } from './profiles/profiles.module';
 
 @Module({
-  imports: [AppConfigModule, PrismaModule, AuthModule, TenantsModule, RolesModule, UsersModule ],
+  imports: [
+    AppConfigModule,
+    PrismaModule,
+    AuthModule,
+    TenantsModule,
+    RolesModule,
+    UsersModule,
+    ProfilesModule,
+  ],
   controllers: [AppController],
 })
 export class AppModule {}
