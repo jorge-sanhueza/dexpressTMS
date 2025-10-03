@@ -131,7 +131,19 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   hasPermission: (permissionCode: string): boolean => {
     const { roles } = get();
-    return roles.some((rol) => rol.codigo === permissionCode);
+
+    console.log("🔍 hasPermission check:");
+    console.log("   Checking for permission code:", permissionCode);
+    console.log(
+      "   Available roles:",
+      roles.map((r) => ({ id: r.id, codigo: r.codigo, nombre: r.nombre }))
+    );
+    console.log(
+      "   Match found:",
+      roles.some((role) => role.codigo === permissionCode)
+    );
+
+    return roles.some((role) => role.codigo === permissionCode);
   },
 
   initializeAuth: async () => {
@@ -145,13 +157,21 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
     try {
       const user = JSON.parse(userData);
+      console.log("🔄 Initializing auth with user:", user);
+      console.log("🔄 User permissions (role IDs):", user.permissions);
 
       set({ user, isLoading: true });
 
       if (user.tenant_id) {
         await get().fetchTenantData(user.tenant_id);
         if (user.permissions && user.permissions.length > 0) {
+          console.log(
+            "🔄 Fetching roles for permission IDs:",
+            user.permissions
+          );
           await get().fetchUserRoles(user.permissions);
+        } else {
+          console.log("🔄 No permissions found for user");
         }
       } else {
         try {
@@ -162,6 +182,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         }
       }
     } catch (error) {
+      console.error("❌ Error initializing auth:", error);
       localStorage.removeItem("access_token");
       localStorage.removeItem("user");
       set({ isLoading: false, isInitialized: true });

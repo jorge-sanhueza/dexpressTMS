@@ -13,16 +13,19 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredRole,
   requiredPermission,
 }) => {
-  const { user, isLoading, hasPermission } = useAuthStore();
+  const { user, isLoading, hasPermission, roles } = useAuthStore();
 
   const permissionToCheck = requiredRole || requiredPermission;
 
-  if (isLoading) {
+  if (
+    isLoading ||
+    (user && roles.length === 0 && user.permissions?.length > 0)
+  ) {
     return (
       <div className="min-h-screen bg-[#EFF4F9] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D42B22] mx-auto"></div>
-          <p className="mt-4 text-[#798283]">Cargando...</p>
+          <p className="mt-4 text-[#798283]">Cargando permisos...</p>
         </div>
       </div>
     );
@@ -64,7 +67,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
             </p>
             <button
               onClick={() => window.history.back()}
-              className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-colors duration-200 font-semibold"
+              className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-2 rounded-lg transition-colors duration-200 font-semibold"
             >
               Volver Atrás
             </button>

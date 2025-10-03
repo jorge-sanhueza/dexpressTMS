@@ -19,7 +19,7 @@ export class AuthController {
     this.logger.log('AuthController initialized');
   }
 
-  /*  @UseGuards(Auth0Guard) */
+  @UseGuards(Auth0Guard)
   @Post('login')
   async login(@Request() req) {
     this.logger.log('Auth0 login endpoint called');
@@ -61,7 +61,7 @@ export class AuthController {
     return { message: 'Refresh token endpoint' };
   }
 
-  /*  @UseGuards(Auth0Guard) */
+  @UseGuards(Auth0Guard)
   @Get('profile')
   getProfile(@Request() req) {
     return req.user;
@@ -70,5 +70,14 @@ export class AuthController {
   @Get('health')
   healthCheck() {
     return { status: 'OK', message: 'Auth endpoint is working' };
+  }
+
+  @Get('debug-payload')
+  async debugPayload(@Request() req) {
+    return {
+      message: 'JWT Payload Debug',
+      user: req.user,
+      headers: req.headers,
+    };
   }
 }

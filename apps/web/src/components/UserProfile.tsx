@@ -218,15 +218,20 @@ export const UserProfile: React.FC = () => {
               ) : (
                 // Simple list for few permissions
                 <div className="space-y-3">
-                  {user.permissions.map((permission) => (
+                  {roles.map((role) => (
                     <div
-                      key={permission}
+                      key={role.id}
                       className="flex items-center p-3 bg-[#EFF4F9] rounded-lg border border-[#798283]/10"
                     >
                       <span className="w-2 h-2 bg-[#D42B22] rounded-full mr-3"></span>
-                      <span className="font-medium text-[#798283]">
-                        {permission}
-                      </span>
+                      <div>
+                        <span className="font-medium text-[#798283] block">
+                          {role.nombre}
+                        </span>
+                        <span className="text-xs text-[#798283]/70">
+                          {role.codigo} • {role.modulo}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>

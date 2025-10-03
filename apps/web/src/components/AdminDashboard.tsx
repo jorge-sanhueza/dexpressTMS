@@ -3,10 +3,13 @@ import { ProfilesManager } from "./admin/ProfilesManager";
 import { RolesManager } from "./admin/RolesManager";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
+import { UsersManager } from "./admin/UsersManager";
 
 export const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<"profiles" | "roles">("profiles");
+  const [activeTab, setActiveTab] = useState<"profiles" | "roles" | "users">(
+    "users"
+  );
   const navigate = useNavigate();
 
   if (!user) return null;
@@ -47,7 +50,7 @@ export const AdminDashboard: React.FC = () => {
                   Panel de Administración
                 </h2>
                 <p className="text-sm text-[#798283]/70">
-                  Gestión de Perfiles y Roles
+                  Gestión de Usuarios, Perfiles y Roles
                 </p>
               </div>
             </div>
@@ -79,6 +82,16 @@ export const AdminDashboard: React.FC = () => {
               ← Volver al Dashboard
             </button>
             <button
+              onClick={() => setActiveTab("users")}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "users"
+                  ? "border-[#D42B22] text-[#D42B22]"
+                  : "border-transparent text-[#798283] hover:text-[#798283]/70 hover:border-[#798283]/30"
+              }`}
+            >
+              Gestión de Usuarios
+            </button>
+            <button
               onClick={() => setActiveTab("profiles")}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === "profiles"
@@ -104,6 +117,7 @@ export const AdminDashboard: React.FC = () => {
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 sm:px-0">
+          {activeTab === "users" && <UsersManager />}
           {activeTab === "profiles" && <ProfilesManager />}
           {activeTab === "roles" && <RolesManager />}
         </div>

@@ -3,7 +3,7 @@ import { TenantsService } from './tenants.service';
 import { Auth0Guard } from 'src/auth/guards/auth0.guard';
 
 @Controller('api/tenants')
-/* @UseGuards(Auth0Guard) */
+@UseGuards(Auth0Guard)
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
 

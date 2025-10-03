@@ -7,22 +7,31 @@ import { AuthController } from './auth.controller';
 import { InternalJwtService } from './services/internal-jwt.service';
 import { AuthService } from './services/auth.service';
 import { RolesModule } from 'src/roles/roles.module';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
+    PassportModule,
     PrismaModule,
     RolesModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '15m' },
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const jwtSecret = configService.get<string>('JWT_SECRET');
+        if (!jwtSecret) {
+          throw new Error('JWT_SECRET is not defined in environment variables');
+        }
+        return {
+          secret: jwtSecret,
+          signOptions: { expiresIn: '120m' },
+        };
+      },
       inject: [ConfigService],
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, Auth0Strategy, InternalJwtService],
+  providers: [AuthService, Auth0Strategy, InternalJwtService, JwtStrategy],
   exports: [AuthService, InternalJwtService],
 })
 export class AuthModule {}

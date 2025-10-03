@@ -1,11 +1,16 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 
 export const Dashboard: React.FC = () => {
-  const { user, tenant, logout, hasPermission } = useAuthStore();
+  const { user, tenant, logout, hasPermission, roles } = useAuthStore();
   const navigate = useNavigate();
-  console.log(hasPermission('admin_access'))
+
+  useEffect(() => {
+    console.log("User permissions:", user?.permissions);
+    console.log("User roles:", roles);
+    console.log("Has admin_access:", hasPermission("admin_access"));
+  }, [user, roles, hasPermission]);
 
   if (!user) return null;
 
@@ -62,7 +67,7 @@ export const Dashboard: React.FC = () => {
               )}
               <button
                 onClick={logout}
-                className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
               >
                 Cerrar sesión
               </button>
@@ -179,7 +184,7 @@ export const Dashboard: React.FC = () => {
                 </h3>
               </div>
               <div className="space-y-3">
-                <button className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-[#D42B22] hover:bg-[#B3251E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D42B22] transition-all duration-200 shadow-sm hover:shadow-md">
+                <button className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-sm font-semibold rounded-lg text-[#798283] bg-[#D42B22] hover:bg-[#B3251E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D42B22] transition-all duration-200 shadow-sm hover:shadow-md">
                   <svg
                     className="w-4 h-4 mr-2"
                     fill="none"

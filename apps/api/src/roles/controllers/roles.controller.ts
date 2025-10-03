@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { RolesService } from '../services/roles.service';
 import { RoleResponseDto } from '../dto/role-response.dto';
+import { Auth0Guard } from 'src/auth/guards/auth0.guard';
 
 @Controller('api/roles')
 export class RolesController {
@@ -16,7 +17,7 @@ export class RolesController {
 
   constructor(private readonly rolesService: RolesService) {}
 
-/*   @UseGuards(Auth0Guard) */
+  @UseGuards(Auth0Guard)
   @Post('by-ids')
   async getRolesByIds(
     @Body() body: { roleIds: string[] },
@@ -25,7 +26,7 @@ export class RolesController {
     return this.rolesService.getRolesByIds(body.roleIds);
   }
 
-/*   @UseGuards(Auth0Guard) */
+  @UseGuards(Auth0Guard)
   @Get('by-tenant/:tenantId')
   async getRolesByTenant(
     @Param('tenantId') tenantId: string,
@@ -34,7 +35,7 @@ export class RolesController {
     return this.rolesService.getRolesByTenant(tenantId);
   }
 
-/*   @UseGuards(Auth0Guard) */
+  @UseGuards(Auth0Guard)
   @Get('by-code/:codigo')
   async getRoleByCode(
     @Param('codigo') codigo: string,
@@ -43,7 +44,7 @@ export class RolesController {
     return this.rolesService.getRoleByCode(codigo);
   }
 
-/*   @UseGuards(Auth0Guard) */
+  @UseGuards(Auth0Guard)
   @Get('health')
   healthCheck() {
     return { status: 'OK', message: 'Roles endpoint is working' };

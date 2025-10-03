@@ -6,7 +6,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
-export class Auth0Guard extends AuthGuard('auth0') {
+export class Auth0Guard extends AuthGuard('jwt') {
   canActivate(context: ExecutionContext) {
     console.log('🔐 Auth0Guard - Starting authentication...');
     return super.canActivate(context);

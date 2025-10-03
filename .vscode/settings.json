@@ -1,5 +1,7 @@
 {
   "workbench.startupEditor": "none",
+
+  // Formatter Settings
   "[html]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
@@ -26,31 +28,32 @@
   "[jsonc]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-
   "[toml]": {
     "editor.defaultFormatter": "tamasfe.even-better-toml"
   },
-
   "[prisma]": {
     "editor.defaultFormatter": "Prisma.prisma"
   },
 
+  // Prettier & ESLint
   "prettier.useTabs": false,
-
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit"
   },
 
+  // File Management
   "files.exclude": {
     "**/.git": false,
     "**/.svn": true,
     "**/.hg": true,
     "**/CVS": true,
     "**/.DS_Store": true,
-    "**/Thumbs.db": true
+    "**/Thumbs.db": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.turbo": true
   },
+  
   "git.mergeEditor": true,
   "explorer.compactFolders": false
-}
-{
 }
