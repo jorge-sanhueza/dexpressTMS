@@ -1,3 +1,5 @@
+import { API_BASE } from "./apiConfig";
+
 export interface Tenant {
   id: string;
   nombre: string;
@@ -10,8 +12,6 @@ export interface Tenant {
   created_at?: string;
   updated_at?: string;
 }
-
-const API_BASE = import.meta.env.DEV ? "http://localhost:3000" : "";
 
 export const tenantService = {
   async getTenantById(tenantId: string): Promise<Tenant> {

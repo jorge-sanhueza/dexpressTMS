@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useAuthStore } from "../store/authStore";
 import type { LoginResponse } from "../types/auth";
 import { useNavigate } from "react-router-dom";
+import { API_ENDPOINTS } from "../services/apiConfig";
 
 export const LoginForm: React.FC = () => {
   const { login } = useAuthStore();
@@ -18,7 +19,7 @@ export const LoginForm: React.FC = () => {
 
     try {
       const response = await fetch(
-        "http://localhost:3000/api/auth/test-login",
+        API_ENDPOINTS.AUTH.TEST_LOGIN,
         {
           method: "POST",
           headers: {
