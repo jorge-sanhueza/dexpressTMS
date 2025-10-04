@@ -22,7 +22,8 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
-    "docker:dev": "docker compose up --build"
+    "docker:dev": "docker compose up --build",
+    "start": "node apps/api/dist/src/main.js"
   },
   "packageManager": "npm@10.9.3",
   "devDependencies": {
