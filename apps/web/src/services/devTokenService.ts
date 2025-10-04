@@ -1,3 +1,5 @@
+import { API_BASE } from "./apiConfig";
+
 // services/devTokenService.ts (in your frontend)
 export const devTokenService = {
   // Simple base64 encoding for development - NOT secure for production!
@@ -20,7 +22,7 @@ export const devTokenService = {
   // Update your login to use this
   async loginWithDevToken(email: string, password: string) {
     // Your existing login logic
-    const response = await fetch('/api/auth/test-login', {
+    const response = await fetch(`${API_BASE}/api/auth/test-login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
