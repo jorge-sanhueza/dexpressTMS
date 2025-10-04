@@ -6,14 +6,14 @@ async function bootstrap() {
 
   const allowedOrigins = process.env.NODE_ENV === 'production' 
     ? [
-        'https://web-production-3747.up.railway.app',
+        'https://dexpressweb-production.up.railway.app/',
         //'https://your-custom-domain.com' if you have one
       ]
     : [
         'http://localhost:5174',
         'http://127.0.0.1:5173', 
         'http://localhost:5173',
-        'https://web-production-3747.up.railway.app', 
+        'https://dexpressweb-production.up.railway.app/', 
       ];
 
   app.enableCors({
