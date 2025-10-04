@@ -4,11 +4,10 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig(({ mode }) => {
   const isProduction = mode === "production";
-
-  const apiUrl =
-    process.env.VITE_API_URL ||
-    (isProduction
-      ? "https://dexpressapi-production.up.railway.app"
+  
+  const apiUrl = process.env.VITE_API_URL || 
+    (isProduction 
+      ? "https://dexpressapi-production.up.railway.app" 
       : "http://localhost:3000");
 
   return {
@@ -18,7 +17,11 @@ export default defineConfig(({ mode }) => {
     },
     preview: {
       port: 4173,
-      host: true, // This is important for Railway
+      host: true,
+      allowedHosts: [
+        'web-production-3747.up.railway.app',
+        'localhost'
+      ],
     },
     define: {
       "import.meta.env.VITE_API_URL": JSON.stringify(apiUrl),
