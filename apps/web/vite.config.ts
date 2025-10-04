@@ -4,6 +4,12 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig(({ mode }) => {
   const isProduction = mode === "production";
+  
+  // Use environment variable or fallback
+  const apiUrl = process.env.VITE_API_URL || 
+    (isProduction 
+      ? "https://dexpressapi-production.up.railway.app" 
+      : "http://localhost:3000");
 
   return {
     plugins: [react(), tailwindcss()],
@@ -11,7 +17,7 @@ export default defineConfig(({ mode }) => {
       port: 5174,
       proxy: {
         "/api": {
-          target: isProduction ? "http://api:3000" : "http://localhost:3000",
+          target: apiUrl,
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path,
@@ -19,9 +25,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     define: {
-      "import.meta.env.VITE_API_URL": JSON.stringify(
-        isProduction ? "" : "http://localhost:3000"
-      ),
+      "import.meta.env.VITE_API_URL": JSON.stringify(apiUrl),
     },
   };
 });
