@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
       port: 4173,
       host: true,
       allowedHosts: [
-        'dexpressweb-production.up.railway.app/',
+        'dexpressweb-production.up.railway.app',
         'localhost'
       ],
     },
