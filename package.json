@@ -9,15 +9,20 @@
   ],
   "scripts": {
     "dev": "turbo run dev",
-    "dev:api": "npm run start:dev --workspace=api",
-    "dev:web": "npm run dev --workspace=web",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
     "build": "turbo run build",
-    "build:api": "npm run build --workspace=api",
-    "build:web": "npm run build --workspace=web",
+    "build:api": "npm run build --workspace=apps/api",
+    "build:web": "npm run build --workspace=apps/web",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
     "db:studio": "npm run db:studio --workspace=api",
-    "db:push": "npm run db:push --workspace=api"
+    "db:push": "npm run db:push --workspace=api",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:dev": "docker compose up --build"
   },
   "packageManager": "npm@10.9.3",
   "devDependencies": {
@@ -25,8 +30,8 @@
     "turbo": "^2.5.8"
   },
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
   },
   "dependencies": {
     "react-router-dom": "^7.9.3"
