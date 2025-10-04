@@ -251,7 +251,7 @@ export class AuthService {
 
   private async getOrCreateDefaultTenant(activeStatusId: string) {
     let tenant = await this.prisma.tenant.findFirst({
-      where: { nombre: 'Tenant de Desarrollo' },
+      where: { nombre: 'Tenant Administrativo' },
     });
 
     if (!tenant) {
@@ -259,8 +259,8 @@ export class AuthService {
 
       tenant = await this.prisma.tenant.create({
         data: {
-          nombre: 'Tenant de Desarrollo',
-          contacto: 'dev@example.com',
+          nombre: 'Tenant Administrativo',
+          contacto: 'admin@demo.cl',
           rut: '12345678-9',
           activo: true,
           estadoId: activeStatusId,
