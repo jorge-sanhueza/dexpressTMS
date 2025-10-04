@@ -4,25 +4,21 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig(({ mode }) => {
   const isProduction = mode === "production";
-  
-  // Use environment variable or fallback
-  const apiUrl = process.env.VITE_API_URL || 
-    (isProduction 
-      ? "https://dexpressapi-production.up.railway.app" 
+
+  const apiUrl =
+    process.env.VITE_API_URL ||
+    (isProduction
+      ? "https://dexpressapi-production.up.railway.app"
       : "http://localhost:3000");
 
   return {
     plugins: [react(), tailwindcss()],
     server: {
       port: 5174,
-      proxy: {
-        "/api": {
-          target: apiUrl,
-          changeOrigin: true,
-          secure: false,
-          rewrite: (path) => path,
-        },
-      },
+    },
+    preview: {
+      port: 4173,
+      host: true, // This is important for Railway
     },
     define: {
       "import.meta.env.VITE_API_URL": JSON.stringify(apiUrl),
