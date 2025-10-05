@@ -20,7 +20,7 @@ export class RolesController {
   @UseGuards(Auth0Guard)
   @Post('by-ids')
   async getRolesByIds(
-    @Body() body: { roleIds: string[] },
+    @Body() body: { roleIds: string[] }, // Change from 'ids' to 'roleIds'
   ): Promise<RoleResponseDto[]> {
     this.logger.log(`Fetching roles by IDs: ${body.roleIds.length} roles`);
     return this.rolesService.getRolesByIds(body.roleIds);

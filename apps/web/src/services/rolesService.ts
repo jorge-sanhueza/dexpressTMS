@@ -1,7 +1,8 @@
 import type { Rol } from "../types/auth";
+import { API_BASE } from "./apiConfig";
 
 class RolesService {
-  private baseUrl = "/api/roles";
+  private baseUrl = `${API_BASE}/api/roles`;
 
   async getRolesByIds(roleIds: string[]): Promise<Rol[]> {
     try {
