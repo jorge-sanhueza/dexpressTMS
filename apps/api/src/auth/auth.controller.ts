@@ -28,31 +28,31 @@ export class AuthController {
 
   @Post('test-login')
   async testLogin(@Body() body: { email: string }) {
-    const testUser: Auth0User = {
-      sub: 'test-' + Date.now(),
-      email: body.email || 'test@example.com',
-      email_verified: true,
-      name: 'Test User',
-      tenant_id: 'test-tenant-id',
-    };
-
-    this.logger.log('Created test user:', testUser.email);
-
     try {
+      this.logger.log('Test login started with body:', body);
+
+      const testUser: Auth0User = {
+        sub: 'test-' + Date.now(),
+        email: body.email || 'test@example.com',
+        email_verified: true,
+        name: 'Test User',
+        tenant_id: 'test-tenant-id',
+      };
+
+      this.logger.log('Created test user:', testUser);
+
       const result = await this.authService.handleAuth0Login(testUser);
-      this.logger.debug('Login response permissions:');
-      this.logger.debug(
-        `Number of permissions: ${result.user.permissions.length}`,
-      );
-      this.logger.debug(`First permission: ${result.user.permissions[0]}`);
-      this.logger.debug(
-        `All permissions: ${JSON.stringify(result.user.permissions)}`,
-      );
-      this.logger.log('Test login successful for:', testUser.email);
+      this.logger.log('Test login successful');
       return result;
     } catch (error) {
-      this.logger.error('Test login failed:', error);
-      throw error;
+      this.logger.error('Test login failed with error:', error);
+      this.logger.error('Error stack:', error.stack);
+      // Return the actual error for debugging
+      return {
+        error: error.message,
+        stack: error.stack,
+        statusCode: 500,
+      };
     }
   }
 
