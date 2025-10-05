@@ -5,9 +5,10 @@ import type {
   Profile,
   CreateUserData,
 } from "../types/user";
+import { API_BASE } from "./apiConfig"; // Add this import
 
 class UsersService {
-  private baseUrl = "/api/users";
+  private baseUrl = `${API_BASE}/api/users`; // Use full API URL
 
   async getUsers(filter: UsersFilter = {}): Promise<UsersResponse> {
     try {
@@ -109,7 +110,8 @@ class UsersService {
   async getProfiles(): Promise<Profile[]> {
     try {
       const token = localStorage.getItem("access_token");
-      const response = await fetch("/api/profiles", {
+      const response = await fetch(`${API_BASE}/api/profiles`, {
+        // Fix this URL too
         headers: {
           Authorization: `Bearer ${token}`,
         },
