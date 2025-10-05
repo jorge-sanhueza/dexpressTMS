@@ -2,14 +2,21 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Copy everything from the API directory
-COPY . .
+# Copy package files
+COPY package*.json ./
+COPY apps/api/package*.json ./apps/api/
 
-# Use npm install instead of npm ci (more forgiving with lock files)
-RUN npm install
+# Install dependencies
+RUN npm ci
+
+# Copy API source code
+COPY apps/api/ ./apps/api/
+
+# Generate Prisma client
+RUN npx prisma generate --schema=./apps/api/prisma/schema.prisma
 
 # Build the app
-RUN npm run build
+RUN npm run build --workspace=apps/api
 
 EXPOSE 3000
 
