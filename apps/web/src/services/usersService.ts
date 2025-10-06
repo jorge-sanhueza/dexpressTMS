@@ -5,12 +5,21 @@ import type {
   Profile,
   CreateUserData,
 } from "../types/user";
-import { API_BASE } from "./apiConfig"; // Add this import
+import { API_BASE } from "./apiConfig";
+import { cacheService } from "./cacheService";
 
 class UsersService {
-  private baseUrl = `${API_BASE}/api/users`; // Use full API URL
+  private baseUrl = `${API_BASE}/api/users`;
 
   async getUsers(filter: UsersFilter = {}): Promise<UsersResponse> {
+    const cacheKey = `users-${JSON.stringify(filter)}`;
+
+    const cached = cacheService.get(cacheKey);
+    if (cached) {
+      console.log("serving users from cache");
+      return cached;
+    }
+
     try {
       const token = localStorage.getItem("access_token");
       const queryParams = new URLSearchParams();
@@ -35,7 +44,11 @@ class UsersService {
         throw new Error(`Failed to fetch users: ${response.statusText}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+
+      cacheService.set(cacheKey, data);
+
+      return data;
     } catch (error) {
       console.error("Error fetching users:", error);
       throw error;
@@ -62,49 +75,25 @@ class UsersService {
     }
   }
 
-  async deactivateUser(id: string): Promise<void> {
-    try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${this.baseUrl}/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to deactivate user: ${response.statusText}`);
+  private invalidateUsersCache(): void {
+    // Clear all users-related cache
+    const keys = Array.from(cacheService["cache"].keys());
+    keys.forEach((key) => {
+      if (key.startsWith("users-")) {
+        cacheService.delete(key);
       }
-    } catch (error) {
-      console.error("Error deactivating user:", error);
-      throw error;
-    }
+    });
+  }
+
+  async deactivateUser(id: string): Promise<void> {
+    await this.makeRequest(`${this.baseUrl}/${id}`, "DELETE");
+    this.invalidateUsersCache();
   }
 
   async createUser(userData: CreateUserData): Promise<User> {
-    try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(this.baseUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(userData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `Failed to create user: ${response.statusText}`
-        );
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Error creating user:", error);
-      throw error;
-    }
+    const newUser = await this.makeRequest(this.baseUrl, "POST", userData);
+    this.invalidateUsersCache();
+    return newUser;
   }
 
   async getProfiles(): Promise<Profile[]> {
@@ -139,6 +128,31 @@ class UsersService {
         { id: "fallback-3", nombre: "Operativo" },
       ];
     }
+  }
+
+  private async makeRequest(
+    url: string,
+    method: string,
+    data?: any
+  ): Promise<any> {
+    const token = localStorage.getItem("access_token");
+    const response = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: data ? JSON.stringify(data) : undefined,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `Request failed: ${response.statusText}`
+      );
+    }
+
+    return response.json();
   }
 }
 

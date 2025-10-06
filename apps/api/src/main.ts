@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.use(require('compression')());
 
   const allowedOrigins =
     process.env.NODE_ENV === 'production'

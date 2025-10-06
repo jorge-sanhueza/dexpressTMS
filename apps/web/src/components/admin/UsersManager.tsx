@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { usersService } from "../../services/usersService";
 import type { User, UsersFilter } from "../../types/user";
 import { UserCreationModal } from "./UserCreationModal";
@@ -12,8 +12,9 @@ export const UsersManager: React.FC = () => {
     limit: 10,
   });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -25,18 +26,26 @@ export const UsersManager: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilter((prev) => ({
+        ...prev,
+        search: searchTerm || undefined,
+        page: 1,
+      }));
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
     loadUsers();
   }, [filter]);
 
-  const handleSearch = (searchTerm: string) => {
-    setFilter((prev) => ({
-      ...prev,
-      search: searchTerm || undefined,
-      page: 1, // Reset to first page when searching
-    }));
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
   };
 
   const handleStatusFilter = (activo: boolean | undefined) => {
@@ -48,27 +57,20 @@ export const UsersManager: React.FC = () => {
   };
 
   const handleDeactivateUser = async (userId: string) => {
-    if (
-      !window.confirm("¿Estás seguro de que deseas desactivar este usuario?")
-    ) {
+    if (!window.confirm("¿Seguro de que desea desactivar este usuario?")) {
       return;
     }
 
     try {
       await usersService.deactivateUser(userId);
-      // Reload users to reflect the change
       await loadUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error deactivating user");
-      console.error("Error deactivating user:", err);
     }
   };
 
-  const handleUserCreated = (newUser: User) => {
-    // Reload users to show the new one
+  const handleUserCreated = () => {
     loadUsers();
-    // You could also add a success message here
-    console.log("User created successfully:", newUser);
   };
 
   const formatDate = (dateString: string) => {

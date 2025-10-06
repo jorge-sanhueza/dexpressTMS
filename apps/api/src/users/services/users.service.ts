@@ -56,7 +56,7 @@ export class UsersService {
         where.perfilId = perfilId;
       }
 
-      const [users, total] = await Promise.all([
+      const [users, total] = await this.prisma.$transaction([
         this.prisma.usuario.findMany({
           where,
           include: {
@@ -71,7 +71,7 @@ export class UsersService {
           skip,
           take: limitNumber,
           orderBy: { createdAt: 'desc' },
-        }) as unknown as UserWithDetails[],
+        }),
         this.prisma.usuario.count({ where }),
       ]);
 
