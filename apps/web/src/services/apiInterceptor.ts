@@ -31,8 +31,18 @@ class ApiInterceptor {
   }
 
   private handleAuthError() {
-    console.log("🔄 Token expired, clearing auth...");
-    this.clearAuth();
+    console.log("🔄 Auth error detected, clearing storage...");
+
+    // Clear all auth-related storage
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("tenant");
+    sessionStorage.clear();
+
+    // Dispatch event for components to react
+    window.dispatchEvent(new CustomEvent("auth-expired"));
+
+    // Redirect to login
     window.location.href = "/login";
   }
 

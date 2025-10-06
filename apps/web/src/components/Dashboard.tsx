@@ -14,6 +14,10 @@ export const Dashboard: React.FC = () => {
 
   if (!user) return null;
 
+    const handleCreateOrder = () => {
+    navigate("/ordenes/crear");
+  };
+
   const handleNavigateToAdmin = () => {
     navigate("/admin");
   };
@@ -200,7 +204,10 @@ export const Dashboard: React.FC = () => {
                   </svg>
                   Ver Órdenes
                 </button>
-                <button className="w-full flex items-center justify-center px-4 py-3 border border-[#798283]/30 text-sm font-semibold rounded-lg text-[#798283] bg-white hover:bg-[#EFF4F9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#798283] transition-all duration-200">
+                <button
+                  onClick={handleCreateOrder}
+                  className="w-full flex items-center justify-center px-4 py-3 border border-[#798283]/30 text-sm font-semibold rounded-lg text-[#798283] bg-white hover:bg-[#EFF4F9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#798283] transition-all duration-200"
+                >
                   <svg
                     className="w-4 h-4 mr-2"
                     fill="none"

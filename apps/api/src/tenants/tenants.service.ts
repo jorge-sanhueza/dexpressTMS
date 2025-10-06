@@ -30,8 +30,6 @@ export class TenantsService {
   }
 
   async findCurrent() {
-    // For now, return a default - you can implement user context later
-    // This would typically get the tenant from the authenticated user
     const defaultTenant = await this.prisma.tenant.findFirst({
       where: { nombre: 'Tenant Administrativo' },
       select: {

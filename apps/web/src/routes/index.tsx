@@ -5,6 +5,7 @@ import { LoginForm } from "../components/LoginForm";
 import { Dashboard } from "../components/Dashboard";
 import { AdminDashboard } from "../components/AdminDashboard";
 import { UserProfile } from "../components/UserProfile";
+import { CreateOrder } from "../components/orders/CreateOrder";
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -18,7 +19,7 @@ export const AppRoutes: React.FC = () => {
           </div>
         }
       />
-
+      {/* Protected routes */}
       <Route
         path="/dashboard"
         element={
@@ -27,7 +28,6 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      {/* Protected routes */}
       <Route
         path="/admin"
         element={
@@ -44,7 +44,39 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-
+      {/* Order routes - Spanish URLs */}
+      <Route
+        path="/ordenes/crear"
+        element={
+          <ProtectedRoute>
+            <CreateOrder />
+          </ProtectedRoute>
+        }
+      />
+{/*       <Route
+        path="/ordenes"
+        element={
+          <ProtectedRoute>
+            <OrdersList />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ordenes/:id"
+        element={
+          <ProtectedRoute>
+            <OrderDetails />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ordenes/:id/editar"
+        element={
+          <ProtectedRoute>
+            <EditOrder />
+          </ProtectedRoute>
+        }
+      /> */}
       {/* Fallback routes */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
