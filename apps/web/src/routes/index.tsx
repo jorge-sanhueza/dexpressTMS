@@ -6,6 +6,7 @@ import { Dashboard } from "../components/Dashboard";
 import { AdminDashboard } from "../components/AdminDashboard";
 import { UserProfile } from "../components/UserProfile";
 import { CreateOrder } from "../components/orders/CreateOrder";
+import { ClientsList } from "../components/clients/ClientsList";
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -44,6 +45,33 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/clientes"
+        element={
+          <ProtectedRoute>
+            <ClientsList />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/embarcadores"
+        element={
+          <ProtectedRoute>
+            <div className="p-8">Gestión de Embarcadores - Próximamente</div>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/carriers"
+        element={
+          <ProtectedRoute>
+            <div className="p-8">Gestión de Carriers - Próximamente</div>
+          </ProtectedRoute>
+        }
+      />
       {/* Order routes - Spanish URLs */}
       <Route
         path="/ordenes/crear"
@@ -53,7 +81,7 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-{/*       <Route
+      {/*       <Route
         path="/ordenes"
         element={
           <ProtectedRoute>

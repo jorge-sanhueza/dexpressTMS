@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import type { CreateOrderDto } from "../../types/order";
 import { ordersService } from "../../services/orderServices";
+import { clientsService } from "../../services/clientsService";
 
 interface FormData {
   clienteId: string;
@@ -16,6 +17,7 @@ interface FormData {
   direccionDestinoId: string;
   tipoCargaId: string;
   tipoServicioId: string;
+  tipoTarifa: string;
   pesoTotalKg: string;
   volumenTotalM3: string;
   altoCm: string;
@@ -29,6 +31,7 @@ export const CreateOrder: React.FC = () => {
   const { tenant } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clients, setClients] = useState<any[]>([]);
 
   const [formData, setFormData] = useState<FormData>({
     clienteId: "",
@@ -42,6 +45,7 @@ export const CreateOrder: React.FC = () => {
     direccionDestinoId: "",
     tipoCargaId: "",
     tipoServicioId: "",
+    tipoTarifa: "peso_volumen", // Default value
     pesoTotalKg: "",
     volumenTotalM3: "",
     altoCm: "",
@@ -49,6 +53,19 @@ export const CreateOrder: React.FC = () => {
     anchoCm: "",
     observaciones: "",
   });
+
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const clientsData = await clientsService.getClients();
+        setClients(clientsData);
+      } catch (error) {
+        console.error("Error fetching clients:", error);
+      }
+    };
+
+    fetchClients();
+  }, []);
 
   const handleInputChange = (
     e: React.ChangeEvent<
@@ -80,13 +97,13 @@ export const CreateOrder: React.FC = () => {
           ? new Date(formData.fechaEntregaEstimada)
           : undefined,
 
-        // Status and type (default values)
+        // Status and type
         estado: "pendiente",
-        tipoTarifa: "peso_volumen",
+        tipoTarifa: formData.tipoTarifa,
 
         // Parties
-        remitenteId: formData.remitenteId || formData.clienteId,
-        destinatarioId: formData.destinatarioId || formData.clienteId,
+        remitenteId: formData.remitenteId,
+        destinatarioId: formData.destinatarioId,
         direccionOrigenId: formData.direccionOrigenId,
         direccionDestinoId: formData.direccionDestinoId,
 
@@ -125,18 +142,33 @@ export const CreateOrder: React.FC = () => {
 
   // Mock data - you'll replace these with actual API calls
   const mockData = {
-    clients: [{ id: "1", nombre: "Cliente Demo S.A.", rut: "76000000-0" }],
+    senders: [
+      { id: "1", nombre: "Remitente Principal S.A.", rut: "76222222-2" },
+      { id: "2", nombre: "Proveedor Secundario Ltda.", rut: "76333333-3" },
+    ],
+    receivers: [
+      { id: "1", nombre: "Destinatario Central S.A.", rut: "76444444-4" },
+      { id: "2", nombre: "Cliente Final Ltda.", rut: "76555555-5" },
+    ],
     addresses: [
       { id: "1", direccion: "Av. Principal 123, Santiago" },
       { id: "2", direccion: "Calle Secundaria 456, Providencia" },
+      { id: "3", direccion: "Av. Industrial 789, Quilicura" },
+      { id: "4", direccion: "Pasaje Comercial 321, Las Condes" },
     ],
     cargaTypes: [
       { id: "1", nombre: "Carga Seca" },
       { id: "2", nombre: "Carga Refrigerada" },
+      { id: "3", nombre: "Carga Peligrosa" },
     ],
     serviceTypes: [
-      { id: "1", nombre: "Servicio Express" },
-      { id: "2", nombre: "Servicio Estándar" },
+      { id: "1", nombre: "Premium" },
+      { id: "2", nombre: "Inteligente" },
+      { id: "3", nombre: "Compartido" },
+    ],
+    rateTypes: [
+      { id: "peso_volumen", nombre: "Peso/Volumen" },
+      { id: "por_equipo", nombre: "Por Equipo" },
     ],
   };
 
@@ -230,9 +262,9 @@ export const CreateOrder: React.FC = () => {
                     className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
                   >
                     <option value="">Seleccionar cliente</option>
-                    {mockData.clients.map((client) => (
+                    {clients.map((client) => (
                       <option key={client.id} value={client.id}>
-                        {client.nombre}
+                        {client.nombre} - {client.rut}
                       </option>
                     ))}
                   </select>
@@ -266,6 +298,18 @@ export const CreateOrder: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[#798283] mb-2">
+                    Fecha Estimada de Entrega
+                  </label>
+                  <input
+                    type="date"
+                    name="fechaEntregaEstimada"
+                    value={formData.fechaEntregaEstimada}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-2">
                     OT/Referencia
                   </label>
                   <input
@@ -280,12 +324,97 @@ export const CreateOrder: React.FC = () => {
               </div>
             </div>
 
+            {/* Parties Information */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
+              <h3 className="text-lg font-semibold text-[#798283] mb-4">
+                Partes Involucradas
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-2">
+                    Remitente *
+                  </label>
+                  <select
+                    name="remitenteId"
+                    value={formData.remitenteId}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                  >
+                    <option value="">Seleccionar remitente</option>
+                    {mockData.senders.map((sender) => (
+                      <option key={sender.id} value={sender.id}>
+                        {sender.nombre} - {sender.rut}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-2">
+                    Destinatario *
+                  </label>
+                  <select
+                    name="destinatarioId"
+                    value={formData.destinatarioId}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                  >
+                    <option value="">Seleccionar destinatario</option>
+                    {mockData.receivers.map((receiver) => (
+                      <option key={receiver.id} value={receiver.id}>
+                        {receiver.nombre} - {receiver.rut}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-2">
+                    Dirección de Origen *
+                  </label>
+                  <select
+                    name="direccionOrigenId"
+                    value={formData.direccionOrigenId}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                  >
+                    <option value="">Seleccionar dirección origen</option>
+                    {mockData.addresses.map((address) => (
+                      <option key={address.id} value={address.id}>
+                        {address.direccion}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-2">
+                    Dirección Destino *
+                  </label>
+                  <select
+                    name="direccionDestinoId"
+                    value={formData.direccionDestinoId}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                  >
+                    <option value="">Seleccionar dirección destino</option>
+                    {mockData.addresses.map((address) => (
+                      <option key={address.id} value={address.id}>
+                        {address.direccion}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
             {/* Service Details */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
               <h3 className="text-lg font-semibold text-[#798283] mb-4">
                 Detalles del Servicio
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-[#798283] mb-2">
                     Tipo de Carga *
@@ -318,6 +447,24 @@ export const CreateOrder: React.FC = () => {
                   >
                     <option value="">Seleccionar tipo de servicio</option>
                     {mockData.serviceTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-2">
+                    Tipo de Tarifa *
+                  </label>
+                  <select
+                    name="tipoTarifa"
+                    value={formData.tipoTarifa}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                  >
+                    {mockData.rateTypes.map((type) => (
                       <option key={type.id} value={type.id}>
                         {type.nombre}
                       </option>
@@ -359,6 +506,48 @@ export const CreateOrder: React.FC = () => {
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
                     placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-2">
+                    Alto (cm)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    name="altoCm"
+                    value={formData.altoCm}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                    placeholder="0.0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-2">
+                    Largo (cm)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    name="largoCm"
+                    value={formData.largoCm}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                    placeholder="0.0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-2">
+                    Ancho (cm)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    name="anchoCm"
+                    value={formData.anchoCm}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                    placeholder="0.0"
                   />
                 </div>
               </div>

@@ -7,6 +7,8 @@ import { TenantsModule } from './tenants/tenants.module';
 import { RolesModule } from './roles/roles.module';
 import { UsersModule } from './users/users.module';
 import { ProfilesModule } from './profiles/profiles.module';
+import { OrdersModule } from './orders/orders.module';
+import { ClientsModule } from './clients/clients.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { ProfilesModule } from './profiles/profiles.module';
     RolesModule,
     UsersModule,
     ProfilesModule,
+    OrdersModule,
+    ClientsModule
   ],
   controllers: [AppController],
 })

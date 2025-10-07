@@ -816,6 +816,120 @@ async function main() {
       tipo_accion: 'eliminar',
       tipoAccionId: tipoAccionEliminar.id,
     },
+    {
+      codigo: 'activar_ordenes',
+      nombre: 'Activar/Desactivar Órdenes',
+      modulo: 'ordenes',
+      tipo_accion: 'activar',
+      tipoAccionId: tipoAccionAdministrar.id,
+    },
+    {
+      codigo: 'ver_clientes',
+      nombre: 'Ver Clientes',
+      modulo: 'clientes',
+      tipo_accion: 'ver',
+      tipoAccionId: tipoAccionVer.id,
+    },
+    {
+      codigo: 'crear_clientes',
+      nombre: 'Crear Clientes',
+      modulo: 'clientes',
+      tipo_accion: 'crear',
+      tipoAccionId: tipoAccionCrear.id,
+    },
+    {
+      codigo: 'editar_clientes',
+      nombre: 'Editar Clientes',
+      modulo: 'clientes',
+      tipo_accion: 'editar',
+      tipoAccionId: tipoAccionEditar.id,
+    },
+    {
+      codigo: 'eliminar_clientes',
+      nombre: 'Eliminar Clientes',
+      modulo: 'clientes',
+      tipo_accion: 'eliminar',
+      tipoAccionId: tipoAccionEliminar.id,
+    },
+    {
+      codigo: 'activar_clientes',
+      nombre: 'Activar/Desactivar Clientes',
+      modulo: 'clientes',
+      tipo_accion: 'activar',
+      tipoAccionId: tipoAccionAdministrar.id,
+    },
+    {
+      codigo: 'ver_carriers',
+      nombre: 'Ver Carriers',
+      modulo: 'carriers',
+      tipo_accion: 'ver',
+      tipoAccionId: tipoAccionVer.id,
+    },
+    {
+      codigo: 'crear_carriers',
+      nombre: 'Crear Carriers',
+      modulo: 'carriers',
+      tipo_accion: 'crear',
+      tipoAccionId: tipoAccionCrear.id,
+    },
+    {
+      codigo: 'editar_carriers',
+      nombre: 'Editar Carriers',
+      modulo: 'carriers',
+      tipo_accion: 'editar',
+      tipoAccionId: tipoAccionEditar.id,
+    },
+    {
+      codigo: 'eliminar_carriers',
+      nombre: 'Eliminar Carriers',
+      modulo: 'carriers',
+      tipo_accion: 'eliminar',
+      tipoAccionId: tipoAccionEliminar.id,
+    },
+    {
+      codigo: 'activar_carriers',
+      nombre: 'Activar/Desactivar Carriers',
+      modulo: 'carriers',
+      tipo_accion: 'activar',
+      tipoAccionId: tipoAccionAdministrar.id,
+    },
+
+    // Embarcador management roles (full access for admin)
+    {
+      codigo: 'ver_embarcadores',
+      nombre: 'Ver Embarcadores',
+      modulo: 'embarcadores',
+      tipo_accion: 'ver',
+      tipoAccionId: tipoAccionVer.id,
+    },
+    {
+      codigo: 'crear_embarcadores',
+      nombre: 'Crear Embarcadores',
+      modulo: 'embarcadores',
+      tipo_accion: 'crear',
+      tipoAccionId: tipoAccionCrear.id,
+    },
+    {
+      codigo: 'editar_embarcadores',
+      nombre: 'Editar Embarcadores',
+      modulo: 'embarcadores',
+      tipo_accion: 'editar',
+      tipoAccionId: tipoAccionEditar.id,
+    },
+    {
+      codigo: 'eliminar_embarcadores',
+      nombre: 'Eliminar Embarcadores',
+      modulo: 'embarcadores',
+      tipo_accion: 'eliminar',
+      tipoAccionId: tipoAccionEliminar.id,
+    },
+    {
+      codigo: 'activar_embarcadores',
+      nombre: 'Activar/Desactivar Embarcadores',
+      modulo: 'embarcadores',
+      tipo_accion: 'activar',
+      tipoAccionId: tipoAccionAdministrar.id,
+    },
   ];
 
   const createdRoles: {
@@ -945,9 +1059,18 @@ async function main() {
     },
   });
 
-  // Assign basic roles to regular profile
-  const basicRoles = ['ver_ordenes', 'crear_ordenes', 'ver_usuarios'];
-  for (const roleCode of basicRoles) {
+  // Assign view-only roles to regular profile
+  const viewOnlyRoles = [
+    'ver_usuarios',
+    'ver_perfiles',
+    'ver_roles',
+    'ver_ordenes',
+    'ver_clientes',
+    'ver_carriers',
+    'ver_embarcadores',
+  ];
+
+  for (const roleCode of viewOnlyRoles) {
     const role = createdRoles.find((r) => r.codigo === roleCode);
     if (role) {
       await prisma.perfilRol.upsert({
