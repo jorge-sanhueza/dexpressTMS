@@ -99,29 +99,33 @@ class UsersService {
   async getProfiles(): Promise<Profile[]> {
     try {
       const token = localStorage.getItem("access_token");
+      console.log("Fetching profiles from:", `${API_BASE}/api/profiles`); // Add this
       const response = await fetch(`${API_BASE}/api/profiles`, {
-        // Fix this URL too
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+
+      console.log("Profiles response status:", response.status); // Add this
 
       if (!response.ok) {
         throw new Error(`Failed to fetch profiles: ${response.statusText}`);
       }
 
       const profiles = await response.json();
+      console.log("Raw profiles data from API:", profiles); // Add this
 
-      // Transform to match our Profile interface
-      return profiles.map((profile: any) => ({
-        id: profile.id, // This is now the actual UUID from database
+      const transformedProfiles = profiles.map((profile: any) => ({
+        id: profile.id,
         nombre: profile.nombre,
         tipo: profile.tipo ? { tipoPerfil: profile.tipo } : undefined,
       }));
+
+      console.log("Transformed profiles:", transformedProfiles); // Add this
+      return transformedProfiles;
     } catch (error) {
       console.error("Error fetching profiles:", error);
 
-      // Fallback - we should never get here if the endpoint is working
       return [
         { id: "fallback-1", nombre: "Administrativo" },
         { id: "fallback-2", nombre: "Usuario Estándar" },

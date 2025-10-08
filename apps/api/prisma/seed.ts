@@ -651,6 +651,12 @@ async function main() {
     create: { tipoPerfil: 'administrativo', tenantId: null },
   });
 
+  const tipoPerfilBasico = await prisma.tipoPerfil.upsert({
+    where: { tipoPerfil: 'básico' },
+    update: {},
+    create: { tipoPerfil: 'básico', tenantId: null },
+  });
+
   // tipo_accion
   const tipoAccionVer = await prisma.tipoAccion.upsert({
     where: { tipoAccion: 'ver' },
@@ -1046,14 +1052,17 @@ async function main() {
         tenantId: adminTenant.id,
       },
     },
-    update: {},
+    update: {
+      // Update the existing profile to use básico type
+      tipoId: tipoPerfilBasico.id,
+    },
     create: {
       nombre: 'Usuario Operacional',
       descripcion: 'Perfil para usuarios con permisos básicos de operación',
       activo: true,
       estadoId: estadoActivo.id,
       tenantId: adminTenant.id,
-      tipoId: tipoPerfilAdministrativo.id,
+      tipoId: tipoPerfilBasico.id,
       contacto: 'usuario@demo.cl',
       rut: '55666777-8',
     },
@@ -1093,7 +1102,10 @@ async function main() {
 
   const regularUser = await prisma.usuario.upsert({
     where: { correo: 'usuario@demo.cl' },
-    update: {},
+    update: {
+      // Update the existing user to use the regular profile
+      perfilId: regularProfile.id,
+    },
     create: {
       correo: 'usuario@demo.cl',
       nombre: 'Usuario de Prueba',
