@@ -297,4 +297,150 @@ export class ProfilesService {
       throw error;
     }
   }
+
+  async assignRolesToProfile(
+    profileId: string,
+    roleIds: string[],
+    tenantId: string,
+  ): Promise<{ message: string }> {
+    try {
+      this.logger.log(
+        `Assigning ${roleIds.length} roles to profile: ${profileId}`,
+      );
+
+      // Verify profile exists and belongs to tenant
+      const profile = await this.prisma.perfil.findFirst({
+        where: {
+          id: profileId,
+          tenantId,
+        },
+      });
+
+      if (!profile) {
+        throw new NotFoundException('Perfil no encontrado');
+      }
+
+      // Verify all roles exist and belong to tenant
+      const roles = await this.prisma.rol.findMany({
+        where: {
+          id: {
+            in: roleIds,
+          },
+          tenantId,
+          activo: true,
+        },
+      });
+
+      if (roles.length !== roleIds.length) {
+        throw new BadRequestException(
+          'Algunos roles no existen o no están activos',
+        );
+      }
+
+      // Delete existing role assignments for this profile
+      await this.prisma.perfilRol.deleteMany({
+        where: {
+          perfilId: profileId,
+          tenantId,
+        },
+      });
+
+      // Create new role assignments
+      if (roleIds.length > 0) {
+        await this.prisma.perfilRol.createMany({
+          data: roleIds.map((roleId) => ({
+            perfilId: profileId,
+            rolId: roleId,
+            tenantId,
+          })),
+        });
+      }
+
+      this.logger.log(
+        `Successfully assigned ${roleIds.length} roles to profile: ${profileId}`,
+      );
+      return { message: 'Roles asignados correctamente' };
+    } catch (error) {
+      this.logger.error(
+        `Error assigning roles to profile ${profileId}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async getAvailableRolesForProfile(
+    profileId: string,
+    tenantId: string,
+  ): Promise<any[]> {
+    try {
+      this.logger.log(`Fetching available roles for profile: ${profileId}`);
+
+      // Verify profile exists
+      const profile = await this.prisma.perfil.findFirst({
+        where: {
+          id: profileId,
+          tenantId,
+        },
+      });
+
+      if (!profile) {
+        throw new NotFoundException('Perfil no encontrado');
+      }
+
+      // Get all active roles for the tenant
+      const allRoles = await this.prisma.rol.findMany({
+        where: {
+          tenantId,
+          activo: true,
+        },
+        include: {
+          tipoAccion: {
+            select: {
+              tipoAccion: true,
+            },
+          },
+        },
+        orderBy: [{ modulo: 'asc' }, { orden: 'asc' }],
+      });
+
+      // Get currently assigned roles
+      const assignedRoles = await this.prisma.perfilRol.findMany({
+        where: {
+          perfilId: profileId,
+          tenantId,
+        },
+        include: {
+          rol: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+
+      const assignedRoleIds = assignedRoles.map((ar) => ar.rol.id);
+
+      // Format response
+      const availableRoles = allRoles.map((role) => ({
+        id: role.id,
+        codigo: role.codigo,
+        nombre: role.nombre,
+        modulo: role.modulo,
+        tipo_accion: role.tipoAccion?.tipoAccion,
+        asignado: assignedRoleIds.includes(role.id),
+      }));
+
+      this.logger.log(
+        `Found ${availableRoles.length} available roles for profile`,
+      );
+      return availableRoles;
+    } catch (error) {
+      this.logger.error(
+        `Error fetching available roles for profile ${profileId}:`,
+        error,
+      );
+      throw error;
+    }
+  }
 }

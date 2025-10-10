@@ -16,6 +16,8 @@ import { Auth0Guard } from '../../auth/guards/auth0.guard';
 import { ProfileResponseDto } from '../dto/profile-response.dto';
 import { CreateProfileDto } from '../dto/create-profile.dto';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
+import { AssignRolesDto } from '../dto/assign-roles.dto';
+import { RoleResponseDto } from 'src/roles/dto/role-response.dto';
 
 @Controller('api/profiles')
 @UseGuards(Auth0Guard)
@@ -86,5 +88,31 @@ export class ProfilesController {
       `Deactivating profile ${id} for tenant: ${req.user.tenant_id}`,
     );
     return this.profilesService.remove(id, req.user.tenant_id);
+  }
+
+  @Post(':id/roles')
+  async assignRolesToProfile(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() assignRolesDto: AssignRolesDto,
+    @Request() req,
+  ): Promise<{ message: string }> {
+    this.logger.log(`Assigning roles to profile: ${id}`);
+    return this.profilesService.assignRolesToProfile(
+      id,
+      assignRolesDto.roleIds,
+      req.user.tenant_id,
+    );
+  }
+
+  @Get(':id/available-roles')
+  async getAvailableRolesForProfile(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req,
+  ): Promise<RoleResponseDto[]> {
+    this.logger.log(`Fetching available roles for profile: ${id}`);
+    return this.profilesService.getAvailableRolesForProfile(
+      id,
+      req.user.tenant_id,
+    );
   }
 }

@@ -25,9 +25,23 @@ export interface ProfileType {
   tipoPerfil: string;
 }
 
+export interface AvailableRole {
+  id: string;
+  codigo: string;
+  nombre: string;
+  modulo: string;
+  tipo_accion: string;
+  asignado: boolean;
+}
+
 class ProfilesService {
   private baseUrl = `${API_BASE}/api/profiles`;
   private readonly CACHE_PREFIX = "profiles-";
+  private readonly CACHE_KEYS = {
+    ALL_PROFILES: (tenantId: string) => `profiles:all:${tenantId}`,
+    PROFILE_DETAIL: (profileId: string) => `profiles:detail:${profileId}`,
+    PROFILE_ROLES: (profileId: string) => `profiles:roles:${profileId}`,
+  };
 
   private getCurrentTenantId(): string {
     const { tenant } = useAuthStore.getState();
@@ -35,6 +49,14 @@ class ProfilesService {
       throw new Error("No tenant found in auth store");
     }
     return tenant.id;
+  }
+
+  private clearProfilesCache(): void {
+    const tenantId = this.getCurrentTenantId();
+    cacheService.delete(this.CACHE_KEYS.ALL_PROFILES(tenantId));
+    cacheService.clearByPrefix("profiles:detail:");
+    cacheService.clearByPrefix("profiles:roles:");
+    cacheService.clearByPrefix("profiles:");
   }
 
   async getProfileTypes(): Promise<ProfileType[]> {
@@ -48,9 +70,6 @@ class ProfilesService {
 
       const token = localStorage.getItem("access_token");
       const url = `${this.baseUrl}/types`;
-
-      console.log("🔍 Fetching profile types from:", url);
-      console.log("🔑 Token exists:", !!token);
 
       const response = await fetch(url, {
         headers: {
@@ -75,11 +94,8 @@ class ProfilesService {
       }
 
       const types = await response.json();
-      console.log("✅ Profile types received:", types);
 
-      // Cache the result
       cacheService.set(cacheKey, types);
-      console.log("💾 Cached profile types");
 
       return types;
     } catch (error) {
@@ -88,32 +104,49 @@ class ProfilesService {
     }
   }
 
-  private clearProfileTypesCache(): void {
-    const cacheKey = `profile-types:${this.getCurrentTenantId()}`;
-    cacheService.delete(cacheKey);
-  }
-
   async getProfiles(): Promise<Profile[]> {
     try {
+      const tenantId = this.getCurrentTenantId();
+      const cacheKey = this.CACHE_KEYS.ALL_PROFILES(tenantId);
+
+      const cached = cacheService.get(cacheKey);
+      if (cached) {
+        console.log("📦 Returning profiles from cache");
+        return cached;
+      }
+
       const token = localStorage.getItem("access_token");
       const response = await fetch(`${this.baseUrl}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+
       if (!response.ok) {
         throw new Error(`Failed to fetch profiles: ${response.statusText}`);
       }
-      return await response.json();
+
+      const profiles = await response.json();
+
+      cacheService.set(cacheKey, profiles);
+
+      return profiles;
     } catch (error) {
       console.error("Error fetching profiles:", error);
       throw error;
     }
   }
 
-  // In profilesService.ts
   async getProfileWithRoles(profileId: string): Promise<ProfileWithRoles> {
     try {
+      const cacheKey = this.CACHE_KEYS.PROFILE_DETAIL(profileId);
+
+      const cached = cacheService.get(cacheKey);
+      if (cached) {
+        console.log("📦 Returning profile with roles from cache");
+        return cached;
+      }
+
       const token = localStorage.getItem("access_token");
       console.log(
         `🔍 Fetching profile with roles: ${this.baseUrl}/${profileId}`
@@ -130,7 +163,9 @@ class ProfilesService {
       }
 
       const profile = await response.json();
-      console.log("✅ Profile with roles received:", profile);
+
+      cacheService.set(cacheKey, profile);
+
       return profile;
     } catch (error) {
       console.error("Error fetching profile with roles:", error);
@@ -138,7 +173,7 @@ class ProfilesService {
     }
   }
 
-  async createProfile(profileData: CreateProfileDto): Promise<Profile> {
+  async createProfile(profileData: any): Promise<Profile> {
     try {
       const tenantId = this.getCurrentTenantId();
       const token = localStorage.getItem("access_token");
@@ -159,8 +194,8 @@ class ProfilesService {
       }
 
       const newProfile = await response.json();
-      this.clearProfileTypesCache();
-      console.log("🗑️ Cleared profile types cache after creating profile");
+
+      this.clearProfilesCache();
 
       return newProfile;
     } catch (error) {
@@ -189,9 +224,7 @@ class ProfilesService {
       }
 
       const updatedProfile = await response.json();
-      this.clearProfileTypesCache();
-      console.log("🗑️ Cleared profile types cache after updating profile");
-
+      this.clearProfilesCache();
       return updatedProfile;
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -213,7 +246,7 @@ class ProfilesService {
         throw new Error(`Failed to deactivate profile: ${response.statusText}`);
       }
 
-      this.clearProfileTypesCache();
+      this.clearProfilesCache();
       console.log("🗑️ Cleared profile types cache after deactivating profile");
     } catch (error) {
       console.error("Error deactivating profile:", error);
@@ -253,6 +286,76 @@ class ProfilesService {
       return transformedProfile;
     } catch (error) {
       console.error("Error fetching profile:", error);
+      throw error;
+    }
+  }
+
+  async getAvailableRoles(profileId: string): Promise<AvailableRole[]> {
+    try {
+      const cacheKey = `profiles:available_roles:${profileId}`;
+
+      // Try cache first
+      const cached = cacheService.get(cacheKey);
+      if (cached) {
+        console.log("📦 Returning available roles from cache");
+        return cached;
+      }
+
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(
+        `${this.baseUrl}/${profileId}/available-roles`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch available roles: ${response.statusText}`
+        );
+      }
+
+      const roles = await response.json();
+      cacheService.set(cacheKey, roles);
+      console.log("💾 Cached available roles");
+
+      return roles;
+    } catch (error) {
+      console.error("Error fetching available roles:", error);
+      throw error;
+    }
+  }
+
+  async assignRolesToProfile(
+    profileId: string,
+    roleIds: string[]
+  ): Promise<{ message: string }> {
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(`${this.baseUrl}/${profileId}/roles`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ roleIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to assign roles: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      this.clearProfilesCache();
+      cacheService.delete(`profiles:available_roles:${profileId}`);
+      console.log("🗑️ Cleared profiles cache after assigning roles");
+
+      return result;
+    } catch (error) {
+      console.error("Error assigning roles to profile:", error);
       throw error;
     }
   }

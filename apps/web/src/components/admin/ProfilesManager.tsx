@@ -4,6 +4,7 @@ import {
   type ProfileType,
 } from "../../services/profilesService";
 import type { Profile, ProfileWithRoles } from "../../types/auth";
+import { RoleAssignmentModal } from "./RoleAssignmentModal";
 
 export const ProfilesManager: React.FC = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -11,6 +12,9 @@ export const ProfilesManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [roleAssignmentModalOpen, setRoleAssignmentModalOpen] = useState(false);
+  const [selectedProfileForRoles, setSelectedProfileForRoles] =
+    useState<Profile | null>(null);
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [viewingProfile, setViewingProfile] = useState<ProfileWithRoles | null>(
     null
@@ -77,7 +81,6 @@ export const ProfilesManager: React.FC = () => {
   };
 
   const handleViewProfile = async (profile: Profile) => {
-    // Start with empty roles
     setViewingProfile({
       ...profile,
       roles: [],
@@ -111,6 +114,20 @@ export const ProfilesManager: React.FC = () => {
       tipo: profile.tipo,
     });
     setShowForm(true);
+  };
+
+  const handleOpenRoleAssignment = (profile: Profile) => {
+    setSelectedProfileForRoles(profile);
+    setRoleAssignmentModalOpen(true);
+  };
+
+  const handleCloseRoleAssignment = () => {
+    setRoleAssignmentModalOpen(false);
+    setSelectedProfileForRoles(null);
+  };
+
+  const handleRolesAssigned = () => {
+    loadProfiles();
   };
 
   const handleDeactivate = async (profileId: string) => {
@@ -407,11 +424,7 @@ export const ProfilesManager: React.FC = () => {
                       <button
                         onClick={() => {
                           handleCloseView();
-                          // We'll implement this later
-                          console.log(
-                            "Navigate to role assignment for:",
-                            viewingProfile.id
-                          );
+                          handleOpenRoleAssignment(viewingProfile);
                         }}
                         className="mt-3 bg-[#D42B22] hover:bg-[#B3251E] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
                       >
@@ -435,8 +448,7 @@ export const ProfilesManager: React.FC = () => {
                 <button
                   onClick={() => {
                     handleCloseView();
-                    // We'll implement role assignment modal later
-                    console.log("Assign roles to:", viewingProfile.id);
+                    handleOpenRoleAssignment(viewingProfile);
                   }}
                   className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold"
                 >
@@ -519,15 +531,6 @@ export const ProfilesManager: React.FC = () => {
                       Editar
                     </button>
                     <button
-                      onClick={() => {
-                        // We'll implement this later
-                        console.log("Assign roles to:", profile.id);
-                      }}
-                      className="text-green-600 hover:text-green-800 transition-colors duration-200 text-sm font-medium"
-                    >
-                      Asignar Roles
-                    </button>
-                    <button
                       onClick={() => handleDeactivate(profile.id)}
                       className="text-red-600 hover:text-red-800 transition-colors duration-200 text-sm font-medium"
                     >
@@ -540,6 +543,14 @@ export const ProfilesManager: React.FC = () => {
           )}
         </div>
       </div>
+      {selectedProfileForRoles && (
+        <RoleAssignmentModal
+          profile={selectedProfileForRoles}
+          isOpen={roleAssignmentModalOpen}
+          onClose={handleCloseRoleAssignment}
+          onRolesAssigned={handleRolesAssigned}
+        />
+      )}
     </div>
   );
 };
