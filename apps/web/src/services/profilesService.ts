@@ -1,96 +1,168 @@
+import { useAuthStore } from "../store/authStore";
+import type { Profile, ProfileWithRoles } from "../types/auth";
 import { API_BASE } from "./apiConfig";
 import { cacheService } from "./cacheService";
 
-export interface Profile {
-  id: string;
+export interface CreateProfileDto {
   nombre: string;
-  descripcion: string;
+  descripcion?: string;
   tipo: string;
-  activo: boolean;
-  roles: string[];
+  contacto?: string;
+  rut?: string;
+}
+
+export interface UpdateProfileDto {
+  nombre?: string;
+  descripcion?: string;
+  tipo?: string;
+  contacto?: string;
+  rut?: string;
+  activo?: boolean;
+}
+
+export interface ProfileType {
+  id: string;
+  tipoPerfil: string;
 }
 
 class ProfilesService {
   private baseUrl = `${API_BASE}/api/profiles`;
   private readonly CACHE_PREFIX = "profiles-";
 
-  private invalidateProfilesCache(): void {
-    cacheService.clearByPrefix(this.CACHE_PREFIX);
-    console.log("🗑️ Profiles cache invalidated");
+  private getCurrentTenantId(): string {
+    const { tenant } = useAuthStore.getState();
+    if (!tenant) {
+      throw new Error("No tenant found in auth store");
+    }
+    return tenant.id;
   }
 
-  async getProfiles(): Promise<Profile[]> {
-    const cacheKey = `${this.CACHE_PREFIX}all`;
-
-    const cached = cacheService.get(cacheKey);
-    if (cached) {
-      console.log("Serving profiles from cache");
-      return cached;
-    }
+  async getProfileTypes(): Promise<ProfileType[]> {
     try {
+      const cacheKey = `profile-types:${this.getCurrentTenantId()}`;
+      const cached = cacheService.get(cacheKey);
+      if (cached) {
+        console.log("📦 Returning profile types from cache");
+        return cached;
+      }
+
       const token = localStorage.getItem("access_token");
-      const response = await fetch(this.baseUrl, {
+      const url = `${this.baseUrl}/types`;
+
+      console.log("🔍 Fetching profile types from:", url);
+      console.log("🔑 Token exists:", !!token);
+
+      const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
+      console.log("📡 Response status:", response.status, response.statusText);
+
+      if (!response.ok) {
+        let errorDetails = response.statusText;
+        try {
+          const errorBody = await response.text();
+          console.log("❌ Error response body:", errorBody);
+          errorDetails = errorBody || response.statusText;
+        } catch (e) {
+          console.log("❌ Could not read error response body");
+        }
+        throw new Error(
+          `Failed to fetch profile types: ${response.status} ${errorDetails}`
+        );
+      }
+
+      const types = await response.json();
+      console.log("✅ Profile types received:", types);
+
+      // Cache the result
+      cacheService.set(cacheKey, types);
+      console.log("💾 Cached profile types");
+
+      return types;
+    } catch (error) {
+      console.error("Error fetching profile types:", error);
+      throw error;
+    }
+  }
+
+  private clearProfileTypesCache(): void {
+    const cacheKey = `profile-types:${this.getCurrentTenantId()}`;
+    cacheService.delete(cacheKey);
+  }
+
+  async getProfiles(): Promise<Profile[]> {
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(`${this.baseUrl}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!response.ok) {
         throw new Error(`Failed to fetch profiles: ${response.statusText}`);
       }
-
-      const profiles = await response.json();
-
-      const transformedProfiles = profiles.map((profile: any) => ({
-        id: profile.id,
-        nombre: profile.nombre,
-        descripcion: profile.descripcion || "Sin descripción",
-        tipo: profile.tipo || "standard",
-        activo: true,
-        roles: [],
-      }));
-
-      cacheService.set(cacheKey, transformedProfiles);
-      return transformedProfiles;
+      return await response.json();
     } catch (error) {
       console.error("Error fetching profiles:", error);
       throw error;
     }
   }
 
-  async createProfile(profileData: {
-    nombre: string;
-    descripcion: string;
-    tipo: string;
-  }): Promise<Profile> {
+  // In profilesService.ts
+  async getProfileWithRoles(profileId: string): Promise<ProfileWithRoles> {
     try {
       const token = localStorage.getItem("access_token");
-      const response = await fetch(this.baseUrl, {
+      console.log(
+        `🔍 Fetching profile with roles: ${this.baseUrl}/${profileId}`
+      );
+
+      const response = await fetch(`${this.baseUrl}/${profileId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch profile: ${response.statusText}`);
+      }
+
+      const profile = await response.json();
+      console.log("✅ Profile with roles received:", profile);
+      return profile;
+    } catch (error) {
+      console.error("Error fetching profile with roles:", error);
+      throw error;
+    }
+  }
+
+  async createProfile(profileData: CreateProfileDto): Promise<Profile> {
+    try {
+      const tenantId = this.getCurrentTenantId();
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(`${this.baseUrl}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(profileData),
+        body: JSON.stringify({
+          ...profileData,
+          tenantId: tenantId,
+        }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message ||
-            `Failed to create profile: ${response.statusText}`
-        );
+        throw new Error(`Failed to create profile: ${response.statusText}`);
       }
 
       const newProfile = await response.json();
+      this.clearProfileTypesCache();
+      console.log("🗑️ Cleared profile types cache after creating profile");
 
-      this.invalidateProfilesCache();
-
-      // Ensure the response includes roles
-      return {
-        ...newProfile,
-        roles: [], // Add empty roles array
-      };
+      return newProfile;
     } catch (error) {
       console.error("Error creating profile:", error);
       throw error;
@@ -99,11 +171,7 @@ class ProfilesService {
 
   async updateProfile(
     id: string,
-    profileData: {
-      nombre: string;
-      descripcion: string;
-      tipo: string;
-    }
+    profileData: UpdateProfileDto
   ): Promise<Profile> {
     try {
       const token = localStorage.getItem("access_token");
@@ -117,21 +185,14 @@ class ProfilesService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message ||
-            `Failed to update profile: ${response.statusText}`
-        );
+        throw new Error(`Failed to update profile: ${response.statusText}`);
       }
 
       const updatedProfile = await response.json();
+      this.clearProfileTypesCache();
+      console.log("🗑️ Cleared profile types cache after updating profile");
 
-      this.invalidateProfilesCache();
-
-      return {
-        ...updatedProfile,
-        roles: [],
-      };
+      return updatedProfile;
     } catch (error) {
       console.error("Error updating profile:", error);
       throw error;
@@ -152,8 +213,8 @@ class ProfilesService {
         throw new Error(`Failed to deactivate profile: ${response.statusText}`);
       }
 
-      // Invalidate profiles cache since we removed a profile
-      this.invalidateProfilesCache();
+      this.clearProfileTypesCache();
+      console.log("🗑️ Cleared profile types cache after deactivating profile");
     } catch (error) {
       console.error("Error deactivating profile:", error);
       throw error;

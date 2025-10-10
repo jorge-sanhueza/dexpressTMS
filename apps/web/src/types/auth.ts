@@ -8,6 +8,23 @@ export interface User {
   permissions: string[];
 }
 
+export interface Profile {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  activo: boolean;
+  tipo: string;
+}
+
+export interface ProfileWithRoles extends Profile {
+  roles: string[];
+}
+
+export interface ProfileType {
+  id: string;
+  tipoPerfil: string;
+}
+
 export interface Rol {
   id: string;
   codigo: string;

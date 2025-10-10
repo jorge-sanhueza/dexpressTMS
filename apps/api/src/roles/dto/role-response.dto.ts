@@ -5,6 +5,8 @@ export class RoleResponseDto {
   modulo: string;
   tipo_accion: string;
   activo: boolean;
+  orden?: number;
+  tenantId?: string;
 
   constructor(role: any) {
     this.id = role.id;
@@ -13,5 +15,7 @@ export class RoleResponseDto {
     this.modulo = role.modulo;
     this.tipo_accion = role.tipoAccion?.tipoAccion || '';
     this.activo = role.activo;
+    this.orden = role.orden;
+    this.tenantId = role.tenantId;
   }
 }

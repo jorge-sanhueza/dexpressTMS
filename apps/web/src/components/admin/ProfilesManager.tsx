@@ -1,33 +1,33 @@
 import React, { useState, useEffect } from "react";
-import { profilesService } from "../../services/profilesService";
-
-interface Profile {
-  id: string;
-  nombre: string;
-  descripcion: string;
-  activo: boolean;
-  tipo: string;
-  roles: string[];
-}
+import {
+  profilesService,
+  type ProfileType,
+} from "../../services/profilesService";
+import type { Profile, ProfileWithRoles } from "../../types/auth";
 
 export const ProfilesManager: React.FC = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [profileTypes, setProfileTypes] = useState<ProfileType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
+  const [viewingProfile, setViewingProfile] = useState<ProfileWithRoles | null>(
+    null
+  );
+  const [loadingRoles, setLoadingRoles] = useState(false);
   const [formData, setFormData] = useState({
     nombre: "",
     descripcion: "",
-    tipo: "standard",
+    tipo: "",
   });
 
-  // Fetch real data from API
   const loadProfiles = async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await profilesService.getProfiles();
+      console.log("📋 Profiles data received (without roles):", data);
       setProfiles(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error loading profiles");
@@ -37,37 +37,77 @@ export const ProfilesManager: React.FC = () => {
     }
   };
 
+  const loadProfileTypes = async () => {
+    try {
+      const types = await profilesService.getProfileTypes();
+      setProfileTypes(types);
+    } catch (err) {
+      console.error("Error loading profile types:", err);
+    }
+  };
+
   useEffect(() => {
-    loadProfiles();
+    const initializeData = async () => {
+      await Promise.all([loadProfiles(), loadProfileTypes()]);
+    };
+    initializeData();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (editingProfile) {
-        // Update existing profile
         await profilesService.updateProfile(editingProfile.id, formData);
       } else {
-        // Create new profile
         await profilesService.createProfile(formData);
       }
 
-      // Reload profiles
       await loadProfiles();
       setShowForm(false);
       setEditingProfile(null);
-      setFormData({ nombre: "", descripcion: "", tipo: "standard" });
+      setFormData({
+        nombre: "",
+        descripcion: "",
+        tipo: profileTypes[0]?.tipoPerfil || "básico",
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error saving profile");
       console.error("Error saving profile:", err);
     }
   };
 
+  const handleViewProfile = async (profile: Profile) => {
+    // Start with empty roles
+    setViewingProfile({
+      ...profile,
+      roles: [],
+    } as ProfileWithRoles);
+    setLoadingRoles(true);
+
+    try {
+      const profileWithRoles = await profilesService.getProfileWithRoles(
+        profile.id
+      );
+      setViewingProfile(profileWithRoles);
+    } catch (err) {
+      console.error("Error loading roles:", err);
+      setError("Error loading roles del perfil");
+      setViewingProfile({ ...profile, roles: [] } as ProfileWithRoles);
+    } finally {
+      setLoadingRoles(false);
+    }
+  };
+
+  const handleCloseView = () => {
+    setViewingProfile(null);
+    setLoadingRoles(false);
+  };
+
   const handleEdit = (profile: Profile) => {
     setEditingProfile(profile);
     setFormData({
       nombre: profile.nombre,
-      descripcion: profile.descripcion,
+      descripcion: profile.descripcion || "",
       tipo: profile.tipo,
     });
     setShowForm(true);
@@ -82,7 +122,7 @@ export const ProfilesManager: React.FC = () => {
 
     try {
       await profilesService.deactivateProfile(profileId);
-      await loadProfiles(); // This will now show cached data
+      await loadProfiles();
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Error desactivando perfil"
@@ -111,23 +151,24 @@ export const ProfilesManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-[#798283]">
-            Gestión de Perfiles
-          </h2>
-          <p className="text-[#798283]/70">
-            Crear y administrar perfiles de usuario
-          </p>
+      <div className="bg-white rounded-lg shadow-sm border border-[#798283]/10 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-[#798283]">
+              Gestión de Perfiles
+            </h2>
+            <p className="text-[#798283]/70">
+              Crear y administrar perfiles de usuario
+            </p>
+          </div>
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
+          >
+            + Nuevo Perfil
+          </button>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-3 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
-        >
-          + Nuevo Perfil
-        </button>
       </div>
-
       {/* Error Message */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -202,10 +243,13 @@ export const ProfilesManager: React.FC = () => {
                 }
                 className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
               >
-                <option value="standard">Standard</option>
-                <option value="administrativo">Administrativo</option>
-                <option value="operacional">Operacional</option>
-                <option value="supervisor">Supervisor</option>
+                <option value="">Seleccionar tipo</option>
+                {profileTypes.map((type) => (
+                  <option key={type.id} value={type.tipoPerfil}>
+                    {type.tipoPerfil.charAt(0).toUpperCase() +
+                      type.tipoPerfil.slice(1)}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -233,6 +277,174 @@ export const ProfilesManager: React.FC = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Profile modal */}
+      {viewingProfile && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-[#798283]">
+                  Detalles del Perfil
+                </h3>
+                <button
+                  onClick={handleCloseView}
+                  className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Basic profile info - always shown */}
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-1">
+                    Nombre del Perfil
+                  </label>
+                  <p className="text-lg font-semibold text-[#798283]">
+                    {viewingProfile.nombre}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-1">
+                    Tipo de Perfil
+                  </label>
+                  <span className="px-3 py-1 text-sm bg-[#798283]/10 text-[#798283] rounded-full">
+                    {viewingProfile.tipo}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-1">
+                    Descripción
+                  </label>
+                  <p className="text-[#798283]">
+                    {viewingProfile.descripcion || "Sin descripción"}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-1">
+                    Estado
+                  </label>
+                  <span
+                    className={`px-3 py-1 text-sm rounded-full ${
+                      viewingProfile.activo
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {viewingProfile.activo ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
+
+                {/* Roles section with loading state */}
+                <div>
+                  <label className="block text-sm font-medium text-[#798283] mb-3">
+                    Roles Asignados{" "}
+                    {viewingProfile.roles && `(${viewingProfile.roles.length})`}
+                  </label>
+
+                  {loadingRoles ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D42B22] mx-auto"></div>
+                      <p className="mt-2 text-sm text-[#798283]/70">
+                        Cargando roles...
+                      </p>
+                    </div>
+                  ) : viewingProfile.roles &&
+                    viewingProfile.roles.length > 0 ? (
+                    <div className="space-y-2">
+                      {viewingProfile.roles.map((role, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 border border-[#798283]/20 rounded-lg"
+                        >
+                          <div>
+                            <span className="font-medium text-[#798283]">
+                              {role}
+                            </span>
+                          </div>
+                          <span className="px-2 py-1 text-xs bg-[#D42B22]/10 text-[#D42B22] rounded">
+                            Asignado
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 border-2 border-dashed border-[#798283]/20 rounded-lg">
+                      <svg
+                        className="mx-auto h-12 w-12 text-[#798283]/40"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1}
+                          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                        />
+                      </svg>
+                      <p className="mt-2 text-sm text-[#798283]/70">
+                        No hay roles asignados a este perfil
+                      </p>
+                      <button
+                        onClick={() => {
+                          handleCloseView();
+                          // We'll implement this later
+                          console.log(
+                            "Navigate to role assignment for:",
+                            viewingProfile.id
+                          );
+                        }}
+                        className="mt-3 bg-[#D42B22] hover:bg-[#B3251E] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                      >
+                        Asignar Roles
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-[#798283]/10">
+                <button
+                  onClick={() => {
+                    handleCloseView();
+                    handleEdit(viewingProfile);
+                  }}
+                  className="bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold"
+                >
+                  Editar Perfil
+                </button>
+                <button
+                  onClick={() => {
+                    handleCloseView();
+                    // We'll implement role assignment modal later
+                    console.log("Assign roles to:", viewingProfile.id);
+                  }}
+                  className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold"
+                >
+                  Gestionar Roles
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -292,37 +504,32 @@ export const ProfilesManager: React.FC = () => {
                     <p className="text-sm text-[#798283]/70 mt-1">
                       {profile.descripcion}
                     </p>
-                    {profile.roles && profile.roles.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {profile.roles.slice(0, 3).map((role) => (
-                          <span
-                            key={role}
-                            className="px-2 py-1 text-xs bg-[#D42B22]/10 text-[#D42B22] rounded"
-                          >
-                            {role}
-                          </span>
-                        ))}
-                        {profile.roles.length > 3 && (
-                          <span className="px-2 py-1 text-xs bg-[#798283]/10 text-[#798283] rounded">
-                            +{profile.roles.length - 3} más
-                          </span>
-                        )}
-                      </div>
-                    )}
                   </div>
                   <div className="flex space-x-2">
                     <button
+                      onClick={() => handleViewProfile(profile)}
+                      className="text-blue-600 hover:text-blue-800 transition-colors duration-200 text-sm font-medium"
+                    >
+                      Ver Perfil
+                    </button>
+                    <button
                       onClick={() => handleEdit(profile)}
-                      className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200"
+                      className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 text-sm font-medium"
                     >
                       Editar
                     </button>
-                    <button className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200">
+                    <button
+                      onClick={() => {
+                        // We'll implement this later
+                        console.log("Assign roles to:", profile.id);
+                      }}
+                      className="text-green-600 hover:text-green-800 transition-colors duration-200 text-sm font-medium"
+                    >
                       Asignar Roles
                     </button>
                     <button
                       onClick={() => handleDeactivate(profile.id)}
-                      className="text-red-600 hover:text-red-800 transition-colors duration-200"
+                      className="text-red-600 hover:text-red-800 transition-colors duration-200 text-sm font-medium"
                     >
                       Desactivar
                     </button>

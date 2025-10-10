@@ -1,6 +1,14 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { RoleResponseDto } from '../dto/role-response.dto';
+import { CreateRoleDto } from '../dto/create-role.dto';
+import { UpdateRoleDto } from '../dto/update-role.dto';
 
 @Injectable()
 export class RolesService {
@@ -24,6 +32,8 @@ export class RolesService {
           nombre: true,
           modulo: true,
           activo: true,
+          orden: true,
+          tenantId: true,
           tipoAccion: {
             select: {
               tipoAccion: true,
@@ -52,6 +62,8 @@ export class RolesService {
           nombre: true,
           modulo: true,
           activo: true,
+          orden: true,
+          tenantId: true,
           tipoAccion: {
             select: {
               tipoAccion: true,
@@ -80,6 +92,8 @@ export class RolesService {
           nombre: true,
           modulo: true,
           activo: true,
+          orden: true,
+          tenantId: true,
           tipoAccion: {
             select: {
               tipoAccion: true,
@@ -98,28 +112,44 @@ export class RolesService {
     }
   }
 
-  async createRole(roleData: any): Promise<RoleResponseDto> {
+  async createRole(createRoleDto: CreateRoleDto): Promise<RoleResponseDto> {
     try {
+      // Validation is now handled by DTO and class-validator
+      const existingRole = await this.prisma.rol.findFirst({
+        where: {
+          codigo: createRoleDto.codigo,
+          tenantId: createRoleDto.tenantId,
+        },
+      });
+
+      if (existingRole) {
+        throw new ConflictException(
+          `Role with code '${createRoleDto.codigo}' already exists`,
+        );
+      }
+
       const tipoAccion = await this.prisma.tipoAccion.findFirst({
         where: {
-          tipoAccion: roleData.tipo_accion,
+          tipoAccion: createRoleDto.tipo_accion,
         },
       });
 
       if (!tipoAccion) {
-        throw new Error(`TipoAccion '${roleData.tipo_accion}' not found`);
+        throw new BadRequestException(
+          `TipoAccion '${createRoleDto.tipo_accion}' not found`,
+        );
       }
 
       const role = await this.prisma.rol.create({
         data: {
-          codigo: roleData.codigo,
-          nombre: roleData.nombre,
-          modulo: roleData.modulo,
+          codigo: createRoleDto.codigo,
+          nombre: createRoleDto.nombre,
+          modulo: createRoleDto.modulo,
           tipoAccionId: tipoAccion.id,
-          activo: true,
-          tenantId: roleData.tenantId || 'default-tenant',
-          orden: roleData.orden || 0,
-          estadoId: roleData.estadoId || (await this.getDefaultEstadoId()),
+          activo: createRoleDto.activo ?? true,
+          tenantId: createRoleDto.tenantId || 'default-tenant',
+          orden: createRoleDto.orden || 0,
+          estadoId: await this.getDefaultEstadoId(),
         },
         select: {
           id: true,
@@ -127,6 +157,8 @@ export class RolesService {
           nombre: true,
           modulo: true,
           activo: true,
+          orden: true,
+          tenantId: true,
           tipoAccion: {
             select: {
               tipoAccion: true,
@@ -134,7 +166,7 @@ export class RolesService {
           },
         },
       });
-
+      this.logger.log(`Role created successfully: ${role.codigo}`);
       return new RoleResponseDto(role);
     } catch (error) {
       this.logger.error('Error creating role:', error);
@@ -142,7 +174,10 @@ export class RolesService {
     }
   }
 
-  async updateRole(id: string, roleData: any): Promise<RoleResponseDto> {
+  async updateRole(
+    id: string,
+    updateRoleDto: UpdateRoleDto,
+  ): Promise<RoleResponseDto> {
     try {
       const existingRole = await this.prisma.rol.findUnique({
         where: { id },
@@ -152,17 +187,37 @@ export class RolesService {
         throw new NotFoundException(`Role with ID ${id} not found`);
       }
 
-      // If tipo_accion is being updated, find the new TipoAccion ID
+      if (
+        updateRoleDto.codigo &&
+        updateRoleDto.codigo !== existingRole.codigo
+      ) {
+        const duplicateRole = await this.prisma.rol.findFirst({
+          where: {
+            codigo: updateRoleDto.codigo,
+            tenantId: existingRole.tenantId,
+            id: { not: id },
+          },
+        });
+
+        if (duplicateRole) {
+          throw new ConflictException(
+            `Role with code '${updateRoleDto.codigo}' already exists`,
+          );
+        }
+      }
+
       let tipoAccionId = existingRole.tipoAccionId;
-      if (roleData.tipo_accion) {
+      if (updateRoleDto.tipo_accion) {
         const tipoAccion = await this.prisma.tipoAccion.findFirst({
           where: {
-            tipoAccion: roleData.tipo_accion,
+            tipoAccion: updateRoleDto.tipo_accion,
           },
         });
 
         if (!tipoAccion) {
-          throw new Error(`TipoAccion '${roleData.tipo_accion}' not found`);
+          throw new BadRequestException(
+            `TipoAccion '${updateRoleDto.tipo_accion}' not found`,
+          );
         }
         tipoAccionId = tipoAccion.id;
       }
@@ -170,12 +225,12 @@ export class RolesService {
       const role = await this.prisma.rol.update({
         where: { id },
         data: {
-          codigo: roleData.codigo,
-          nombre: roleData.nombre,
-          modulo: roleData.modulo,
+          codigo: updateRoleDto.codigo,
+          nombre: updateRoleDto.nombre,
+          modulo: updateRoleDto.modulo,
           tipoAccionId: tipoAccionId,
-          activo: roleData.activo,
-          orden: roleData.orden,
+          activo: updateRoleDto.activo,
+          orden: updateRoleDto.orden,
         },
         select: {
           id: true,
@@ -183,6 +238,8 @@ export class RolesService {
           nombre: true,
           modulo: true,
           activo: true,
+          orden: true,
+          tenantId: true,
           tipoAccion: {
             select: {
               tipoAccion: true,
@@ -190,7 +247,7 @@ export class RolesService {
           },
         },
       });
-
+      this.logger.log(`Role updated successfully: ${role.codigo}`);
       return new RoleResponseDto(role);
     } catch (error) {
       this.logger.error(`Error updating role ${id}:`, error);
@@ -204,6 +261,7 @@ export class RolesService {
         where: { id },
         data: { activo: false },
       });
+      this.logger.log(`Role soft-deleted: ${id}`);
     } catch (error) {
       this.logger.error(`Error deleting role ${id}:`, error);
       throw error;

@@ -10,6 +10,7 @@ export const RolesManager: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingRol, setEditingRol] = useState<Rol | null>(null);
+  const [uniqueModules, setUniqueModules] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     codigo: "",
     nombre: "",
@@ -32,6 +33,14 @@ export const RolesManager: React.FC = () => {
 
   const { tenant } = useAuthStore();
 
+  const commonModules = [
+    "general",
+    "ordenes",
+    "usuarios",
+    "reportes",
+    "sistema",
+  ];
+
   useEffect(() => {
     loadRoles();
   }, []);
@@ -39,6 +48,16 @@ export const RolesManager: React.FC = () => {
   useEffect(() => {
     applyFilters();
   }, [roles, filters, currentPage]);
+
+  useEffect(() => {
+    if (roles.length > 0) {
+      const roleModules = [...new Set(roles.map((role) => role.modulo))];
+      const allModules = [
+        ...new Set([...commonModules, ...roleModules]),
+      ].sort();
+      setUniqueModules(allModules);
+    }
+  }, [roles]);
 
   const loadRoles = async () => {
     try {
@@ -70,13 +89,13 @@ export const RolesManager: React.FC = () => {
 
     // Apply module filter
     if (filters.modulo) {
-      filtered = filtered.filter((role) => role.modulo === filters.modulo);
+      filtered = filtered.filter((role) => role.modulo == filters.modulo);
     }
 
     // Apply action type filter
     if (filters.tipo_accion) {
       filtered = filtered.filter(
-        (role) => role.tipo_accion === filters.tipo_accion
+        (role) => role.tipo_accion == filters.tipo_accion
       );
     }
 
@@ -87,8 +106,6 @@ export const RolesManager: React.FC = () => {
     }
 
     setFilteredRoles(filtered);
-    // Reset to first page when filters change
-    setCurrentPage(1);
   };
 
   const handleFilterChange = (key: keyof typeof filters, value: string) => {
@@ -184,24 +201,26 @@ export const RolesManager: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-[#798283]">
-            Gestión de Roles
-          </h2>
-          <p className="text-[#798283]/70">
-            Crear y administrar roles de permisos{" "}
-            {tenant && `- ${tenant.nombre}`}
-          </p>
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-sm border border-[#798283]/10 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-[#798283]">
+              Gestión de Roles
+            </h2>
+            <p className="text-[#798283]/70">
+              Crear y administrar roles de permisos{" "}
+              {tenant && `- ${tenant.nombre}`}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
+          >
+            + Nuevo Rol
+          </button>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-3 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
-        >
-          + Nuevo Rol
-        </button>
       </div>
-
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           {error}
@@ -217,7 +236,6 @@ export const RolesManager: React.FC = () => {
             onSubmit={handleSubmit}
             className="grid grid-cols-1 md:grid-cols-2 gap-4"
           >
-            {/* Form fields remain the same */}
             <div>
               <label className="block text-sm font-medium text-[#798283] mb-2">
                 Código del Rol *
@@ -255,17 +273,19 @@ export const RolesManager: React.FC = () => {
                 Módulo *
               </label>
               <select
+                required
                 value={formData.modulo}
                 onChange={(e) =>
                   setFormData({ ...formData, modulo: e.target.value })
                 }
                 className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
               >
-                <option value="general">General</option>
-                <option value="ordenes">Órdenes</option>
-                <option value="usuarios">Usuarios</option>
-                <option value="reportes">Reportes</option>
-                <option value="sistema">Sistema</option>
+                <option value="">Seleccionar módulo</option>
+                {uniqueModules.map((module) => (
+                  <option key={module} value={module}>
+                    {module.charAt(0).toUpperCase() + module.slice(1)}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -284,29 +304,14 @@ export const RolesManager: React.FC = () => {
                 <option value="crear">Crear</option>
                 <option value="editar">Editar</option>
                 <option value="eliminar">Eliminar</option>
-                <option value="administrar">Administrar</option>
+                <option value="activar">Administrar</option>
               </select>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-[#798283] mb-2">
-                Descripción
-              </label>
-              <textarea
-                value={formData.descripcion}
-                onChange={(e) =>
-                  setFormData({ ...formData, descripcion: e.target.value })
-                }
-                rows={2}
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
-                placeholder="Descripción del permiso..."
-              />
             </div>
 
             <div className="md:col-span-2 flex space-x-3 pt-4">
               <button
                 type="submit"
-                className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold"
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-[#D42B22] px-6 py-2 rounded-lg transition-all duration-200 font-semibold"
               >
                 {editingRol ? "Actualizar" : "Crear"} Rol
               </button>
@@ -382,7 +387,7 @@ export const RolesManager: React.FC = () => {
               <option value="crear">Crear</option>
               <option value="editar">Editar</option>
               <option value="eliminar">Eliminar</option>
-              <option value="administrar">Administrar</option>
+              <option value="activar">Administrar</option>
             </select>
           </div>
 
@@ -491,7 +496,7 @@ export const RolesManager: React.FC = () => {
                       <td className="py-3 px-4">
                         <span
                           className={`px-2 py-1 text-xs rounded-full ${
-                            role.tipo_accion === "administrar"
+                            role.tipo_accion === "activar"
                               ? "bg-purple-100 text-purple-800"
                               : role.tipo_accion === "crear"
                               ? "bg-green-100 text-green-800"
@@ -516,20 +521,22 @@ export const RolesManager: React.FC = () => {
                           {role.activo ? "Activo" : "Inactivo"}
                         </span>
                       </td>
-                      <td className="py-3 px-4 space-x-2">
-                        <button
-                          onClick={() => handleEdit(role)}
-                          className="text-blue-600 hover:text-blue-800 transition-colors duration-200 text-sm font-medium"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleDelete(role.id)}
-                          className="text-red-600 hover:text-red-800 transition-colors duration-200 text-sm font-medium"
-                        >
-                          Eliminar
-                        </button>
-                      </td>
+                      {role.codigo !== "admin_access" && (
+                        <td className="py-3 px-4 space-x-2">
+                          <button
+                            onClick={() => handleEdit(role)}
+                            className="text-blue-600 hover:text-blue-800 transition-colors duration-200 text-sm font-medium"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleDelete(role.id)}
+                            className="text-red-600 hover:text-red-800 transition-colors duration-200 text-sm font-medium"
+                          >
+                            Eliminar
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))
                 ) : (
@@ -574,7 +581,7 @@ export const RolesManager: React.FC = () => {
                         onClick={() => setCurrentPage(page)}
                         className={`px-3 py-2 rounded-lg transition-all duration-200 ${
                           currentPage === page
-                            ? "bg-[#D42B22] text-white"
+                            ? "bg-[#D42B22] text-[#D42B22]"
                             : "border border-[#798283]/30 text-[#798283] hover:bg-[#798283]/10"
                         }`}
                       >
