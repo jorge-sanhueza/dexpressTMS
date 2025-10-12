@@ -1,7 +1,8 @@
+// src/services/rolesService.ts
+import { apiClient } from "../lib/api-client";
 import { useAuthStore } from "../store/authStore";
 import type { Rol } from "../types/auth";
 import { API_BASE } from "./apiConfig";
-import { cacheService } from "./cacheService";
 
 export interface CreateRoleDto {
   codigo: string;
@@ -26,12 +27,6 @@ export interface UpdateRoleDto {
 
 class RolesService {
   private baseUrl = `${API_BASE}/api/roles`;
-  private readonly CACHE_KEYS = {
-    ALL_ROLES: (tenantId: string) => `roles:all:${tenantId}`,
-    ROLES_BY_TENANT: (tenantId: string) => `roles:tenant:${tenantId}`,
-    ROLES_BY_IDS: (roleIds: string[]) =>
-      `roles:ids:${roleIds.sort().join(",")}`,
-  };
 
   private getCurrentTenantId(): string {
     const { tenant } = useAuthStore.getState();
@@ -41,196 +36,65 @@ class RolesService {
     return tenant.id;
   }
 
-  private clearRolesCache(): void {
-    const tenantId = this.getCurrentTenantId();
-    cacheService.delete(this.CACHE_KEYS.ALL_ROLES(tenantId));
-    cacheService.delete(this.CACHE_KEYS.ROLES_BY_TENANT(tenantId));
-    cacheService.clearByPrefix("roles:ids:");
-    cacheService.clearByPrefix("roles:");
-  }
-
   async getRolesByIds(roleIds: string[]): Promise<Rol[]> {
-    try {
-      const cacheKey = this.CACHE_KEYS.ROLES_BY_IDS(roleIds);
+    const response = await apiClient.post(`${this.baseUrl}/by-ids`, {
+      roleIds,
+    });
 
-      const cached = cacheService.get(cacheKey);
-      if (cached) {
-        console.log("📦 Returning roles by IDs from cache");
-        return cached;
-      }
-
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${this.baseUrl}/by-ids`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ roleIds }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch roles: ${response.statusText}`);
-      }
-
-      const roles = await response.json();
-
-      cacheService.set(cacheKey, roles);
-      console.log("💾 Cached roles by IDs");
-
-      return roles;
-    } catch (error) {
-      console.error("Error fetching roles:", error);
-      throw error;
+    if (!response.ok) {
+      throw new Error(`Failed to fetch roles: ${response.statusText}`);
     }
+
+    return await response.json();
   }
 
   async getRolesByTenant(tenantId: string): Promise<Rol[]> {
-    try {
-      const cacheKey = this.CACHE_KEYS.ROLES_BY_TENANT(tenantId);
+    const response = await apiClient.get(
+      `${this.baseUrl}/by-tenant/${tenantId}`
+    );
 
-      const cached = cacheService.get(cacheKey);
-      if (cached) {
-        console.log("📦 Returning tenant roles from cache");
-        return cached;
-      }
-
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${this.baseUrl}/by-tenant/${tenantId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch tenant roles: ${response.statusText}`);
-      }
-
-      const roles = await response.json();
-
-      cacheService.set(cacheKey, roles);
-      console.log("💾 Cached tenant roles");
-
-      return roles;
-    } catch (error) {
-      console.error("Error fetching tenant roles:", error);
-      throw error;
+    if (!response.ok) {
+      throw new Error(`Failed to fetch tenant roles: ${response.statusText}`);
     }
+
+    return await response.json();
   }
 
   async getAllRoles(): Promise<Rol[]> {
-    try {
-      const tenantId = this.getCurrentTenantId();
-      const cacheKey = this.CACHE_KEYS.ALL_ROLES(tenantId);
-
-      const cached = cacheService.get(cacheKey);
-      if (cached) {
-        console.log("📦 Returning all roles from cache");
-        return cached;
-      }
-
-      const roles = await this.getRolesByTenant(tenantId);
-
-      cacheService.set(cacheKey, roles);
-      console.log("💾 Cached all roles");
-
-      return roles;
-    } catch (error) {
-      console.error("Error fetching all roles:", error);
-      throw error;
-    }
+    const tenantId = this.getCurrentTenantId();
+    return await this.getRolesByTenant(tenantId);
   }
 
   async createRole(roleData: CreateRoleDto): Promise<Rol> {
-    try {
-      const tenantId = this.getCurrentTenantId();
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${this.baseUrl}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...roleData,
-          tenantId: tenantId,
-        }),
-      });
+    const tenantId = this.getCurrentTenantId();
+    const response = await apiClient.post(this.baseUrl, {
+      ...roleData,
+      tenantId: tenantId,
+    });
 
-      if (!response.ok) {
-        throw new Error(`Failed to create role: ${response.statusText}`);
-      }
-
-      const newRole = await response.json();
-
-      this.clearRolesCache();
-      console.log("🗑️ Cleared roles cache after creating role");
-
-      return newRole;
-    } catch (error) {
-      console.error("Error creating role:", error);
-      throw error;
+    if (!response.ok) {
+      throw new Error(`Failed to create role: ${response.statusText}`);
     }
+
+    return await response.json();
   }
 
   async updateRole(id: string, roleData: UpdateRoleDto): Promise<Rol> {
-    try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${this.baseUrl}/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(roleData),
-      });
+    const response = await apiClient.put(`${this.baseUrl}/${id}`, roleData);
 
-      if (!response.ok) {
-        throw new Error(`Failed to update role: ${response.statusText}`);
-      }
-
-      const updatedRole = await response.json();
-      this.clearRolesCache();
-      console.log("🗑️ Cleared roles cache after updating role");
-
-      return updatedRole;
-    } catch (error) {
-      console.error("Error updating role:", error);
-      throw error;
+    if (!response.ok) {
+      throw new Error(`Failed to update role: ${response.statusText}`);
     }
+
+    return await response.json();
   }
 
   async deleteRole(id: string): Promise<void> {
-    try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${this.baseUrl}/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    const response = await apiClient.delete(`${this.baseUrl}/${id}`);
 
-      if (!response.ok) {
-        throw new Error(`Failed to delete role: ${response.statusText}`);
-      }
-
-      this.clearRolesCache();
-      console.log("🗑️ Cleared roles cache after deleting role");
-    } catch (error) {
-      console.error("Error deleting role:", error);
-      throw error;
+    if (!response.ok) {
+      throw new Error(`Failed to delete role: ${response.statusText}`);
     }
-  }
-
-  clearCache(): void {
-    this.clearRolesCache();
-    console.log("🗑️ Manually cleared all roles cache");
-  }
-
-  async refreshRoles(): Promise<Rol[]> {
-    this.clearRolesCache();
-    console.log("🔄 Force refreshing roles...");
-    return await this.getAllRoles();
   }
 }
 

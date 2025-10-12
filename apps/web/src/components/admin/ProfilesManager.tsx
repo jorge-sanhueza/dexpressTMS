@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useAuthStore } from "../../store/authStore";
 import {
-  profilesService,
-  type ProfileType,
-} from "../../services/profilesService";
+  useProfiles,
+  useProfileTypes,
+  useCreateProfile,
+  useUpdateProfile,
+  useDeactivateProfile,
+  useProfileWithRoles,
+} from "../../hooks/useProfilesService";
 import type { Profile, ProfileWithRoles } from "../../types/auth";
 import { RoleAssignmentModal } from "./RoleAssignmentModal";
 
 export const ProfilesManager: React.FC = () => {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [profileTypes, setProfileTypes] = useState<ProfileType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { tenant } = useAuthStore();
   const [showForm, setShowForm] = useState(false);
   const [roleAssignmentModalOpen, setRoleAssignmentModalOpen] = useState(false);
   const [selectedProfileForRoles, setSelectedProfileForRoles] =
@@ -19,54 +21,55 @@ export const ProfilesManager: React.FC = () => {
   const [viewingProfile, setViewingProfile] = useState<ProfileWithRoles | null>(
     null
   );
-  const [loadingRoles, setLoadingRoles] = useState(false);
   const [formData, setFormData] = useState({
     nombre: "",
     descripcion: "",
     tipo: "",
   });
 
-  const loadProfiles = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await profilesService.getProfiles();
-      console.log("📋 Profiles data received (without roles):", data);
-      setProfiles(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error loading profiles");
-      console.error("Error loading profiles:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Use TanStack Query hooks
+  const {
+    data: profiles = [],
+    isLoading,
+    error: profilesError,
+  } = useProfiles(tenant?.id || "");
 
-  const loadProfileTypes = async () => {
-    try {
-      const types = await profilesService.getProfileTypes();
-      setProfileTypes(types);
-    } catch (err) {
-      console.error("Error loading profile types:", err);
-    }
-  };
+  const { data: profileTypes = [], isLoading: profileTypesLoading } =
+    useProfileTypes();
 
-  useEffect(() => {
-    const initializeData = async () => {
-      await Promise.all([loadProfiles(), loadProfileTypes()]);
-    };
-    initializeData();
-  }, []);
+  const {
+    data: profileWithRoles,
+    isLoading: profileRolesLoading,
+    error: profileRolesError,
+  } = useProfileWithRoles(viewingProfile?.id || "");
+
+  const createProfileMutation = useCreateProfile();
+  const updateProfileMutation = useUpdateProfile();
+  const deactivateProfileMutation = useDeactivateProfile();
+
+  // Set default profile type when types load
+  React.useEffect(() => {
+    if (profileTypes.length > 0 && !formData.tipo) {
+      setFormData((prev) => ({
+        ...prev,
+        tipo: profileTypes[0]?.tipoPerfil || "básico",
+      }));
+    }
+  }, [profileTypes, formData.tipo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     try {
       if (editingProfile) {
-        await profilesService.updateProfile(editingProfile.id, formData);
+        await updateProfileMutation.mutateAsync({
+          id: editingProfile.id,
+          profileData: formData,
+        });
       } else {
-        await profilesService.createProfile(formData);
+        await createProfileMutation.mutateAsync(formData);
       }
 
-      await loadProfiles();
       setShowForm(false);
       setEditingProfile(null);
       setFormData({
@@ -75,35 +78,27 @@ export const ProfilesManager: React.FC = () => {
         tipo: profileTypes[0]?.tipoPerfil || "básico",
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error saving profile");
+      // Error is handled by the mutation
       console.error("Error saving profile:", err);
     }
   };
 
-  const handleViewProfile = async (profile: Profile) => {
+  const handleViewProfile = (profile: Profile) => {
     setViewingProfile({
       ...profile,
       roles: [],
     } as ProfileWithRoles);
-    setLoadingRoles(true);
-
-    try {
-      const profileWithRoles = await profilesService.getProfileWithRoles(
-        profile.id
-      );
-      setViewingProfile(profileWithRoles);
-    } catch (err) {
-      console.error("Error loading roles:", err);
-      setError("Error loading roles del perfil");
-      setViewingProfile({ ...profile, roles: [] } as ProfileWithRoles);
-    } finally {
-      setLoadingRoles(false);
-    }
   };
+
+  // Update viewing profile when roles data loads
+  React.useEffect(() => {
+    if (profileWithRoles && viewingProfile) {
+      setViewingProfile(profileWithRoles);
+    }
+  }, [profileWithRoles, viewingProfile]);
 
   const handleCloseView = () => {
     setViewingProfile(null);
-    setLoadingRoles(false);
   };
 
   const handleEdit = (profile: Profile) => {
@@ -127,7 +122,7 @@ export const ProfilesManager: React.FC = () => {
   };
 
   const handleRolesAssigned = () => {
-    loadProfiles();
+    // Cache will be automatically invalidated by the mutation
   };
 
   const handleDeactivate = async (profileId: string) => {
@@ -138,16 +133,16 @@ export const ProfilesManager: React.FC = () => {
     }
 
     try {
-      await profilesService.deactivateProfile(profileId);
-      await loadProfiles();
+      await deactivateProfileMutation.mutateAsync(profileId);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Error desactivando perfil"
-      );
+      // Error is handled by the mutation
+      console.error("Error deactivating profile:", err);
     }
   };
 
-  if (loading) {
+  const isInitialLoad = isLoading && profiles.length === 0;
+
+  if (isInitialLoad) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -180,14 +175,19 @@ export const ProfilesManager: React.FC = () => {
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
+            className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
           >
             + Nuevo Perfil
           </button>
         </div>
       </div>
-      {/* Error Message */}
-      {error && (
+
+      {/* Error Messages */}
+      {(profilesError ||
+        createProfileMutation.error ||
+        updateProfileMutation.error ||
+        deactivateProfileMutation.error ||
+        profileRolesError) && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -205,7 +205,13 @@ export const ProfilesManager: React.FC = () => {
             </div>
             <div className="ml-3">
               <h3 className="text-sm font-medium text-red-800">Error</h3>
-              <p className="text-sm text-red-700 mt-1">{error}</p>
+              <p className="text-sm text-red-700 mt-1">
+                {profilesError?.message ||
+                  createProfileMutation.error?.message ||
+                  updateProfileMutation.error?.message ||
+                  deactivateProfileMutation.error?.message ||
+                  profileRolesError?.message}
+              </p>
             </div>
           </div>
         </div>
@@ -220,7 +226,7 @@ export const ProfilesManager: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-[#798283] mb-2">
-                Nombre del Perfil
+                Nombre del Perfil *
               </label>
               <input
                 type="text"
@@ -229,7 +235,11 @@ export const ProfilesManager: React.FC = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, nombre: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
+                disabled={
+                  createProfileMutation.isPending ||
+                  updateProfileMutation.isPending
+                }
+                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
                 placeholder="Ej: Administrador, Operador, etc."
               />
             </div>
@@ -244,38 +254,68 @@ export const ProfilesManager: React.FC = () => {
                   setFormData({ ...formData, descripcion: e.target.value })
                 }
                 rows={3}
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
+                disabled={
+                  createProfileMutation.isPending ||
+                  updateProfileMutation.isPending
+                }
+                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
                 placeholder="Descripción de las funciones y permisos del perfil..."
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-[#798283] mb-2">
-                Tipo de Perfil
+                Tipo de Perfil *
               </label>
               <select
                 value={formData.tipo}
                 onChange={(e) =>
                   setFormData({ ...formData, tipo: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
+                disabled={
+                  createProfileMutation.isPending ||
+                  updateProfileMutation.isPending ||
+                  profileTypesLoading
+                }
+                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
               >
                 <option value="">Seleccionar tipo</option>
-                {profileTypes.map((type) => (
-                  <option key={type.id} value={type.tipoPerfil}>
-                    {type.tipoPerfil.charAt(0).toUpperCase() +
-                      type.tipoPerfil.slice(1)}
+                {profileTypesLoading ? (
+                  <option value="" disabled>
+                    Cargando tipos...
                   </option>
-                ))}
+                ) : (
+                  profileTypes.map((type) => (
+                    <option key={type.id} value={type.tipoPerfil}>
+                      {type.tipoPerfil.charAt(0).toUpperCase() +
+                        type.tipoPerfil.slice(1)}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
             <div className="flex space-x-3 pt-4">
               <button
                 type="submit"
-                className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold"
+                disabled={
+                  createProfileMutation.isPending ||
+                  updateProfileMutation.isPending ||
+                  profileTypesLoading
+                }
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
               >
-                {editingProfile ? "Actualizar" : "Crear"} Perfil
+                {createProfileMutation.isPending ||
+                updateProfileMutation.isPending ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {editingProfile ? "Actualizando..." : "Creando..."}
+                  </div>
+                ) : editingProfile ? (
+                  "Actualizar Perfil"
+                ) : (
+                  "Crear Perfil"
+                )}
               </button>
               <button
                 type="button"
@@ -285,10 +325,14 @@ export const ProfilesManager: React.FC = () => {
                   setFormData({
                     nombre: "",
                     descripcion: "",
-                    tipo: "standard",
+                    tipo: profileTypes[0]?.tipoPerfil || "básico",
                   });
                 }}
-                className="bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold"
+                disabled={
+                  createProfileMutation.isPending ||
+                  updateProfileMutation.isPending
+                }
+                className="bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -297,7 +341,7 @@ export const ProfilesManager: React.FC = () => {
         </div>
       )}
 
-      {/* Profile modal */}
+      {/* Profile Details Modal */}
       {viewingProfile && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -374,20 +418,21 @@ export const ProfilesManager: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-[#798283] mb-3">
                     Roles Asignados{" "}
-                    {viewingProfile.roles && `(${viewingProfile.roles.length})`}
+                    {profileWithRoles?.roles &&
+                      `(${profileWithRoles.roles.length})`}
                   </label>
 
-                  {loadingRoles ? (
+                  {profileRolesLoading ? (
                     <div className="text-center py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D42B22] mx-auto"></div>
                       <p className="mt-2 text-sm text-[#798283]/70">
                         Cargando roles...
                       </p>
                     </div>
-                  ) : viewingProfile.roles &&
-                    viewingProfile.roles.length > 0 ? (
+                  ) : profileWithRoles?.roles &&
+                    profileWithRoles.roles.length > 0 ? (
                     <div className="space-y-2">
-                      {viewingProfile.roles.map((role, index) => (
+                      {profileWithRoles.roles.map((role, index) => (
                         <div
                           key={index}
                           className="flex items-center justify-between p-3 border border-[#798283]/20 rounded-lg"
@@ -520,21 +565,26 @@ export const ProfilesManager: React.FC = () => {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => handleViewProfile(profile)}
-                      className="text-blue-600 hover:text-blue-800 transition-colors duration-200 text-sm font-medium"
+                      disabled={deactivateProfileMutation.isPending}
+                      className="text-blue-600 hover:text-blue-800 transition-colors duration-200 text-sm font-medium disabled:opacity-50"
                     >
                       Ver Perfil
                     </button>
                     <button
                       onClick={() => handleEdit(profile)}
-                      className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 text-sm font-medium"
+                      disabled={deactivateProfileMutation.isPending}
+                      className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 text-sm font-medium disabled:opacity-50"
                     >
                       Editar
                     </button>
                     <button
                       onClick={() => handleDeactivate(profile.id)}
-                      className="text-red-600 hover:text-red-800 transition-colors duration-200 text-sm font-medium"
+                      disabled={deactivateProfileMutation.isPending}
+                      className="text-red-600 hover:text-red-800 transition-colors duration-200 text-sm font-medium disabled:opacity-50"
                     >
-                      Desactivar
+                      {deactivateProfileMutation.isPending
+                        ? "Desactivando..."
+                        : "Desactivar"}
                     </button>
                   </div>
                 </div>
@@ -543,6 +593,8 @@ export const ProfilesManager: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Role Assignment Modal */}
       {selectedProfileForRoles && (
         <RoleAssignmentModal
           profile={selectedProfileForRoles}

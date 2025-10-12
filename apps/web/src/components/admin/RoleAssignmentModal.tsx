@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { profilesService } from "../../services/profilesService";
+import {
+  useAvailableRoles,
+  useAssignRolesToProfile,
+} from "../../hooks/useProfilesService";
 import type { Profile } from "../../types/auth";
 
 interface RoleAssignmentModalProps {
@@ -9,56 +12,34 @@ interface RoleAssignmentModalProps {
   onRolesAssigned: () => void;
 }
 
-interface AvailableRole {
-  id: string;
-  codigo: string;
-  nombre: string;
-  modulo: string;
-  tipo_accion: string;
-  asignado: boolean;
-}
-
 export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
   profile,
   isOpen,
   onClose,
   onRolesAssigned,
 }) => {
-  const [availableRoles, setAvailableRoles] = useState<AvailableRole[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [moduleFilter, setModuleFilter] = useState("");
 
+  // Use TanStack Query hooks
+  const {
+    data: availableRoles = [],
+    isLoading,
+    error,
+  } = useAvailableRoles(profile.id);
+
+  const assignRolesMutation = useAssignRolesToProfile();
+
   useEffect(() => {
-    if (isOpen) {
-      loadAvailableRoles();
-    }
-  }, [isOpen]);
-
-  const loadAvailableRoles = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const roles = await profilesService.getAvailableRoles(profile.id);
-      setAvailableRoles(roles);
-
+    if (isOpen && availableRoles.length > 0) {
       // Pre-select currently assigned roles
-      const assignedRoleIds = roles
+      const assignedRoleIds = availableRoles
         .filter((role) => role.asignado)
         .map((role) => role.id);
       setSelectedRoles(assignedRoleIds);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Error loading available roles"
-      );
-      console.error("Error loading available roles:", err);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [isOpen, availableRoles]);
 
   const handleRoleToggle = (roleId: string) => {
     setSelectedRoles((prev) =>
@@ -79,17 +60,30 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
 
   const handleSave = async () => {
     try {
-      setSaving(true);
-      setError(null);
-      await profilesService.assignRolesToProfile(profile.id, selectedRoles);
-      onRolesAssigned();
-      onClose();
+      await assignRolesMutation.mutateAsync(
+        {
+          profileId: profile.id,
+          roleIds: selectedRoles,
+        },
+        {
+          onSuccess: () => {
+            onRolesAssigned();
+            onClose();
+          },
+        }
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error assigning roles");
+      // Error is handled by the mutation
       console.error("Error assigning roles:", err);
-    } finally {
-      setSaving(false);
     }
+  };
+
+  const handleClose = () => {
+    setSearchTerm("");
+    setModuleFilter("");
+    setSelectedRoles([]);
+    assignRolesMutation.reset();
+    onClose();
   };
 
   // Filter roles based on search and module filter
@@ -125,8 +119,9 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
               </p>
             </div>
             <button
-              onClick={onClose}
-              className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200"
+              onClick={handleClose}
+              disabled={assignRolesMutation.isPending}
+              className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 disabled:opacity-50"
             >
               <svg
                 className="w-6 h-6"
@@ -145,7 +140,7 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filters - ALWAYS VISIBLE */}
         <div className="p-4 bg-[#EFF4F9] border-b border-[#798283]/10">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
@@ -154,14 +149,16 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
                 placeholder="Buscar roles por código, nombre o módulo..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
+                disabled={assignRolesMutation.isPending}
+                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
               />
             </div>
             <div>
               <select
                 value={moduleFilter}
                 onChange={(e) => setModuleFilter(e.target.value)}
-                className="w-full md:w-48 px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
+                disabled={assignRolesMutation.isPending}
+                className="w-full md:w-48 px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
               >
                 <option value="">Todos los módulos</option>
                 {modules.map((module) => (
@@ -172,6 +169,16 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
               </select>
             </div>
           </div>
+
+          {/* Loading indicator for filters */}
+          {isLoading && (
+            <div className="flex items-center justify-center mt-2 py-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#D42B22] mr-2"></div>
+              <span className="text-sm text-[#798283]">
+                Cargando roles disponibles...
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Bulk Actions */}
@@ -183,13 +190,19 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
           <div className="flex gap-2">
             <button
               onClick={handleSelectAll}
-              className="px-3 py-1 text-sm bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] rounded transition-all duration-200"
+              disabled={
+                assignRolesMutation.isPending || availableRoles.length === 0
+              }
+              className="px-3 py-1 text-sm bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] rounded transition-all duration-200 disabled:opacity-50"
             >
               Seleccionar Todos
             </button>
             <button
               onClick={handleDeselectAll}
-              className="px-3 py-1 text-sm bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] rounded transition-all duration-200"
+              disabled={
+                assignRolesMutation.isPending || selectedRoles.length === 0
+              }
+              className="px-3 py-1 text-sm bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] rounded transition-all duration-200 disabled:opacity-50"
             >
               Deseleccionar Todos
             </button>
@@ -197,15 +210,17 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
         </div>
 
         {/* Error Message */}
-        {error && (
+        {(error || assignRolesMutation.error) && (
           <div className="p-4 bg-red-50 border-b border-red-200">
-            <div className="text-red-700 text-sm">{error}</div>
+            <div className="text-red-700 text-sm">
+              {error?.message || assignRolesMutation.error?.message}
+            </div>
           </div>
         )}
 
         {/* Roles List */}
         <div className="overflow-y-auto max-h-96">
-          {loading ? (
+          {isLoading ? (
             <div className="p-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D42B22] mx-auto"></div>
               <p className="mt-2 text-sm text-[#798283]/70">
@@ -224,7 +239,8 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
                       type="checkbox"
                       checked={selectedRoles.includes(role.id)}
                       onChange={() => handleRoleToggle(role.id)}
-                      className="mt-1 rounded border-[#798283]/30 text-[#D42B22] focus:ring-[#D42B22]"
+                      disabled={assignRolesMutation.isPending}
+                      className="mt-1 rounded border-[#798283]/30 text-[#D42B22] focus:ring-[#D42B22] disabled:opacity-50"
                     />
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
@@ -280,7 +296,9 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
                 />
               </svg>
               <p className="mt-2 text-sm text-[#798283]/70">
-                No se encontraron roles que coincidan con los filtros
+                {availableRoles.length === 0
+                  ? "No hay roles disponibles para asignar"
+                  : "No se encontraron roles que coincidan con los filtros"}
               </p>
             </div>
           )}
@@ -294,18 +312,25 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
             </div>
             <div className="flex space-x-3">
               <button
-                onClick={onClose}
-                disabled={saving}
+                onClick={handleClose}
+                disabled={assignRolesMutation.isPending}
                 className="px-6 py-2 border border-[#798283]/30 text-[#798283] rounded-lg hover:bg-[#798283]/10 transition-all duration-200 disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={assignRolesMutation.isPending || isLoading}
                 className="px-6 py-2 bg-[#D42B22] hover:bg-[#B3251E] text-white rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
               >
-                {saving ? "Guardando..." : "Guardar Cambios"}
+                {assignRolesMutation.isPending ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Guardando...
+                  </div>
+                ) : (
+                  "Guardar Cambios"
+                )}
               </button>
             </div>
           </div>

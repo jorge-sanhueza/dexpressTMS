@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import type { Rol } from "../../types/auth";
 import { useAuthStore } from "../../store/authStore";
-import { rolesService } from "../../services/rolesService";
+import {
+  useRoles,
+  useCreateRole,
+  useUpdateRole,
+  useDeleteRole,
+} from "../../hooks/useRoles";
 
 export const RolesManager: React.FC = () => {
-  const [roles, setRoles] = useState<Rol[]>([]);
-  const [filteredRoles, setFilteredRoles] = useState<Rol[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { tenant } = useAuthStore();
   const [showForm, setShowForm] = useState(false);
   const [editingRol, setEditingRol] = useState<Rol | null>(null);
   const [uniqueModules, setUniqueModules] = useState<string[]>([]);
@@ -31,7 +33,12 @@ export const RolesManager: React.FC = () => {
     estado: "",
   });
 
-  const { tenant } = useAuthStore();
+  // Use TanStack Query hooks
+  const { data: roles = [], isLoading, error } = useRoles(tenant?.id || "");
+
+  const createRoleMutation = useCreateRole();
+  const updateRoleMutation = useUpdateRole();
+  const deleteRoleMutation = useDeleteRole();
 
   const commonModules = [
     "general",
@@ -40,14 +47,6 @@ export const RolesManager: React.FC = () => {
     "reportes",
     "sistema",
   ];
-
-  useEffect(() => {
-    loadRoles();
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [roles, filters, currentPage]);
 
   useEffect(() => {
     if (roles.length > 0) {
@@ -59,54 +58,40 @@ export const RolesManager: React.FC = () => {
     }
   }, [roles]);
 
-  const loadRoles = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const rolesData = await rolesService.getAllRoles();
-      setRoles(rolesData);
-    } catch (err) {
-      setError("Error loading roles");
-      console.error("Failed to load roles:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const applyFilters = () => {
-    let filtered = [...roles];
-
+  // Apply filters
+  const filteredRoles = roles.filter((role) => {
     // Apply search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(
-        (role) =>
-          role.codigo.toLowerCase().includes(searchLower) ||
-          role.nombre.toLowerCase().includes(searchLower) ||
-          role.descripcion?.toLowerCase().includes(searchLower)
-      );
+      if (
+        !role.codigo.toLowerCase().includes(searchLower) &&
+        !role.nombre.toLowerCase().includes(searchLower) &&
+        !role.descripcion?.toLowerCase().includes(searchLower)
+      ) {
+        return false;
+      }
     }
 
     // Apply module filter
-    if (filters.modulo) {
-      filtered = filtered.filter((role) => role.modulo == filters.modulo);
+    if (filters.modulo && role.modulo !== filters.modulo) {
+      return false;
     }
 
     // Apply action type filter
-    if (filters.tipo_accion) {
-      filtered = filtered.filter(
-        (role) => role.tipo_accion == filters.tipo_accion
-      );
+    if (filters.tipo_accion && role.tipo_accion !== filters.tipo_accion) {
+      return false;
     }
 
     // Apply status filter
     if (filters.estado) {
       const isActive = filters.estado === "activo";
-      filtered = filtered.filter((role) => role.activo === isActive);
+      if (role.activo !== isActive) {
+        return false;
+      }
     }
 
-    setFilteredRoles(filtered);
-  };
+    return true;
+  });
 
   const handleFilterChange = (key: keyof typeof filters, value: string) => {
     setFilters((prev) => ({
@@ -132,18 +117,20 @@ export const RolesManager: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      setError(null);
 
+    try {
       if (editingRol) {
-        await rolesService.updateRole(editingRol.id, formData);
+        await updateRoleMutation.mutateAsync({
+          id: editingRol.id,
+          roleData: formData,
+        });
       } else {
-        await rolesService.createRole({
+        await createRoleMutation.mutateAsync({
           ...formData,
           activo: true,
         });
       }
-      await loadRoles();
+
       setShowForm(false);
       setEditingRol(null);
       setFormData({
@@ -154,7 +141,7 @@ export const RolesManager: React.FC = () => {
         descripcion: "",
       });
     } catch (err) {
-      setError("Error saving role");
+      // Error is handled by the mutation
       console.error("Failed to save role:", err);
     }
   };
@@ -174,11 +161,9 @@ export const RolesManager: React.FC = () => {
   const handleDelete = async (roleId: string) => {
     if (window.confirm("¿Estás seguro de que quieres eliminar este rol?")) {
       try {
-        setError(null);
-        await rolesService.deleteRole(roleId);
-        await loadRoles();
+        await deleteRoleMutation.mutateAsync(roleId);
       } catch (err) {
-        setError("Error eliminando rol");
+        // Error is handled by the mutation
         console.error("Failed to delete role:", err);
       }
     }
@@ -191,7 +176,9 @@ export const RolesManager: React.FC = () => {
     setCurrentPage(1);
   };
 
-  if (loading) {
+  const isInitialLoad = isLoading && roles.length === 0;
+
+  if (isInitialLoad) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="text-[#798283]">Cargando roles...</div>
@@ -215,18 +202,29 @@ export const RolesManager: React.FC = () => {
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
+            className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
           >
             + Nuevo Rol
           </button>
         </div>
       </div>
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
+
+      {/* Error Messages */}
+      {(error ||
+        createRoleMutation.error ||
+        updateRoleMutation.error ||
+        deleteRoleMutation.error) && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="text-red-700">
+            {error?.message ||
+              createRoleMutation.error?.message ||
+              updateRoleMutation.error?.message ||
+              deleteRoleMutation.error?.message}
+          </div>
         </div>
       )}
 
+      {/* Role Form */}
       {showForm && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
           <h3 className="text-lg font-semibold text-[#798283] mb-4">
@@ -247,7 +245,10 @@ export const RolesManager: React.FC = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, codigo: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
+                disabled={
+                  createRoleMutation.isPending || updateRoleMutation.isPending
+                }
+                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
                 placeholder="Ej: ver_ordenes, crear_usuarios"
               />
             </div>
@@ -263,7 +264,10 @@ export const RolesManager: React.FC = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, nombre: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
+                disabled={
+                  createRoleMutation.isPending || updateRoleMutation.isPending
+                }
+                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
                 placeholder="Ej: Ver Órdenes, Crear Usuarios"
               />
             </div>
@@ -278,7 +282,10 @@ export const RolesManager: React.FC = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, modulo: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
+                disabled={
+                  createRoleMutation.isPending || updateRoleMutation.isPending
+                }
+                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
               >
                 <option value="">Seleccionar módulo</option>
                 {uniqueModules.map((module) => (
@@ -298,7 +305,10 @@ export const RolesManager: React.FC = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, tipo_accion: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
+                disabled={
+                  createRoleMutation.isPending || updateRoleMutation.isPending
+                }
+                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
               >
                 <option value="ver">Ver</option>
                 <option value="crear">Crear</option>
@@ -311,9 +321,22 @@ export const RolesManager: React.FC = () => {
             <div className="md:col-span-2 flex space-x-3 pt-4">
               <button
                 type="submit"
-                className="bg-[#D42B22] hover:bg-[#B3251E] text-[#D42B22] px-6 py-2 rounded-lg transition-all duration-200 font-semibold"
+                disabled={
+                  createRoleMutation.isPending || updateRoleMutation.isPending
+                }
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
               >
-                {editingRol ? "Actualizar" : "Crear"} Rol
+                {createRoleMutation.isPending ||
+                updateRoleMutation.isPending ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {editingRol ? "Actualizando..." : "Creando..."}
+                  </div>
+                ) : editingRol ? (
+                  "Actualizar Rol"
+                ) : (
+                  "Crear Rol"
+                )}
               </button>
               <button
                 type="button"
@@ -328,7 +351,10 @@ export const RolesManager: React.FC = () => {
                     descripcion: "",
                   });
                 }}
-                className="bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold"
+                disabled={
+                  createRoleMutation.isPending || updateRoleMutation.isPending
+                }
+                className="bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -337,7 +363,7 @@ export const RolesManager: React.FC = () => {
         </div>
       )}
 
-      {/* Filters Section */}
+      {/* Filters Section - ALWAYS VISIBLE */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
         <div className="flex flex-col md:flex-row md:items-end gap-4 mb-4">
           <div className="flex-1">
@@ -525,15 +551,19 @@ export const RolesManager: React.FC = () => {
                         <td className="py-3 px-4 space-x-2">
                           <button
                             onClick={() => handleEdit(role)}
-                            className="text-blue-600 hover:text-blue-800 transition-colors duration-200 text-sm font-medium"
+                            disabled={deleteRoleMutation.isPending}
+                            className="text-blue-600 hover:text-blue-800 transition-colors duration-200 text-sm font-medium disabled:opacity-50"
                           >
                             Editar
                           </button>
                           <button
                             onClick={() => handleDelete(role.id)}
-                            className="text-red-600 hover:text-red-800 transition-colors duration-200 text-sm font-medium"
+                            disabled={deleteRoleMutation.isPending}
+                            className="text-red-600 hover:text-red-800 transition-colors duration-200 text-sm font-medium disabled:opacity-50"
                           >
-                            Eliminar
+                            {deleteRoleMutation.isPending
+                              ? "Eliminando..."
+                              : "Eliminar"}
                           </button>
                         </td>
                       )}
@@ -581,7 +611,7 @@ export const RolesManager: React.FC = () => {
                         onClick={() => setCurrentPage(page)}
                         className={`px-3 py-2 rounded-lg transition-all duration-200 ${
                           currentPage === page
-                            ? "bg-[#D42B22] text-[#D42B22]"
+                            ? "bg-[#D42B22] text-white"
                             : "border border-[#798283]/30 text-[#798283] hover:bg-[#798283]/10"
                         }`}
                       >

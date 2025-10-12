@@ -1,7 +1,7 @@
 import { BrowserRouter as Router } from "react-router-dom";
 import { AuthInitializer } from "./components/auth/AuthInitializer";
 import { AppRoutes } from "./routes";
-import "./services/apiInterceptor";
+/* import "./services/apiInterceptor"; */
 import { AuthExpirationHandler } from "./components/AuthExpirationHandler";
 
 function App() {
