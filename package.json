@@ -33,9 +33,5 @@
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=10.0.0"
-  },
-  "dependencies": {
-    "@tanstack/react-query": "^5.90.2",
-    "@tanstack/react-query-devtools": "^5.90.2"
   }
 }
