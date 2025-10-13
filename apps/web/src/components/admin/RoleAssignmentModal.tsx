@@ -4,6 +4,7 @@ import {
   useAssignRolesToProfile,
 } from "../../hooks/useProfilesService";
 import type { Profile } from "../../types/auth";
+import type { AvailableRole } from "../../services/profilesService";
 
 interface RoleAssignmentModalProps {
   profile: Profile;
@@ -22,7 +23,6 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [moduleFilter, setModuleFilter] = useState("");
 
-  // Use TanStack Query hooks
   const {
     data: availableRoles = [],
     isLoading,
@@ -33,11 +33,10 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
 
   useEffect(() => {
     if (isOpen && availableRoles.length > 0) {
-      // Pre-select currently assigned roles
       const assignedRoleIds = availableRoles
-        .filter((role) => role.asignado)
-        .map((role) => role.id);
-      setSelectedRoles(assignedRoleIds);
+        .filter((role: AvailableRole) => role.asignado)
+        .map((role: AvailableRole) => role.id);
+      setSelectedRoles(assignedRoleIds as string[]);
     }
   }, [isOpen, availableRoles]);
 
@@ -50,7 +49,7 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
   };
 
   const handleSelectAll = () => {
-    const allRoleIds = availableRoles.map((role) => role.id);
+    const allRoleIds = availableRoles.map((role: AvailableRole) => role.id);
     setSelectedRoles(allRoleIds);
   };
 
@@ -73,7 +72,6 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
         }
       );
     } catch (err) {
-      // Error is handled by the mutation
       console.error("Error assigning roles:", err);
     }
   };
@@ -86,8 +84,7 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
     onClose();
   };
 
-  // Filter roles based on search and module filter
-  const filteredRoles = availableRoles.filter((role) => {
+  const filteredRoles = availableRoles.filter((role: AvailableRole) => {
     const matchesSearch =
       role.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       role.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -98,9 +95,8 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
     return matchesSearch && matchesModule;
   });
 
-  // Get unique modules for filter
   const modules = [
-    ...new Set(availableRoles.map((role) => role.modulo)),
+    ...new Set(availableRoles.map((role: AvailableRole) => role.modulo)),
   ].sort();
 
   if (!isOpen) return null;
@@ -140,7 +136,6 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
           </div>
         </div>
 
-        {/* Filters - ALWAYS VISIBLE */}
         <div className="p-4 bg-[#EFF4F9] border-b border-[#798283]/10">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
@@ -161,7 +156,7 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
                 className="w-full md:w-48 px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
               >
                 <option value="">Todos los módulos</option>
-                {modules.map((module) => (
+                {modules.map((module: string) => (
                   <option key={module} value={module}>
                     {module.charAt(0).toUpperCase() + module.slice(1)}
                   </option>
@@ -170,7 +165,6 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
             </div>
           </div>
 
-          {/* Loading indicator for filters */}
           {isLoading && (
             <div className="flex items-center justify-center mt-2 py-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#D42B22] mr-2"></div>
@@ -229,16 +223,16 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
             </div>
           ) : filteredRoles.length > 0 ? (
             <div className="divide-y divide-[#798283]/10">
-              {filteredRoles.map((role) => (
+              {filteredRoles.map((role: AvailableRole) => (
                 <div
-                  key={role.id}
+                  key={role.id as string}
                   className="p-4 hover:bg-[#EFF4F9] transition-colors duration-200"
                 >
                   <label className="flex items-start space-x-3 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={selectedRoles.includes(role.id)}
-                      onChange={() => handleRoleToggle(role.id)}
+                      checked={selectedRoles.includes(role.id as string)}
+                      onChange={() => handleRoleToggle(role.id as string)}
                       disabled={assignRolesMutation.isPending}
                       className="mt-1 rounded border-[#798283]/30 text-[#D42B22] focus:ring-[#D42B22] disabled:opacity-50"
                     />
@@ -256,7 +250,7 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
                         </div>
                         <div className="flex gap-2">
                           <span className="px-2 py-1 text-xs bg-[#798283]/10 text-[#798283] rounded-full">
-                            {role.modulo}
+                            {role.modulo as string}
                           </span>
                           <span
                             className={`px-2 py-1 text-xs rounded-full ${
@@ -271,7 +265,7 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
                                 : "bg-gray-100 text-gray-800"
                             }`}
                           >
-                            {role.tipo_accion}
+                            {role.tipo_accion as string}
                           </span>
                         </div>
                       </div>
@@ -303,8 +297,6 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
             </div>
           )}
         </div>
-
-        {/* Actions */}
         <div className="p-6 border-t border-[#798283]/10 bg-[#EFF4F9]">
           <div className="flex justify-between items-center">
             <div className="text-sm text-[#798283]">

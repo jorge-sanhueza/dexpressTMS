@@ -61,7 +61,11 @@ export function useUpdateUser() {
   return useMutation({
     mutationFn: ({ id, userData }: { id: string; userData: UpdateUserData }) =>
       usersService.updateUser(id, userData),
-    onSuccess: (_, variables) => {
+    onSuccess: (
+      _: User,
+      variables: { id: string; userData: UpdateUserData }
+    ) => {
+      // Add types
       queryClient.invalidateQueries({
         queryKey: userKeys.detail(variables.id),
       });

@@ -8,7 +8,7 @@ import {
   useDeactivateProfile,
   useProfileWithRoles,
 } from "../../hooks/useProfilesService";
-import type { Profile, ProfileWithRoles } from "../../types/auth";
+import type { Profile, ProfileType, ProfileWithRoles } from "../../types/auth";
 import { RoleAssignmentModal } from "./RoleAssignmentModal";
 
 export const ProfilesManager: React.FC = () => {
@@ -285,7 +285,7 @@ export const ProfilesManager: React.FC = () => {
                     Cargando tipos...
                   </option>
                 ) : (
-                  profileTypes.map((type) => (
+                  profileTypes.map((type: ProfileType) => (
                     <option key={type.id} value={type.tipoPerfil}>
                       {type.tipoPerfil.charAt(0).toUpperCase() +
                         type.tipoPerfil.slice(1)}
@@ -432,21 +432,23 @@ export const ProfilesManager: React.FC = () => {
                   ) : profileWithRoles?.roles &&
                     profileWithRoles.roles.length > 0 ? (
                     <div className="space-y-2">
-                      {profileWithRoles.roles.map((role, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-3 border border-[#798283]/20 rounded-lg"
-                        >
-                          <div>
-                            <span className="font-medium text-[#798283]">
-                              {role}
+                      {profileWithRoles.roles.map(
+                        (role: string, index: number) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-3 border border-[#798283]/20 rounded-lg"
+                          >
+                            <div>
+                              <span className="font-medium text-[#798283]">
+                                {role}
+                              </span>
+                            </div>
+                            <span className="px-2 py-1 text-xs bg-[#D42B22]/10 text-[#D42B22] rounded">
+                              Asignado
                             </span>
                           </div>
-                          <span className="px-2 py-1 text-xs bg-[#D42B22]/10 text-[#D42B22] rounded">
-                            Asignado
-                          </span>
-                        </div>
-                      ))}
+                        )
+                      )}
                     </div>
                   ) : (
                     <div className="text-center py-8 border-2 border-dashed border-[#798283]/20 rounded-lg">
@@ -535,7 +537,7 @@ export const ProfilesManager: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {profiles.map((profile) => (
+              {profiles.map((profile: Profile) => (
                 <div
                   key={profile.id}
                   className="flex justify-between items-center p-4 border border-[#798283]/10 rounded-lg hover:bg-[#EFF4F9] transition-colors duration-200"

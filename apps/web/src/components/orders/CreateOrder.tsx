@@ -58,7 +58,7 @@ export const CreateOrder: React.FC = () => {
     const fetchClients = async () => {
       try {
         const clientsData = await clientsService.getClients();
-        setClients(clientsData);
+        setClients(clientsData.clients);
       } catch (error) {
         console.error("Error fetching clients:", error);
       }

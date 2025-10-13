@@ -18,6 +18,7 @@ export const ClientsList: React.FC = () => {
       const result = await clientsService.getClients(filter);
       setClients(result.clients);
       setTotal(result.total);
+      console.log(total);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error fetching clients");
     } finally {

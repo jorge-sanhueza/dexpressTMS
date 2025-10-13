@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useCreateUser, useProfiles } from "../../hooks/useUsers";
-import type { CreateUserData } from "../../types/user";
+import type { CreateUserData, Profile, User } from "../../types/user";
 
 interface UserCreationModalProps {
   isOpen: boolean;
@@ -50,7 +50,7 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
 
     // Use the mutation
     createUserMutation.mutate(formData, {
-      onSuccess: (newUser) => {
+      onSuccess: (newUser: User) => {
         onUserCreated(newUser);
         handleClose();
       },
@@ -263,7 +263,7 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
                   Cargando perfiles...
                 </option>
               ) : (
-                profiles?.map((profile) => (
+                profiles?.map((profile: Profile) => (
                   <option key={profile.id} value={profile.id}>
                     {profile.nombre}
                   </option>

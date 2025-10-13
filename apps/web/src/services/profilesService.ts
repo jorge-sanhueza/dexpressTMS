@@ -1,6 +1,6 @@
 import { apiClient } from "../lib/api-client";
 import { useAuthStore } from "../store/authStore";
-import type { Profile, ProfileWithRoles } from "../types/auth";
+import type { Profile, ProfileType, ProfileWithRoles } from "../types/auth";
 import { API_BASE } from "./apiConfig";
 
 export interface CreateProfileDto {
@@ -18,11 +18,6 @@ export interface UpdateProfileDto {
   contacto?: string;
   rut?: string;
   activo?: boolean;
-}
-
-export interface ProfileType {
-  id: string;
-  tipoPerfil: string;
 }
 
 export interface AvailableRole {

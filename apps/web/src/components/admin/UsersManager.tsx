@@ -267,7 +267,7 @@ export const UsersManager: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-[#798283]/10">
-                {users.map((user) => (
+                {users.map((user: User) => (
                   <tr
                     key={user.id}
                     className="hover:bg-[#EFF4F9]/50 transition-colors duration-150"

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useUpdateUser, useProfiles } from "../../hooks/useUsers";
-import type { User } from "../../types/user";
+import type { Profile, User } from "../../types/user";
 
 interface UserEditModalProps {
   user: User;
@@ -273,7 +273,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
                   Cargando perfiles...
                 </option>
               ) : (
-                profiles?.map((profile) => (
+                profiles?.map((profile: Profile) => (
                   <option key={profile.id} value={profile.id}>
                     {profile.nombre}
                   </option>

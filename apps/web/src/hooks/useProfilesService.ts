@@ -4,8 +4,8 @@ import {
   type CreateProfileDto,
   type UpdateProfileDto,
 } from "../services/profilesService";
+import type { Profile } from "../types/auth";
 
-// Query keys
 export const profileKeys = {
   all: ["profiles"] as const,
   lists: () => [...profileKeys.all, "list"] as const,
@@ -17,36 +17,32 @@ export const profileKeys = {
     [...profileKeys.detail(profileId), "available-roles"] as const,
 };
 
-// Hook for fetching profile types
 export function useProfileTypes() {
   return useQuery({
     queryKey: profileKeys.profileTypes(),
     queryFn: () => profilesService.getProfileTypes(),
-    staleTime: 10 * 60 * 1000, // 10 minutes (types don't change often)
+    staleTime: 10 * 60 * 1000,
   });
 }
 
-// Hook for fetching all profiles
 export function useProfiles(tenantId: string) {
   return useQuery({
     queryKey: profileKeys.list(tenantId),
     queryFn: () => profilesService.getProfiles(),
     enabled: !!tenantId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 }
 
-// Hook for fetching a profile with roles
 export function useProfileWithRoles(profileId: string) {
   return useQuery({
     queryKey: profileKeys.detail(profileId),
     queryFn: () => profilesService.getProfileWithRoles(profileId),
     enabled: !!profileId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 }
 
-// Hook for fetching available roles for a profile
 export function useAvailableRoles(profileId: string) {
   return useQuery({
     queryKey: profileKeys.availableRoles(profileId),
@@ -56,7 +52,6 @@ export function useAvailableRoles(profileId: string) {
   });
 }
 
-// Hook for creating a profile
 export function useCreateProfile() {
   const queryClient = useQueryClient();
 
@@ -69,7 +64,6 @@ export function useCreateProfile() {
   });
 }
 
-// Hook for updating a profile
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
@@ -81,7 +75,10 @@ export function useUpdateProfile() {
       id: string;
       profileData: UpdateProfileDto;
     }) => profilesService.updateProfile(id, profileData),
-    onSuccess: (_, variables) => {
+    onSuccess: (
+      _: Profile,
+      variables: { id: string; profileData: UpdateProfileDto }
+    ) => {
       queryClient.invalidateQueries({ queryKey: profileKeys.all });
       queryClient.invalidateQueries({
         queryKey: profileKeys.detail(variables.id),
@@ -90,7 +87,6 @@ export function useUpdateProfile() {
   });
 }
 
-// Hook for deactivating a profile
 export function useDeactivateProfile() {
   const queryClient = useQueryClient();
 
@@ -102,7 +98,6 @@ export function useDeactivateProfile() {
   });
 }
 
-// Hook for assigning roles to a profile
 export function useAssignRolesToProfile() {
   const queryClient = useQueryClient();
 
@@ -114,16 +109,16 @@ export function useAssignRolesToProfile() {
       profileId: string;
       roleIds: string[];
     }) => profilesService.assignRolesToProfile(profileId, roleIds),
-    onSuccess: (_, variables) => {
-      // Invalidate the available roles for this profile
+    onSuccess: (
+      _: { message: string },
+      variables: { profileId: string; roleIds: string[] }
+    ) => {
       queryClient.invalidateQueries({
         queryKey: profileKeys.availableRoles(variables.profileId),
       });
-      // Also invalidate the profile details
       queryClient.invalidateQueries({
         queryKey: profileKeys.detail(variables.profileId),
       });
-      // Invalidate all profiles list
       queryClient.invalidateQueries({ queryKey: profileKeys.all });
     },
   });

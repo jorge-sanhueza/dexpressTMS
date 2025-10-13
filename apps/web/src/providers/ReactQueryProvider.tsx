@@ -9,14 +9,14 @@ export function ReactQueryProvider({ children }: { children: ReactNode }) {
         defaultOptions: {
           queries: {
             staleTime: 10 * 60 * 1000,
-            retry: (failureCount, error: any) => {
+            retry: (failureCount: number, error: any) => {
               if (error?.status === 401) return false;
               return failureCount < 3;
             },
             refetchOnWindowFocus: false,
           },
           mutations: {
-            retry: (failureCount, error: any) => {
+            retry: (failureCount: number, error: any) => {
               if (error?.status === 401) return false;
               return failureCount < 2;
             },
