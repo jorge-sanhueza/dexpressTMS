@@ -1,7 +1,12 @@
 import React, { useState, useCallback } from "react";
-import { useUsers, useDeactivateUser } from "../../hooks/useUsers";
-import type { UsersFilter } from "../../types/user";
+import {
+  useUsers,
+  useDeactivateUser,
+  useUpdateUser,
+} from "../../hooks/useUsers";
+import type { User, UsersFilter } from "../../types/user";
 import { UserCreationModal } from "./UserCreationModal";
+import { UserEditModal } from "./UserEditModal";
 
 export const UsersManager: React.FC = () => {
   const [filter, setFilter] = useState<UsersFilter>({
@@ -9,6 +14,8 @@ export const UsersManager: React.FC = () => {
     limit: 10,
   });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   const {
@@ -19,14 +26,13 @@ export const UsersManager: React.FC = () => {
   } = useUsers(filter);
 
   const deactivateUserMutation = useDeactivateUser();
+  const updateUserMutation = useUpdateUser();
 
   const users = usersResponse?.users || [];
 
-  // Check if this is the initial load vs filter change
   const isInitialLoad = isLoading && users.length === 0;
   const hasData = users.length > 0;
 
-  // Debounced search
   const handleSearch = useCallback((term: string) => {
     const timer = setTimeout(() => {
       setFilter((prev) => ({
@@ -45,6 +51,16 @@ export const UsersManager: React.FC = () => {
       activo: activo,
       page: 1,
     }));
+  };
+
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUserUpdated = () => {
+    setIsEditModalOpen(false);
+    setEditingUser(null);
   };
 
   const handleDeactivateUser = async (userId: string) => {
@@ -116,7 +132,7 @@ export const UsersManager: React.FC = () => {
           </div>
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-4 py-2 rounded-lg transition-colors duration-200 font-semibold"
+            className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-4 py-2 rounded-lg transition-colors duration-200 font-semibold"
           >
             + Nuevo Usuario
           </button>
@@ -146,7 +162,7 @@ export const UsersManager: React.FC = () => {
               onClick={() => handleStatusFilter(undefined)}
               className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors duration-200 ${
                 filter.activo === undefined
-                  ? "bg-[#D42B22] text-white"
+                  ? "bg-[#D42B22] text-[#798283]"
                   : "bg-[#EFF4F9] text-[#798283] hover:bg-[#E0E8F0]"
               }`}
             >
@@ -156,7 +172,7 @@ export const UsersManager: React.FC = () => {
               onClick={() => handleStatusFilter(true)}
               className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors duration-200 ${
                 filter.activo === true
-                  ? "bg-green-600 text-white"
+                  ? "bg-green-600 text-[#798283]"
                   : "bg-[#EFF4F9] text-[#798283] hover:bg-[#E0E8F0]"
               }`}
             >
@@ -166,7 +182,7 @@ export const UsersManager: React.FC = () => {
               onClick={() => handleStatusFilter(false)}
               className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors duration-200 ${
                 filter.activo === false
-                  ? "bg-red-600 text-white"
+                  ? "bg-red-600 text-[#798283]"
                   : "bg-[#EFF4F9] text-[#798283] hover:bg-[#E0E8F0]"
               }`}
             >
@@ -185,7 +201,7 @@ export const UsersManager: React.FC = () => {
       </div>
 
       {/* Error Message */}
-      {(error || deactivateUserMutation.error) && (
+      {(error || deactivateUserMutation.error || updateUserMutation.error) && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -204,7 +220,9 @@ export const UsersManager: React.FC = () => {
             <div className="ml-3">
               <h3 className="text-sm font-medium text-red-800">Error</h3>
               <p className="text-sm text-red-700 mt-1">
-                {error?.message || deactivateUserMutation.error?.message}
+                {error?.message ||
+                  deactivateUserMutation.error?.message ||
+                  updateUserMutation.error?.message}
               </p>
             </div>
           </div>
@@ -283,13 +301,23 @@ export const UsersManager: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
-                        <button className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200">
+                        <button
+                          onClick={() => handleEditUser(user)}
+                          disabled={
+                            deactivateUserMutation.isPending ||
+                            updateUserMutation.isPending
+                          }
+                          className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 disabled:opacity-50"
+                        >
                           Editar
                         </button>
                         {user.activo && (
                           <button
                             onClick={() => handleDeactivateUser(user.id)}
-                            disabled={deactivateUserMutation.isPending}
+                            disabled={
+                              deactivateUserMutation.isPending ||
+                              updateUserMutation.isPending
+                            }
                             className="text-red-600 hover:text-red-800 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {deactivateUserMutation.isPending
@@ -350,6 +378,19 @@ export const UsersManager: React.FC = () => {
         onClose={() => setIsCreateModalOpen(false)}
         onUserCreated={handleUserCreated}
       />
+
+      {/* User Edit Modal */}
+      {editingUser && (
+        <UserEditModal
+          user={editingUser}
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingUser(null);
+          }}
+          onUserUpdated={handleUserUpdated}
+        />
+      )}
     </div>
   );
 };

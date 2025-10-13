@@ -1,45 +1,55 @@
 import React, { useState, useEffect } from "react";
-import { useCreateUser, useProfiles } from "../../hooks/useUsers";
-import type { CreateUserData } from "../../types/user";
+import { useUpdateUser, useProfiles } from "../../hooks/useUsers";
+import type { User } from "../../types/user";
 
-interface UserCreationModalProps {
+interface UserEditModalProps {
+  user: User;
   isOpen: boolean;
   onClose: () => void;
-  onUserCreated: (user: any) => void;
+  onUserUpdated: () => void;
 }
 
-export const UserCreationModal: React.FC<UserCreationModalProps> = ({
+export const UserEditModal: React.FC<UserEditModalProps> = ({
+  user,
   isOpen,
   onClose,
-  onUserCreated,
+  onUserUpdated,
 }) => {
-  const [formData, setFormData] = useState<CreateUserData>({
-    email: "",
+  const [formData, setFormData] = useState({
     nombre: "",
+    email: "",
+    telefono: "",
     contacto: "",
     rut: "",
-    telefono: "",
     perfilId: "",
   });
   const [error, setError] = useState<string | null>(null);
 
-  const createUserMutation = useCreateUser();
+  // Use TanStack Query hooks
+  const updateUserMutation = useUpdateUser();
   const { data: profiles, isLoading: profilesLoading } = useProfiles();
 
-  // Set default profile when profiles load
   useEffect(() => {
-    if (profiles && profiles.length > 0 && !formData.perfilId) {
-      setFormData((prev) => ({ ...prev, perfilId: profiles[0].id }));
+    if (isOpen && user) {
+      setFormData({
+        nombre: user.nombre || "",
+        email: user.email || "",
+        telefono: user.telefono || "",
+        contacto: user.contacto || "",
+        rut: user.rut || "",
+        perfilId: user.perfilId || "",
+      });
+      setError(null);
     }
-  }, [profiles, formData.perfilId]);
+  }, [isOpen, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     // Basic validation
-    if (!formData.email || !formData.nombre || !formData.perfilId) {
-      setError("Email, nombre y perfil son campos requeridos");
+    if (!formData.nombre || !formData.email) {
+      setError("Nombre y email son campos requeridos");
       return;
     }
 
@@ -49,28 +59,31 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
     }
 
     // Use the mutation
-    createUserMutation.mutate(formData, {
-      onSuccess: (newUser) => {
-        onUserCreated(newUser);
-        handleClose();
-      },
-      onError: (err: Error) => {
-        setError(err.message || "Error al crear el usuario");
-      },
-    });
+    updateUserMutation.mutate(
+      { id: user.id, userData: formData },
+      {
+        onSuccess: () => {
+          onUserUpdated();
+          handleClose();
+        },
+        onError: (err: Error) => {
+          setError(err.message || "Error al actualizar el usuario");
+        },
+      }
+    );
   };
 
   const handleClose = () => {
     setFormData({
-      email: "",
       nombre: "",
+      email: "",
+      telefono: "",
       contacto: "",
       rut: "",
-      telefono: "",
       perfilId: "",
     });
     setError(null);
-    createUserMutation.reset();
+    updateUserMutation.reset();
     onClose();
   };
 
@@ -88,13 +101,11 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-[#798283]/20">
-          <h2 className="text-xl font-bold text-[#798283]">
-            Crear Nuevo Usuario
-          </h2>
+          <h2 className="text-xl font-bold text-[#798283]">Editar Usuario</h2>
           <button
             onClick={handleClose}
             className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200"
-            disabled={createUserMutation.isPending}
+            disabled={updateUserMutation.isPending}
           >
             <svg
               className="w-6 h-6"
@@ -115,7 +126,7 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Error Message */}
-          {(error || createUserMutation.error) && (
+          {(error || updateUserMutation.error) && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center">
                 <svg
@@ -132,32 +143,11 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
                   />
                 </svg>
                 <span className="text-red-800 text-sm">
-                  {error || createUserMutation.error?.message}
+                  {error || updateUserMutation.error?.message}
                 </span>
               </div>
             </div>
           )}
-
-          {/* Email */}
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-[#798283] mb-1"
-            >
-              Email *
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              required
-              value={formData.email}
-              onChange={handleChange}
-              disabled={createUserMutation.isPending}
-              className="w-full px-3 py-2 border border-[#798283]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-              placeholder="usuario@empresa.com"
-            />
-          </div>
 
           {/* Nombre */}
           <div>
@@ -174,9 +164,30 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
               required
               value={formData.nombre}
               onChange={handleChange}
-              disabled={createUserMutation.isPending}
+              disabled={updateUserMutation.isPending}
               className="w-full px-3 py-2 border border-[#798283]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Juan Pérez"
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-[#798283] mb-1"
+            >
+              Email *
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              required
+              value={formData.email}
+              onChange={handleChange}
+              disabled={updateUserMutation.isPending}
+              className="w-full px-3 py-2 border border-[#798283]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+              placeholder="usuario@empresa.com"
             />
           </div>
 
@@ -194,7 +205,7 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
               name="telefono"
               value={formData.telefono}
               onChange={handleChange}
-              disabled={createUserMutation.isPending}
+              disabled={updateUserMutation.isPending}
               className="w-full px-3 py-2 border border-[#798283]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="+56 9 1234 5678"
             />
@@ -214,7 +225,7 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
               name="contacto"
               value={formData.contacto}
               onChange={handleChange}
-              disabled={createUserMutation.isPending}
+              disabled={updateUserMutation.isPending}
               className="w-full px-3 py-2 border border-[#798283]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Información de contacto adicional"
             />
@@ -234,7 +245,7 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
               name="rut"
               value={formData.rut}
               onChange={handleChange}
-              disabled={createUserMutation.isPending}
+              disabled={updateUserMutation.isPending}
               className="w-full px-3 py-2 border border-[#798283]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="12.345.678-9"
             />
@@ -246,15 +257,14 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
               htmlFor="perfilId"
               className="block text-sm font-medium text-[#798283] mb-1"
             >
-              Perfil *
+              Perfil
             </label>
             <select
               id="perfilId"
               name="perfilId"
-              required
               value={formData.perfilId}
               onChange={handleChange}
-              disabled={createUserMutation.isPending || profilesLoading}
+              disabled={updateUserMutation.isPending || profilesLoading}
               className="w-full px-3 py-2 border border-[#798283]/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="">Seleccionar perfil...</option>
@@ -277,23 +287,23 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
             <button
               type="button"
               onClick={handleClose}
-              disabled={createUserMutation.isPending}
+              disabled={updateUserMutation.isPending}
               className="flex-1 px-4 py-2 border border-[#798283]/20 text-[#798283] rounded-lg hover:bg-[#EFF4F9] transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={createUserMutation.isPending || profilesLoading}
-              className="flex-1 px-4 py-2 bg-[#D42B22] text-[#798283] rounded-lg hover:bg-[#B3251E] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
+              disabled={updateUserMutation.isPending || profilesLoading}
+              className="flex-1 px-4 py-2 bg-[#D42B22] text-white rounded-lg hover:bg-[#B3251E] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
             >
-              {createUserMutation.isPending ? (
+              {updateUserMutation.isPending ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creando...
+                  Actualizando...
                 </div>
               ) : (
-                "Crear Usuario"
+                "Actualizar Usuario"
               )}
             </button>
           </div>

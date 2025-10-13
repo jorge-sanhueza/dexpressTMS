@@ -1,15 +1,21 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { usersService } from '../services/usersService';
-import type { User, UsersResponse, UsersFilter, CreateUserData } from '../types/user';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { usersService } from "../services/usersService";
+import type {
+  User,
+  UsersResponse,
+  UsersFilter,
+  CreateUserData,
+  UpdateUserData,
+} from "../types/user";
 
 // Query keys for consistent cache management
 export const userKeys = {
-  all: ['users'] as const,
-  lists: () => [...userKeys.all, 'list'] as const,
+  all: ["users"] as const,
+  lists: () => [...userKeys.all, "list"] as const,
   list: (filter: UsersFilter) => [...userKeys.lists(), filter] as const,
-  details: () => [...userKeys.all, 'detail'] as const,
+  details: () => [...userKeys.all, "detail"] as const,
   detail: (id: string) => [...userKeys.details(), id] as const,
-  profiles: () => [...userKeys.all, 'profiles'] as const,
+  profiles: () => [...userKeys.all, "profiles"] as const,
 };
 
 // Hook for fetching users with filters
@@ -43,7 +49,26 @@ export function useCreateUser() {
       queryClient.invalidateQueries({ queryKey: userKeys.lists() });
     },
     onError: (error: Error) => {
-      console.error('Error creating user:', error);
+      console.error("Error creating user:", error);
+    },
+  });
+}
+
+// Hook for updating a user
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, userData }: { id: string; userData: UpdateUserData }) =>
+      usersService.updateUser(id, userData),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: userKeys.detail(variables.id),
+      });
+      queryClient.invalidateQueries({ queryKey: userKeys.lists() });
+    },
+    onError: (error: Error) => {
+      console.error("Error updating user:", error);
     },
   });
 }
@@ -59,7 +84,7 @@ export function useDeactivateUser() {
       queryClient.invalidateQueries({ queryKey: userKeys.lists() });
     },
     onError: (error: Error) => {
-      console.error('Error deactivating user:', error);
+      console.error("Error deactivating user:", error);
     },
   });
 }
@@ -79,7 +104,7 @@ export function useOptimisticUserUpdate() {
 
   const updateUser = (updatedUser: User) => {
     queryClient.setQueryData(userKeys.detail(updatedUser.id), updatedUser);
-    
+
     // Update user in all lists
     queryClient.setQueriesData(
       { queryKey: userKeys.lists() },
@@ -87,7 +112,7 @@ export function useOptimisticUserUpdate() {
         if (!old) return old;
         return {
           ...old,
-          users: old.users.map(user => 
+          users: old.users.map((user) =>
             user.id === updatedUser.id ? updatedUser : user
           ),
         };

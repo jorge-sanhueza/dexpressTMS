@@ -175,7 +175,7 @@ export const ProfilesManager: React.FC = () => {
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
+            className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
           >
             + Nuevo Perfil
           </button>
@@ -303,7 +303,7 @@ export const ProfilesManager: React.FC = () => {
                   updateProfileMutation.isPending ||
                   profileTypesLoading
                 }
-                className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
               >
                 {createProfileMutation.isPending ||
                 updateProfileMutation.isPending ? (
@@ -471,7 +471,7 @@ export const ProfilesManager: React.FC = () => {
                           handleCloseView();
                           handleOpenRoleAssignment(viewingProfile);
                         }}
-                        className="mt-3 bg-[#D42B22] hover:bg-[#B3251E] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                        className="mt-3 bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
                       >
                         Asignar Roles
                       </button>
@@ -495,7 +495,7 @@ export const ProfilesManager: React.FC = () => {
                     handleCloseView();
                     handleOpenRoleAssignment(viewingProfile);
                   }}
-                  className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold"
+                  className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold"
                 >
                   Gestionar Roles
                 </button>

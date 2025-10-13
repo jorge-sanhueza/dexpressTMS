@@ -5,6 +5,7 @@ import type {
   UsersFilter,
   Profile,
   CreateUserData,
+  UpdateUserData,
 } from "../types/user";
 import { API_BASE } from "./apiConfig";
 
@@ -47,7 +48,9 @@ class UsersService {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || `Failed to deactivate user: ${response.statusText}`);
+      throw new Error(
+        errorData.message || `Failed to deactivate user: ${response.statusText}`
+      );
     }
   }
 
@@ -56,18 +59,22 @@ class UsersService {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || `Failed to create user: ${response.statusText}`);
+      throw new Error(
+        errorData.message || `Failed to create user: ${response.statusText}`
+      );
     }
 
     return await response.json();
   }
 
-  async updateUser(id: string, userData: Partial<User>): Promise<User> {
+  async updateUser(id: string, userData: UpdateUserData): Promise<User> {
     const response = await apiClient.put(`${this.baseUrl}/${id}`, userData);
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || `Failed to update user: ${response.statusText}`);
+      throw new Error(
+        errorData.message || `Failed to update user: ${response.statusText}`
+      );
     }
 
     return await response.json();

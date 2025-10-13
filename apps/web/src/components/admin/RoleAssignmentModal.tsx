@@ -321,7 +321,7 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
               <button
                 onClick={handleSave}
                 disabled={assignRolesMutation.isPending || isLoading}
-                className="px-6 py-2 bg-[#D42B22] hover:bg-[#B3251E] text-white rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
+                className="px-6 py-2 bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
               >
                 {assignRolesMutation.isPending ? (
                   <div className="flex items-center">

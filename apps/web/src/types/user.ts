@@ -40,6 +40,17 @@ export interface CreateUserData {
   tipoId?: string;
 }
 
+export interface UpdateUserData {
+  email?: string;
+  nombre?: string;
+  contacto?: string;
+  rut?: string;
+  telefono?: string;
+  perfilId?: string;
+  tipoId?: string;
+  activo?: boolean;
+}
+
 export interface Profile {
   id: string;
   nombre: string;
@@ -47,4 +58,15 @@ export interface Profile {
     id: string;
     tipoPerfil: string;
   };
+}
+
+export interface UserProfile {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  tipo: string;
+  activo: boolean;
+  tenantId: string;
+  createdAt: string;
+  updatedAt: string;
 }

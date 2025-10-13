@@ -202,7 +202,7 @@ export const RolesManager: React.FC = () => {
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
+            className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
           >
             + Nuevo Rol
           </button>
@@ -324,7 +324,7 @@ export const RolesManager: React.FC = () => {
                 disabled={
                   createRoleMutation.isPending || updateRoleMutation.isPending
                 }
-                className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
               >
                 {createRoleMutation.isPending ||
                 updateRoleMutation.isPending ? (
@@ -611,7 +611,7 @@ export const RolesManager: React.FC = () => {
                         onClick={() => setCurrentPage(page)}
                         className={`px-3 py-2 rounded-lg transition-all duration-200 ${
                           currentPage === page
-                            ? "bg-[#D42B22] text-white"
+                            ? "bg-[#D42B22] text-[#798283]"
                             : "border border-[#798283]/30 text-[#798283] hover:bg-[#798283]/10"
                         }`}
                       >
