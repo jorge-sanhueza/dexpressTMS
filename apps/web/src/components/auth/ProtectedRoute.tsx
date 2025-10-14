@@ -82,7 +82,7 @@ const AccessDenied: React.FC = () => {
           </p>
           <button
             onClick={() => window.history.back()}
-            className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-colors duration-200 font-semibold"
+            className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-2 rounded-lg transition-colors duration-200 font-semibold"
           >
             Volver Atrás
           </button>

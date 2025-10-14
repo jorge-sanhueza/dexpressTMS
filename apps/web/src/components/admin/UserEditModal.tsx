@@ -296,7 +296,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
             <button
               type="submit"
               disabled={updateUserMutation.isPending || profilesLoading}
-              className="flex-1 px-4 py-2 bg-[#D42B22] text-white rounded-lg hover:bg-[#B3251E] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
+              className="flex-1 px-4 py-2 bg-[#D42B22] text-[#798283] rounded-lg hover:bg-[#B3251E] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
             >
               {updateUserMutation.isPending ? (
                 <div className="flex items-center justify-center">

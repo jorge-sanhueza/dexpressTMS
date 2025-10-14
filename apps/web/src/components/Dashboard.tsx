@@ -46,7 +46,7 @@ export const Dashboard: React.FC = () => {
             Panel de Control
           </h2>
           <p className="text-[#798283]/70 text-lg">
-            Bienvenido de vuelta, {user!.nombre}. Aquí tienes un resumen de tu
+            Bienvenido de vuelta, {user!.name}. Aquí tienes un resumen de tu
             actividad en {tenant!.nombre}.
           </p>
         </div>
@@ -78,7 +78,7 @@ export const Dashboard: React.FC = () => {
               <div className="flex justify-between items-center pb-3 border-b border-[#798283]/10">
                 <span className="text-sm text-[#798283]/70">Nombre</span>
                 <span className="font-medium text-[#798283]">
-                  {user?.nombre}
+                  {user?.name}
                 </span>
               </div>
               <div className="flex justify-between items-center pb-3 border-b border-[#798283]/10">

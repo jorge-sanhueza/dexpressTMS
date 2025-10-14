@@ -52,7 +52,7 @@ export const Layout: React.FC<LayoutProps> = ({
                   className="h-10 w-10 bg-[#EFF4F9] rounded-lg flex items-center justify-center hover:bg-[#E0E8F0] transition-colors duration-200"
                 >
                   <svg
-                    className="h-5 w-5 text-[#798283]"
+                    className="h-5 w-5 text-white"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -96,7 +96,7 @@ export const Layout: React.FC<LayoutProps> = ({
             <div className="flex items-center space-x-6">
               <div className="text-right">
                 <p className="text-[#798283] font-semibold">
-                  Bienvenido, {user!.nombre}
+                  Bienvenido, {user!.name}
                 </p>
                 <p className="text-sm text-[#798283]/70">{user!.email}</p>
               </div>
@@ -116,7 +116,7 @@ export const Layout: React.FC<LayoutProps> = ({
               </button>
               <button
                 onClick={logout}
-                className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
               >
                 Cerrar sesión
               </button>
