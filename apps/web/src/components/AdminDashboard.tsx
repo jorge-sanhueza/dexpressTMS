@@ -57,7 +57,7 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="flex items-center space-x-6">
               <div className="text-right">
-                <p className="text-[#798283] font-semibold">{user.name}</p>
+                <p className="text-[#798283] font-semibold">{user.nombre}</p>
                 <p className="text-sm text-[#798283]/70">Administrador</p>
               </div>
 

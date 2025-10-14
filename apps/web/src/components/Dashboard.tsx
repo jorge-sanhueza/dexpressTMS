@@ -4,18 +4,20 @@ import { useAuthStore } from "../store/authStore";
 import { Layout } from "./layout/Layout";
 
 export const Dashboard: React.FC = () => {
-  const { user, tenant, hasPermission, roles } = useAuthStore();
+  const { user, tenant, hasPermission } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log("User permissions:", user?.permissions);
-    console.log("User roles:", roles);
+    console.log("🔍 Dashboard Ready:");
+    console.log("User:", user);
+    console.log("Tenant:", tenant);
     console.log("Has admin_access:", hasPermission("admin_access"));
-  }, [user, roles, hasPermission]);
+  }, [user, tenant, hasPermission]);
 
   const handleNavigateToProfile = () => {
     navigate("/perfil");
   };
+
   const handleCreateOrder = () => {
     navigate("/ordenes/crear");
   };
@@ -44,8 +46,8 @@ export const Dashboard: React.FC = () => {
             Panel de Control
           </h2>
           <p className="text-[#798283]/70 text-lg">
-            Bienvenido de vuelta, {user?.name}. Aquí tienes un resumen de tu
-            actividad en {tenant?.nombre || "tu organización"}.
+            Bienvenido de vuelta, {user!.nombre}. Aquí tienes un resumen de tu
+            actividad en {tenant!.nombre}.
           </p>
         </div>
 
@@ -75,7 +77,9 @@ export const Dashboard: React.FC = () => {
             <div className="space-y-4 mb-6">
               <div className="flex justify-between items-center pb-3 border-b border-[#798283]/10">
                 <span className="text-sm text-[#798283]/70">Nombre</span>
-                <span className="font-medium text-[#798283]">{user?.name}</span>
+                <span className="font-medium text-[#798283]">
+                  {user?.nombre}
+                </span>
               </div>
               <div className="flex justify-between items-center pb-3 border-b border-[#798283]/10">
                 <span className="text-sm text-[#798283]/70">Email</span>
@@ -144,7 +148,7 @@ export const Dashboard: React.FC = () => {
             <div className="space-y-3">
               <button
                 onClick={handleNavigateToOrders}
-                className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-sm font-semibold rounded-lg text-[#D42B22] bg-[#D42B22] hover:bg-[#B3251E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D42B22] transition-all duration-200 shadow-sm hover:shadow-md"
+                className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-sm font-semibold rounded-lg text-[#798283] bg-[#D42B22] hover:bg-[#B3251E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D42B22] transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 <svg
                   className="w-4 h-4 mr-2"

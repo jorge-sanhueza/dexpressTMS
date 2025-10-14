@@ -15,37 +15,80 @@ export interface Tenant {
 
 export const tenantService = {
   async getTenantById(tenantId: string): Promise<Tenant> {
+    console.log("🏢 tenantService.getTenantById called with ID:", tenantId);
+
     const token = localStorage.getItem("access_token");
+    console.log("🔑 Token available:", !!token);
 
-    const response = await fetch(`${API_BASE}/api/tenants/${tenantId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    const url = `${API_BASE}/api/tenants/${tenantId}`;
+    console.log("🌐 Making request to:", url);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch tenant data: ${response.statusText}`);
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("📡 Response status:", response.status);
+      console.log("📡 Response ok:", response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ API Error response:", errorText);
+        throw new Error(
+          `Failed to fetch tenant data: ${response.status} - ${response.statusText} - ${errorText}`
+        );
+      }
+
+      const tenantData = await response.json();
+      console.log("✅ Tenant data received:", tenantData);
+      return tenantData;
+    } catch (error) {
+      console.error("❌ Error in tenantService.getTenantById:");
+
+      // Proper error handling
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error name:", error.name);
+      } else {
+        console.error("Unknown error type:", error);
+      }
+
+      throw error;
     }
-
-    return response.json();
   },
 
   async getCurrentUserTenant(): Promise<Tenant> {
     const token = localStorage.getItem("access_token");
-    const response = await fetch(`${API_BASE}/api/tenants/current`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
 
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch current tenant data: ${response.statusText}`
-      );
+    try {
+      const response = await fetch(`${API_BASE}/api/tenants/current`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to fetch current tenant data: ${response.status} - ${response.statusText} - ${errorText}`
+        );
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error("❌ Error in getCurrentUserTenant:");
+
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+      } else {
+        console.error("Unknown error type:", error);
+      }
+
+      throw error;
     }
-
-    return response.json();
   },
 };

@@ -8,8 +8,8 @@ import {
   useDeactivateProfile,
   useProfileWithRoles,
 } from "../../hooks/useProfilesService";
-import type { Profile, ProfileType, ProfileWithRoles } from "../../types/auth";
 import { RoleAssignmentModal } from "./RoleAssignmentModal";
+import type { Profile, ProfileType, ProfileWithRoles } from "../../types/profile";
 
 export const ProfilesManager: React.FC = () => {
   const { tenant } = useAuthStore();

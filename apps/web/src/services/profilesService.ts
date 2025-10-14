@@ -1,6 +1,6 @@
 import { apiClient } from "../lib/api-client";
 import { useAuthStore } from "../store/authStore";
-import type { Profile, ProfileType, ProfileWithRoles } from "../types/auth";
+import type { Profile, ProfileType, ProfileWithRoles } from "../types/profile";
 import { API_BASE } from "./apiConfig";
 
 export interface CreateProfileDto {

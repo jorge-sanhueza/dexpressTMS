@@ -1,16 +1,23 @@
 import { BrowserRouter as Router } from "react-router-dom";
-import { AuthInitializer } from "./components/auth/AuthInitializer";
 import { AppRoutes } from "./routes";
-/* import "./services/apiInterceptor"; */
 import { AuthExpirationHandler } from "./components/AuthExpirationHandler";
+import { useAuthStore } from "./store/authStore";
+import { useEffect } from "react";
 
 function App() {
+  const { initializeAuth, isInitialized } = useAuthStore();
+
+  useEffect(() => {
+    console.log("🚀 App mounted - Initializing auth. isInitialized:", isInitialized);
+    if (!isInitialized) {
+      initializeAuth();
+    }
+  }, [initializeAuth, isInitialized]);
+
   return (
     <Router>
-      <AuthInitializer>
-        <AuthExpirationHandler />
-        <AppRoutes />
-      </AuthInitializer>
+      <AuthExpirationHandler />
+      <AppRoutes />
     </Router>
   );
 }

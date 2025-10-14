@@ -3,8 +3,8 @@ import {
   useAvailableRoles,
   useAssignRolesToProfile,
 } from "../../hooks/useProfilesService";
-import type { Profile } from "../../types/auth";
 import type { AvailableRole } from "../../services/profilesService";
+import type { Profile } from "../../types/profile";
 
 interface RoleAssignmentModalProps {
   profile: Profile;

@@ -1,4 +1,4 @@
-export interface User {
+export interface AuthUser {
   id: string;
   email: string;
   name: string;
@@ -8,43 +8,14 @@ export interface User {
   permissions: string[];
 }
 
-export interface Profile {
-  id: string;
-  nombre: string;
-  descripcion: string;
-  activo: boolean;
-  tipo: string;
-}
-
-export interface ProfileWithRoles extends Profile {
-  roles: string[];
-}
-
-export interface ProfileType {
-  id: string;
-  tipoPerfil: string;
-}
-
-export interface Rol {
-  id: string;
-  codigo: string;
-  nombre: string;
-  modulo: string;
-  tipo_accion: string;
-  activo: boolean;
-  descripcion?: string;
-  tenantId?: string;
-  orden?: number;
-}
-
 export interface LoginResponse {
   access_token: string;
   refresh_token: string;
-  user: User;
+  user: AuthUser;
 }
 
 export interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;

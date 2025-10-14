@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useCreateUser, useProfiles } from "../../hooks/useUsers";
-import type { CreateUserData, Profile, User } from "../../types/user";
+import type { CreateUserData, User } from "../../types/user";
+import type { Profile } from "../../types/profile";
 
 interface UserCreationModalProps {
   isOpen: boolean;

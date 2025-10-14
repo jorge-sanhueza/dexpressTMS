@@ -36,7 +36,7 @@ export const Layout: React.FC<LayoutProps> = ({
     }
   };
 
-  if (!user) return null;
+  // No need for loading check here - LoadingWrapper handles it
 
   return (
     <div className="min-h-screen bg-[#EFF4F9]">
@@ -87,9 +87,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 </div>
                 <div>
                   <h2 className="font-bold text-[#798283]">TMS Portal</h2>
-                  <p className="text-sm text-[#798283]/70">
-                    {tenant?.nombre || "Sistema de Gestión de Transporte"}
-                  </p>
+                  <p className="text-sm text-[#798283]/70">{tenant!.nombre}</p>
                 </div>
               </div>
             </div>
@@ -98,9 +96,9 @@ export const Layout: React.FC<LayoutProps> = ({
             <div className="flex items-center space-x-6">
               <div className="text-right">
                 <p className="text-[#798283] font-semibold">
-                  Bienvenido, {user.name}
+                  Bienvenido, {user!.nombre}
                 </p>
-                <p className="text-sm text-[#798283]/70">{user.email}</p>
+                <p className="text-sm text-[#798283]/70">{user!.email}</p>
               </div>
               {hasPermission("admin_access") && (
                 <button
@@ -118,7 +116,7 @@ export const Layout: React.FC<LayoutProps> = ({
               </button>
               <button
                 onClick={logout}
-                className="bg-[#D42B22] hover:bg-[#B3251E] text-[#D42B22] px-6 py-2 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
               >
                 Cerrar sesión
               </button>

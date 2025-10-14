@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useUpdateUser, useProfiles } from "../../hooks/useUsers";
-import type { Profile, User } from "../../types/user";
+import type { User } from "../../types/user";
+import type { Profile } from "../../types/profile";
 
 interface UserEditModalProps {
   user: User;

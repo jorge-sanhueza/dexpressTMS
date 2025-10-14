@@ -52,7 +52,7 @@ export const UserProfile: React.FC = () => {
             </div>
             <div className="flex items-center space-x-6">
               <div className="text-right">
-                <p className="text-[#798283] font-semibold">{user.name}</p>
+                <p className="text-[#798283] font-semibold">{user.nombre}</p>
                 <p className="text-sm text-[#798283]/70">{user.email}</p>
               </div>
               <button
@@ -133,7 +133,7 @@ export const UserProfile: React.FC = () => {
                 <div className="flex justify-between items-center pb-3 border-b border-[#798283]/10">
                   <span className="text-sm text-[#798283]/70">Nombre</span>
                   <span className="font-medium text-[#798283]">
-                    {user.name}
+                    {user.nombre}
                   </span>
                 </div>
                 <div className="flex justify-between items-center pb-3 border-b border-[#798283]/10">

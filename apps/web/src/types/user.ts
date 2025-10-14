@@ -50,23 +50,3 @@ export interface UpdateUserData {
   tipoId?: string;
   activo?: boolean;
 }
-
-export interface Profile {
-  id: string;
-  nombre: string;
-  tipo?: {
-    id: string;
-    tipoPerfil: string;
-  };
-}
-
-export interface UserProfile {
-  id: string;
-  nombre: string;
-  descripcion?: string;
-  tipo: string;
-  activo: boolean;
-  tenantId: string;
-  createdAt: string;
-  updatedAt: string;
-}

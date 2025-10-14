@@ -1,9 +1,9 @@
 import { apiClient } from "../lib/api-client";
+import type { Profile } from "../types/profile";
 import type {
   User,
   UsersResponse,
   UsersFilter,
-  Profile,
   CreateUserData,
   UpdateUserData,
 } from "../types/user";

@@ -1,6 +1,8 @@
+// routes/index.tsx
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
+import { AuthDataLoader } from "../components/auth/AuthDataLoader";
 import { LoginForm } from "../components/LoginForm";
 import { Dashboard } from "../components/Dashboard";
 import { AdminDashboard } from "../components/AdminDashboard";
@@ -11,7 +13,7 @@ import { ClientsList } from "../components/clients/ClientsList";
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      {/* Public route with gradient background */}
+      {/* Public route - No wrappers */}
       <Route
         path="/login"
         element={
@@ -20,94 +22,103 @@ export const AppRoutes: React.FC = () => {
           </div>
         }
       />
-      {/* Protected routes */}
+
+      {/* Protected routes - Wrapped with data loading THEN route protection */}
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
+          <AuthDataLoader>
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          </AuthDataLoader>
         }
       />
+
       <Route
         path="/admin"
         element={
-          <ProtectedRoute requiredRole="admin_access">
-            <AdminDashboard />
-          </ProtectedRoute>
+          <AuthDataLoader>
+            <ProtectedRoute requiredRole="admin_access">
+              <AdminDashboard />
+            </ProtectedRoute>
+          </AuthDataLoader>
         }
       />
+
       <Route
         path="/perfil"
         element={
-          <ProtectedRoute>
-            <UserProfile />
-          </ProtectedRoute>
+          <AuthDataLoader>
+            <ProtectedRoute>
+              <UserProfile />
+            </ProtectedRoute>
+          </AuthDataLoader>
         }
       />
 
       <Route
         path="/clientes"
         element={
-          <ProtectedRoute>
-            <ClientsList />
-          </ProtectedRoute>
+          <AuthDataLoader>
+            <ProtectedRoute>
+              <ClientsList />
+            </ProtectedRoute>
+          </AuthDataLoader>
         }
       />
 
       <Route
         path="/embarcadores"
         element={
-          <ProtectedRoute>
-            <div className="p-8">Gestión de Embarcadores - Próximamente</div>
-          </ProtectedRoute>
+          <AuthDataLoader>
+            <ProtectedRoute>
+              <div className="p-8">Gestión de Embarcadores - Próximamente</div>
+            </ProtectedRoute>
+          </AuthDataLoader>
         }
       />
 
       <Route
         path="/carriers"
         element={
-          <ProtectedRoute>
-            <div className="p-8">Gestión de Carriers - Próximamente</div>
-          </ProtectedRoute>
+          <AuthDataLoader>
+            <ProtectedRoute>
+              <div className="p-8">Gestión de Carriers - Próximamente</div>
+            </ProtectedRoute>
+          </AuthDataLoader>
         }
       />
-      {/* Order routes - Spanish URLs */}
+
       <Route
         path="/ordenes/crear"
         element={
-          <ProtectedRoute>
-            <CreateOrder />
-          </ProtectedRoute>
+          <AuthDataLoader>
+            <ProtectedRoute>
+              <CreateOrder />
+            </ProtectedRoute>
+          </AuthDataLoader>
         }
       />
-      {/*       <Route
-        path="/ordenes"
-        element={
-          <ProtectedRoute>
-            <OrdersList />
-          </ProtectedRoute>
-        }
-      />
+
+      {/* Fallback routes - Also protected */}
       <Route
-        path="/ordenes/:id"
+        path="/"
         element={
-          <ProtectedRoute>
-            <OrderDetails />
-          </ProtectedRoute>
+          <AuthDataLoader>
+            <Navigate to="/dashboard" replace />
+          </AuthDataLoader>
         }
       />
+
       <Route
-        path="/ordenes/:id/editar"
+        path="*"
         element={
-          <ProtectedRoute>
-            <EditOrder />
-          </ProtectedRoute>
+          <AuthDataLoader>
+            <Navigate to="/dashboard" replace />
+          </AuthDataLoader>
         }
-      /> */}
-      {/* Fallback routes */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      />
     </Routes>
   );
 };

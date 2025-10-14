@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import type { Rol } from "../../types/auth";
 import { useAuthStore } from "../../store/authStore";
 import {
   useRoles,
@@ -7,6 +6,7 @@ import {
   useUpdateRole,
   useDeleteRole,
 } from "../../hooks/useRoles";
+import type { Rol } from "../../types/role";
 
 export const RolesManager: React.FC = () => {
   const { tenant } = useAuthStore();

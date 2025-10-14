@@ -1,7 +1,7 @@
 // src/services/rolesService.ts
 import { apiClient } from "../lib/api-client";
 import { useAuthStore } from "../store/authStore";
-import type { Rol } from "../types/auth";
+import type { Rol } from "../types/role";
 import { API_BASE } from "./apiConfig";
 
 export interface CreateRoleDto {
@@ -37,15 +37,32 @@ class RolesService {
   }
 
   async getRolesByIds(roleIds: string[]): Promise<Rol[]> {
-    const response = await apiClient.post(`${this.baseUrl}/by-ids`, {
-      roleIds,
-    });
+    console.log("🔧 rolesService.getRolesByIds called with:", roleIds);
+    console.log("🔧 Making POST request to:", `${this.baseUrl}/by-ids`);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch roles: ${response.statusText}`);
+    try {
+      const response = await apiClient.post(`${this.baseUrl}/by-ids`, {
+        roleIds,
+      });
+
+      console.log("🔧 API Response status:", response.status);
+      console.log("🔧 API Response ok:", response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("🔧 API Error response:", errorText);
+        throw new Error(
+          `Failed to fetch roles: ${response.statusText} - ${errorText}`
+        );
+      }
+
+      const roles = await response.json();
+      console.log("🔧 Parsed roles from API:", roles);
+      return roles;
+    } catch (error) {
+      console.error("🔧 Error in getRolesByIds:", error);
+      throw error;
     }
-
-    return await response.json();
   }
 
   async getRolesByTenant(tenantId: string): Promise<Rol[]> {

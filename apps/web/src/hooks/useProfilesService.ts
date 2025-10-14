@@ -4,7 +4,7 @@ import {
   type CreateProfileDto,
   type UpdateProfileDto,
 } from "../services/profilesService";
-import type { Profile } from "../types/auth";
+import type { Profile } from "../types/profile";
 
 export const profileKeys = {
   all: ["profiles"] as const,
