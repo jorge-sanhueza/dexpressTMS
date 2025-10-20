@@ -9,7 +9,12 @@ import {
   useProfileWithRoles,
 } from "../../hooks/useProfilesService";
 import { RoleAssignmentModal } from "./RoleAssignmentModal";
-import type { Profile, ProfileType, ProfileWithRoles } from "../../types/profile";
+import type {
+  Profile,
+  ProfileType,
+  ProfileWithRoles,
+} from "../../types/profile";
+import { Button } from "../ui/button";
 
 export const ProfilesManager: React.FC = () => {
   const { tenant } = useAuthStore();
@@ -173,12 +178,12 @@ export const ProfilesManager: React.FC = () => {
               Crear y administrar perfiles de usuario
             </p>
           </div>
-          <button
+          <Button
             onClick={() => setShowForm(true)}
-            className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
+            className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
           >
             + Nuevo Perfil
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -296,14 +301,14 @@ export const ProfilesManager: React.FC = () => {
             </div>
 
             <div className="flex space-x-3 pt-4">
-              <button
+              <Button
                 type="submit"
                 disabled={
                   createProfileMutation.isPending ||
                   updateProfileMutation.isPending ||
                   profileTypesLoading
                 }
-                className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
               >
                 {createProfileMutation.isPending ||
                 updateProfileMutation.isPending ? (
@@ -316,8 +321,8 @@ export const ProfilesManager: React.FC = () => {
                 ) : (
                   "Crear Perfil"
                 )}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => {
                   setShowForm(false);
@@ -335,7 +340,7 @@ export const ProfilesManager: React.FC = () => {
                 className="bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
               >
                 Cancelar
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -350,7 +355,7 @@ export const ProfilesManager: React.FC = () => {
                 <h3 className="text-xl font-bold text-[#798283]">
                   Detalles del Perfil
                 </h3>
-                <button
+                <Button
                   onClick={handleCloseView}
                   className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200"
                 >
@@ -367,7 +372,7 @@ export const ProfilesManager: React.FC = () => {
                       d="M6 18L18 6M6 6l12 12"
                     />
                   </svg>
-                </button>
+                </Button>
               </div>
 
               <div className="space-y-4">
@@ -468,7 +473,7 @@ export const ProfilesManager: React.FC = () => {
                       <p className="mt-2 text-sm text-[#798283]/70">
                         No hay roles asignados a este perfil
                       </p>
-                      <button
+                      <Button
                         onClick={() => {
                           handleCloseView();
                           handleOpenRoleAssignment(viewingProfile);
@@ -476,14 +481,14 @@ export const ProfilesManager: React.FC = () => {
                         className="mt-3 bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
                       >
                         Asignar Roles
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-[#798283]/10">
-                <button
+                <Button
                   onClick={() => {
                     handleCloseView();
                     handleEdit(viewingProfile);
@@ -491,8 +496,8 @@ export const ProfilesManager: React.FC = () => {
                   className="bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold"
                 >
                   Editar Perfil
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => {
                     handleCloseView();
                     handleOpenRoleAssignment(viewingProfile);
@@ -500,7 +505,7 @@ export const ProfilesManager: React.FC = () => {
                   className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold"
                 >
                   Gestionar Roles
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -565,21 +570,21 @@ export const ProfilesManager: React.FC = () => {
                     </p>
                   </div>
                   <div className="flex space-x-2">
-                    <button
+                    <Button
                       onClick={() => handleViewProfile(profile)}
                       disabled={deactivateProfileMutation.isPending}
-                      className="text-blue-600 hover:text-blue-800 transition-colors duration-200 text-sm font-medium disabled:opacity-50"
+                      className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 text-sm font-medium disabled:opacity-50"
                     >
                       Ver Perfil
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => handleEdit(profile)}
                       disabled={deactivateProfileMutation.isPending}
                       className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 text-sm font-medium disabled:opacity-50"
                     >
                       Editar
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => handleDeactivate(profile.id)}
                       disabled={deactivateProfileMutation.isPending}
                       className="text-red-600 hover:text-red-800 transition-colors duration-200 text-sm font-medium disabled:opacity-50"
@@ -587,7 +592,7 @@ export const ProfilesManager: React.FC = () => {
                       {deactivateProfileMutation.isPending
                         ? "Desactivando..."
                         : "Desactivar"}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}

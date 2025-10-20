@@ -7,6 +7,7 @@ import {
 import type { User, UsersFilter } from "../../types/user";
 import { UserCreationModal } from "./UserCreationModal";
 import { UserEditModal } from "./UserEditModal";
+import { Button } from "../ui/button";
 
 export const UsersManager: React.FC = () => {
   const [filter, setFilter] = useState<UsersFilter>({
@@ -130,12 +131,12 @@ export const UsersManager: React.FC = () => {
               Administra los usuarios del sistema
             </p>
           </div>
-          <button
+          <Button
             onClick={() => setIsCreateModalOpen(true)}
-            className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-4 py-2 rounded-lg transition-colors duration-200 font-semibold"
+            className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-4 py-2 rounded-lg transition-colors duration-200 font-semibold"
           >
             + Nuevo Usuario
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -158,36 +159,36 @@ export const UsersManager: React.FC = () => {
 
           {/* Status Filter */}
           <div className="flex gap-2">
-            <button
+            <Button
               onClick={() => handleStatusFilter(undefined)}
               className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors duration-200 ${
                 filter.activo === undefined
-                  ? "bg-[#D42B22] text-[#798283]"
+                  ? "bg-[#D42B22] text-white"
                   : "bg-[#EFF4F9] text-[#798283] hover:bg-[#E0E8F0]"
               }`}
             >
               Todos
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => handleStatusFilter(true)}
               className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors duration-200 ${
                 filter.activo === true
-                  ? "bg-green-600 text-[#798283]"
+                  ? "bg-[#D42B22] text-white"
                   : "bg-[#EFF4F9] text-[#798283] hover:bg-[#E0E8F0]"
               }`}
             >
               Activos
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => handleStatusFilter(false)}
               className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors duration-200 ${
                 filter.activo === false
-                  ? "bg-red-600 text-[#798283]"
+                  ? "bg-[#D42B22] text-white"
                   : "bg-[#EFF4F9] text-[#798283] hover:bg-[#E0E8F0]"
               }`}
             >
               Inactivos
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -301,7 +302,7 @@ export const UsersManager: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
-                        <button
+                        <Button
                           onClick={() => handleEditUser(user)}
                           disabled={
                             deactivateUserMutation.isPending ||
@@ -310,9 +311,9 @@ export const UsersManager: React.FC = () => {
                           className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 disabled:opacity-50"
                         >
                           Editar
-                        </button>
+                        </Button>
                         {user.activo && (
-                          <button
+                          <Button
                             onClick={() => handleDeactivateUser(user.id)}
                             disabled={
                               deactivateUserMutation.isPending ||
@@ -323,7 +324,7 @@ export const UsersManager: React.FC = () => {
                             {deactivateUserMutation.isPending
                               ? "Desactivando..."
                               : "Desactivar"}
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </td>

@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { Layout } from "./layout/Layout";
+import { Button } from "./ui/button";
 
 export const Dashboard: React.FC = () => {
   const { user, tenant, hasPermission } = useAuthStore();
@@ -102,7 +103,7 @@ export const Dashboard: React.FC = () => {
                 </div>
               )}
             </div>
-            <button
+            <Button
               onClick={handleNavigateToProfile}
               className="w-full flex items-center justify-center px-4 py-2 border border-[#798283]/30 text-sm font-semibold rounded-lg text-[#798283] bg-white hover:bg-[#EFF4F9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#798283] transition-all duration-200"
             >
@@ -120,7 +121,7 @@ export const Dashboard: React.FC = () => {
                 />
               </svg>
               Ver Perfil Completo
-            </button>
+            </Button>
           </div>
 
           {/* Quick Actions Card */}
@@ -146,9 +147,9 @@ export const Dashboard: React.FC = () => {
               </h3>
             </div>
             <div className="space-y-3">
-              <button
+              <Button
                 onClick={handleNavigateToOrders}
-                className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-sm font-semibold rounded-lg text-[#798283] bg-[#D42B22] hover:bg-[#B3251E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D42B22] transition-all duration-200 shadow-sm hover:shadow-md"
+                className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-[#D42B22] hover:bg-[#B3251E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D42B22] transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 <svg
                   className="w-4 h-4 mr-2"
@@ -164,8 +165,8 @@ export const Dashboard: React.FC = () => {
                   />
                 </svg>
                 Ver Órdenes
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleCreateOrder}
                 className="w-full flex items-center justify-center px-4 py-3 border border-[#798283]/30 text-sm font-semibold rounded-lg text-[#798283] bg-white hover:bg-[#EFF4F9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#798283] transition-all duration-200"
               >
@@ -183,8 +184,8 @@ export const Dashboard: React.FC = () => {
                   />
                 </svg>
                 Crear Orden
-              </button>
-              <button className="w-full flex items-center justify-center px-4 py-3 border border-[#798283]/30 text-sm font-semibold rounded-lg text-[#798283] bg-white hover:bg-[#EFF4F9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#798283] transition-all duration-200">
+              </Button>
+              <Button className="w-full flex items-center justify-center px-4 py-3 border border-[#798283]/30 text-sm font-semibold rounded-lg text-[#798283] bg-white hover:bg-[#EFF4F9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#798283] transition-all duration-200">
                 <svg
                   className="w-4 h-4 mr-2"
                   fill="none"
@@ -199,7 +200,7 @@ export const Dashboard: React.FC = () => {
                   />
                 </svg>
                 Seguir Orden
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -225,7 +226,7 @@ export const Dashboard: React.FC = () => {
               </h3>
             </div>
             <div className="space-y-3">
-              <button
+              <Button
                 onClick={handleNavigateToClients}
                 className="w-full flex items-center justify-center px-4 py-3 border border-[#798283]/30 text-sm font-semibold rounded-lg text-[#798283] bg-white hover:bg-[#EFF4F9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#798283] transition-all duration-200"
               >
@@ -243,8 +244,8 @@ export const Dashboard: React.FC = () => {
                   />
                 </svg>
                 Ver Clientes
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleNavigateToShippers}
                 className="w-full flex items-center justify-center px-4 py-3 border border-[#798283]/30 text-sm font-semibold rounded-lg text-[#798283] bg-white hover:bg-[#EFF4F9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#798283] transition-all duration-200"
               >
@@ -262,8 +263,8 @@ export const Dashboard: React.FC = () => {
                   />
                 </svg>
                 Ver Embarcadores
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleNavigateToCarriers}
                 className="w-full flex items-center justify-center px-4 py-3 border border-[#798283]/30 text-sm font-semibold rounded-lg text-[#798283] bg-white hover:bg-[#EFF4F9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#798283] transition-all duration-200"
               >
@@ -281,7 +282,7 @@ export const Dashboard: React.FC = () => {
                   />
                 </svg>
                 Ver Carriers
-              </button>
+              </Button>
             </div>
           </div>
         </div>

@@ -4,12 +4,14 @@ import { RolesManager } from "./admin/RolesManager";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { UsersManager } from "./admin/UsersManager";
+import { Button } from "./ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 export const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<"profiles" | "roles" | "users">(
-    "users"
-  );
+
+  const [activeTab, setActiveTab] = useState<string>("users");
+
   const navigate = useNavigate();
 
   if (!user) return null;
@@ -57,16 +59,16 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="flex items-center space-x-6">
               <div className="text-right">
-                <p className="text-[#798283] font-semibold">{user.nombre}</p>
+                <p className="text-[#798283] font-semibold">{user.name}</p>
                 <p className="text-sm text-[#798283]/70">Administrador</p>
               </div>
 
-              <button
+              <Button
                 onClick={logout}
-                className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
               >
                 Cerrar sesión
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -74,44 +76,61 @@ export const AdminDashboard: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <div className="border-b border-[#798283]/20">
-          <nav className="mb-2 px-2 flex space-x-8">
-            <button
+          <div className="flex items-center space-x-6 bg-white p-6 rounded-lg shadow-sm border border-border">
+            {/* Back button */}
+            <Button
               onClick={handleBackToDashboard}
-              className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 font-medium"
+              variant="ghost"
+              size="sm"
+              className="gap-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
-              ← Volver al Dashboard
-            </button>
-            <button
-              onClick={() => setActiveTab("users")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "users"
-                  ? "border-[#D42B22] text-[#D42B22]"
-                  : "border-transparent text-[#798283] hover:text-[#798283]/70 hover:border-[#798283]/30"
-              }`}
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
+              </svg>
+              Volver al Dashboard
+            </Button>
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="flex-1"
             >
-              Gestión de Usuarios
-            </button>
-            <button
-              onClick={() => setActiveTab("profiles")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "profiles"
-                  ? "border-[#D42B22] text-[#D42B22]"
-                  : "border-transparent text-[#798283] hover:text-[#798283]/70 hover:border-[#798283]/30"
-              }`}
-            >
-              Gestión de Perfiles
-            </button>
-            <button
-              onClick={() => setActiveTab("roles")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "roles"
-                  ? "border-[#D42B22] text-[#D42B22]"
-                  : "border-transparent text-[#798283] hover:text-[#798283]/70 hover:border-[#798283]/30"
-              }`}
-            >
-              Gestión de Roles
-            </button>
-          </nav>
+              <TabsList className="w-full justify-start space-x-8 bg-transparent p-0 h-auto">
+                <TabsTrigger
+                  value="users"
+                  className="group relative rounded-none border-b-2 border-transparent bg-transparent px-3 pb-3 pt-2 text-sm font-medium text-muted-foreground shadow-none transition-all duration-200 hover:text-foreground data-[state=active]:text-brand data-[state=active]:font-semibold data-[state=active]:bg-[#EFF4F9]"
+                >
+                  Gestión de Usuarios
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand transition-all duration-300 group-hover:w-full data-[state=active]:w-full" />
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="profiles"
+                  className="group relative rounded-none border-b-2 border-transparent bg-transparent px-3 pb-3 pt-2 text-sm font-medium text-muted-foreground shadow-none transition-all duration-200 hover:text-foreground data-[state=active]:text-brand data-[state=active]:font-semibold data-[state=active]:bg-[#EFF4F9]"
+                >
+                  Gestión de Perfiles
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand transition-all duration-300 group-hover:w-full data-[state=active]:w-full" />
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="roles"
+                  className="group relative rounded-none border-b-2 border-transparent bg-transparent px-3 pb-3 pt-2 text-sm font-medium text-muted-foreground shadow-none transition-all duration-200 hover:text-foreground data-[state=active]:text-brand data-[state=active]:font-semibold data-[state=active]:bg-[#EFF4F9]"
+                >
+                  Gestión de Roles
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand transition-all duration-300 group-hover:w-full data-[state=active]:w-full" />
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
       </div>
 

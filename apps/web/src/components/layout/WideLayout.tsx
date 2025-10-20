@@ -1,14 +1,15 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
+import { Button } from "../ui/button";
 
-interface LayoutProps {
+interface WideLayoutProps {
   children: React.ReactNode;
   showBackButton?: boolean;
   onBackClick?: () => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({
+export const WideLayout: React.FC<WideLayoutProps> = ({
   children,
   showBackButton = false,
   onBackClick,
@@ -32,27 +33,23 @@ export const Layout: React.FC<LayoutProps> = ({
     if (onBackClick) {
       onBackClick();
     } else {
-      navigate(-1); // Go back in history
+      navigate(-1);
     }
   };
 
-  // No need for loading check here - LoadingWrapper handles it
-
   return (
     <div className="min-h-screen bg-[#EFF4F9]">
-      {/* Navigation Bar */}
       <nav className="bg-white shadow-lg border-b border-[#798283]/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-screen-2xl mx-auto px-2 sm:px-4 lg:px-6">
           <div className="flex justify-between h-20 items-center">
-            {/* Left side - Logo and back button */}
             <div className="flex items-center space-x-4">
               {showBackButton && (
-                <button
+                <Button
                   onClick={handleBackClick}
                   className="h-10 w-10 bg-[#EFF4F9] rounded-lg flex items-center justify-center hover:bg-[#E0E8F0] transition-colors duration-200"
                 >
                   <svg
-                    className="h-5 w-5 text-white"
+                    className="h-5 w-5 text-[#798283]"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -64,7 +61,7 @@ export const Layout: React.FC<LayoutProps> = ({
                       d="M10 19l-7-7m0 0l7-7m-7 7h18"
                     />
                   </svg>
-                </button>
+                </Button>
               )}
               <div
                 className="flex items-center space-x-4 cursor-pointer"
@@ -101,33 +98,33 @@ export const Layout: React.FC<LayoutProps> = ({
                 <p className="text-sm text-[#798283]/70">{user!.email}</p>
               </div>
               {hasPermission("admin_access") && (
-                <button
+                <Button
                   onClick={handleNavigateToAdmin}
                   className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 font-medium"
                 >
                   Administración
-                </button>
+                </Button>
               )}
-              <button
+              <Button
                 onClick={handleNavigateToProfile}
                 className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 font-medium"
               >
                 Perfil
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={logout}
                 className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
               >
                 Cerrar sesión
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
-        <div className="px-4 sm:px-6 lg:px-8">{children}</div>
+      {/* Main Content - WIDER for tables */}
+      <main className="max-w-screen-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        {children}
       </main>
     </div>
   );

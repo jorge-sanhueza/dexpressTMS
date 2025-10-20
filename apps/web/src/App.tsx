@@ -8,7 +8,6 @@ function App() {
   const { initializeAuth, isInitialized } = useAuthStore();
 
   useEffect(() => {
-    console.log("🚀 App mounted - Initializing auth. isInitialized:", isInitialized);
     if (!isInitialized) {
       initializeAuth();
     }

@@ -13,10 +13,3 @@ export interface LoginResponse {
   refresh_token: string;
   user: AuthUser;
 }
-
-export interface AuthState {
-  user: AuthUser | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-}

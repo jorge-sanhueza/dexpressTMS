@@ -90,11 +90,11 @@ class ClientsService {
     this.invalidateClientsCache();
   }
 
+  // Since there's no activate endpoint, we'll use update to set activo to true
   async activateClient(id: string): Promise<Client> {
-    const client = await this.makeRequest(
-      `${this.baseUrl}/${id}/activate`,
-      "PUT"
-    );
+    const client = await this.makeRequest(`${this.baseUrl}/${id}`, "PUT", {
+      activo: true,
+    });
     this.invalidateClientsCache();
     return client;
   }

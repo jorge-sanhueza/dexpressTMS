@@ -3,6 +3,7 @@ import { useAuthStore } from "../store/authStore";
 import type { LoginResponse } from "../types/auth";
 import { useNavigate } from "react-router-dom";
 import { API_ENDPOINTS } from "../services/apiConfig";
+import { Button } from "./ui/button";
 
 export const LoginForm: React.FC = () => {
   const { login } = useAuthStore();
@@ -129,10 +130,10 @@ export const LoginForm: React.FC = () => {
             />
           </div>
           <div>
-            <button
+            <Button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-lg text-[#798283] bg-[#D42B22] focus:outline-none focus:ring focus:ring-[#D42B22] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
+              className="group relative w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-[#D42B22] focus:outline-none focus:ring focus:ring-[#D42B22] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
             >
               {isLoading ? (
                 <>
@@ -160,7 +161,7 @@ export const LoginForm: React.FC = () => {
               ) : (
                 "Ingresar al sistema"
               )}
-            </button>
+            </Button>
           </div>
           <div className="text-center">
             <p className="text-xs text-[#798283]/70 bg-white/50 py-2 px-3 rounded-lg border border-[#798283]/20">

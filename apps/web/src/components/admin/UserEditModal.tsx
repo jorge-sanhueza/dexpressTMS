@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useUpdateUser, useProfiles } from "../../hooks/useUsers";
 import type { User } from "../../types/user";
 import type { Profile } from "../../types/profile";
+import { Button } from "../ui/button";
 
 interface UserEditModalProps {
   user: User;
@@ -285,18 +286,18 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
 
           {/* Actions */}
           <div className="flex space-x-3 pt-4">
-            <button
+            <Button
               type="button"
               onClick={handleClose}
               disabled={updateUserMutation.isPending}
               className="flex-1 px-4 py-2 border border-[#798283]/20 text-[#798283] rounded-lg hover:bg-[#EFF4F9] transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               disabled={updateUserMutation.isPending || profilesLoading}
-              className="flex-1 px-4 py-2 bg-[#D42B22] text-[#798283] rounded-lg hover:bg-[#B3251E] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
+              className="flex-1 px-4 py-2 bg-[#D42B22] text-white rounded-lg hover:bg-[#B3251E] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
             >
               {updateUserMutation.isPending ? (
                 <div className="flex items-center justify-center">
@@ -306,7 +307,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({
               ) : (
                 "Actualizar Usuario"
               )}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

@@ -7,6 +7,7 @@ import {
   useDeleteRole,
 } from "../../hooks/useRoles";
 import type { Rol } from "../../types/role";
+import { Button } from "../ui/button";
 
 export const RolesManager: React.FC = () => {
   const { tenant } = useAuthStore();
@@ -196,16 +197,15 @@ export const RolesManager: React.FC = () => {
               Gestión de Roles
             </h2>
             <p className="text-[#798283]/70">
-              Crear y administrar roles de permisos{" "}
-              {tenant && `- ${tenant.nombre}`}
+              Crear y administrar roles de permisos
             </p>
           </div>
-          <button
+          <Button
             onClick={() => setShowForm(true)}
-            className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
+            className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
           >
             + Nuevo Rol
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -319,7 +319,7 @@ export const RolesManager: React.FC = () => {
             </div>
 
             <div className="md:col-span-2 flex space-x-3 pt-4">
-              <button
+              <Button
                 type="submit"
                 disabled={
                   createRoleMutation.isPending || updateRoleMutation.isPending
@@ -337,8 +337,8 @@ export const RolesManager: React.FC = () => {
                 ) : (
                   "Crear Rol"
                 )}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => {
                   setShowForm(false);
@@ -357,7 +357,7 @@ export const RolesManager: React.FC = () => {
                 className="bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
               >
                 Cancelar
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -432,12 +432,12 @@ export const RolesManager: React.FC = () => {
             </select>
           </div>
 
-          <button
+          <Button
             onClick={clearFilters}
             className="bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] px-4 py-2 rounded-lg transition-all duration-200 font-semibold h-[42px]"
           >
             Limpiar
-          </button>
+          </Button>
         </div>
 
         <div className="text-sm text-[#798283]/70">
@@ -549,14 +549,14 @@ export const RolesManager: React.FC = () => {
                       </td>
                       {role.codigo !== "admin_access" && (
                         <td className="py-3 px-4 space-x-2">
-                          <button
+                          <Button
                             onClick={() => handleEdit(role)}
                             disabled={deleteRoleMutation.isPending}
-                            className="text-blue-600 hover:text-blue-800 transition-colors duration-200 text-sm font-medium disabled:opacity-50"
+                            className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 disabled:opacity-50"
                           >
                             Editar
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             onClick={() => handleDelete(role.id)}
                             disabled={deleteRoleMutation.isPending}
                             className="text-red-600 hover:text-red-800 transition-colors duration-200 text-sm font-medium disabled:opacity-50"
@@ -564,7 +564,7 @@ export const RolesManager: React.FC = () => {
                             {deleteRoleMutation.isPending
                               ? "Eliminando..."
                               : "Eliminar"}
-                          </button>
+                          </Button>
                         </td>
                       )}
                     </tr>
@@ -593,7 +593,7 @@ export const RolesManager: React.FC = () => {
               </div>
 
               <div className="flex gap-2">
-                <button
+                <Button
                   onClick={() =>
                     setCurrentPage((prev) => Math.max(prev - 1, 1))
                   }
@@ -601,27 +601,27 @@ export const RolesManager: React.FC = () => {
                   className="px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#798283]/10 transition-all duration-200"
                 >
                   Anterior
-                </button>
+                </Button>
 
                 <div className="flex gap-1">
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map(
                     (page) => (
-                      <button
+                      <Button
                         key={page}
                         onClick={() => setCurrentPage(page)}
                         className={`px-3 py-2 rounded-lg transition-all duration-200 ${
                           currentPage === page
-                            ? "bg-[#D42B22] text-[#798283]"
+                            ? "bg-[#D42B22] text-white"
                             : "border border-[#798283]/30 text-[#798283] hover:bg-[#798283]/10"
                         }`}
                       >
                         {page}
-                      </button>
+                      </Button>
                     )
                   )}
                 </div>
 
-                <button
+                <Button
                   onClick={() =>
                     setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                   }
@@ -629,7 +629,7 @@ export const RolesManager: React.FC = () => {
                   className="px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#798283]/10 transition-all duration-200"
                 >
                   Siguiente
-                </button>
+                </Button>
               </div>
             </div>
           )}

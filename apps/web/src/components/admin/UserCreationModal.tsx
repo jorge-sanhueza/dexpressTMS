@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useCreateUser, useProfiles } from "../../hooks/useUsers";
 import type { CreateUserData, User } from "../../types/user";
 import type { Profile } from "../../types/profile";
+import { Button } from "../ui/button";
 
 interface UserCreationModalProps {
   isOpen: boolean;
@@ -92,7 +93,7 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
           <h2 className="text-xl font-bold text-[#798283]">
             Crear Nuevo Usuario
           </h2>
-          <button
+          <Button
             onClick={handleClose}
             className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200"
             disabled={createUserMutation.isPending}
@@ -110,7 +111,7 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
                 d="M6 18L18 6M6 6l12 12"
               />
             </svg>
-          </button>
+          </Button>
         </div>
 
         {/* Form */}
@@ -275,18 +276,18 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
 
           {/* Actions */}
           <div className="flex space-x-3 pt-4">
-            <button
+            <Button
               type="button"
               onClick={handleClose}
               disabled={createUserMutation.isPending}
               className="flex-1 px-4 py-2 border border-[#798283]/20 text-[#798283] rounded-lg hover:bg-[#EFF4F9] transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               disabled={createUserMutation.isPending || profilesLoading}
-              className="flex-1 px-4 py-2 bg-[#D42B22] text-[#798283] rounded-lg hover:bg-[#B3251E] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
+              className="flex-1 px-4 py-2 bg-[#D42B22] text-white rounded-lg hover:bg-[#B3251E] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
             >
               {createUserMutation.isPending ? (
                 <div className="flex items-center justify-center">
@@ -296,7 +297,7 @@ export const UserCreationModal: React.FC<UserCreationModalProps> = ({
               ) : (
                 "Crear Usuario"
               )}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
