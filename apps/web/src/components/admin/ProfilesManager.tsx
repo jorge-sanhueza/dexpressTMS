@@ -8,7 +8,7 @@ import {
   useDeactivateProfile,
   useProfileWithRoles,
 } from "../../hooks/useProfilesService";
-import { RoleAssignmentModal } from "./RoleAssignmentModal";
+import { RoleAssignmentModal } from "./Roles/RoleAssignmentModal";
 import type {
   Profile,
   ProfileType,

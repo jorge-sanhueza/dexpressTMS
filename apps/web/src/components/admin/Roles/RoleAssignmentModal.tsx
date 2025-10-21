@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import {
   useAvailableRoles,
   useAssignRolesToProfile,
-} from "../../hooks/useProfilesService";
-import type { AvailableRole } from "../../services/profilesService";
-import type { Profile } from "../../types/profile";
+} from "../../../hooks/useProfilesService";
+import type { AvailableRole } from "../../../services/profilesService";
+import type { Profile } from "../../../types/profile";
 
 interface RoleAssignmentModalProps {
   profile: Profile;

@@ -1,22 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { useAuthStore } from "../../store/authStore";
+import { RolesTable } from "./RolesTable";
+import { TableFilters } from "@/components/TableFilters";
+import { rolesFilterConfig } from "./roles-filter-config";
+import { useAuthStore } from "@/store/authStore";
 import {
-  useRoles,
   useCreateRole,
-  useUpdateRole,
   useDeleteRole,
-} from "../../hooks/useRoles";
-import type { Rol } from "../../types/role";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+  useRoles,
+  useUpdateRole,
+} from "@/hooks/useRoles";
+import type { Rol } from "@/types/role";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../ui/select";
-import { RolesTable } from "./RolesTable";
+} from "@/components/ui/select";
 
 export const RolesManager: React.FC = () => {
   const { tenant } = useAuthStore();
@@ -30,10 +32,6 @@ export const RolesManager: React.FC = () => {
     tipo_accion: "ver",
     descripcion: "",
   });
-
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -103,13 +101,10 @@ export const RolesManager: React.FC = () => {
     return true;
   });
 
-  const handleFilterChange = (
-    key: keyof typeof filters,
-    value: string | undefined
-  ) => {
+  const handleFilterChange = (key: string, value: any) => {
     setFilters((prev) => ({
       ...prev,
-      [key]: value,
+      [key]: value === "" ? undefined : value,
     }));
   };
 
@@ -121,12 +116,6 @@ export const RolesManager: React.FC = () => {
       estado: undefined,
     });
   };
-
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredRoles.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentRoles = filteredRoles.slice(startIndex, endIndex);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,19 +161,11 @@ export const RolesManager: React.FC = () => {
   };
 
   const handleDelete = async (roleId: string) => {
-    if (window.confirm("¿Estás seguro de que quieres eliminar este rol?")) {
-      try {
-        await deleteRoleMutation.mutateAsync(roleId);
-      } catch (err) {
-        // Error is handled by the mutation
-        console.error("Failed to delete role:", err);
-      }
+    try {
+      await deleteRoleMutation.mutateAsync(roleId);
+    } catch (err) {
+      console.error("Failed to delete role:", err);
     }
-  };
-
-  const handleItemsPerPageChange = (value: string) => {
-    setItemsPerPage(Number(value));
-    setCurrentPage(1);
   };
 
   const isInitialLoad = isLoading && roles.length === 0;
@@ -378,189 +359,33 @@ export const RolesManager: React.FC = () => {
         </div>
       )}
 
-      {/* Filters Section */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
-        <div className="flex flex-col md:flex-row md:items-end gap-4 mb-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-[#798283] mb-2">
-              Buscar
-            </label>
-            <Input
-              type="text"
-              value={filters.search}
-              onChange={(e) => handleFilterChange("search", e.target.value)}
-              className="placeholder-[#798283]/60 text-[#798283]"
-              placeholder="Buscar por código, nombre o descripción..."
-            />
-          </div>
+      {/* Reusable Filters Component */}
+      <TableFilters
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onClearFilters={clearFilters}
+        filterConfigs={rolesFilterConfig}
+        resultsInfo={{
+          currentCount: filteredRoles.length,
+          totalCount: roles.length,
+          filteredCount:
+            filteredRoles.length !== roles.length
+              ? filteredRoles.length
+              : undefined,
+          singularLabel: "rol",
+          pluralLabel: "roles",
+        }}
+      />
 
-          <div>
-            <label className="block text-sm font-medium text-[#798283] mb-2">
-              Módulo
-            </label>
-            <Select
-              value={filters.modulo}
-              onValueChange={(value) => handleFilterChange("modulo", value)}
-            >
-              <SelectTrigger className="w-full md:w-40 text-[#798283] border-[#798283]/30 focus:ring-[#D42B22]">
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="general">General</SelectItem>
-                <SelectItem value="ordenes">Órdenes</SelectItem>
-                <SelectItem value="usuarios">Usuarios</SelectItem>
-                <SelectItem value="reportes">Reportes</SelectItem>
-                <SelectItem value="sistema">Sistema</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-[#798283] mb-2">
-              Acción
-            </label>
-            <Select
-              value={filters.tipo_accion}
-              onValueChange={(value) =>
-                handleFilterChange("tipo_accion", value)
-              }
-            >
-              <SelectTrigger className="w-full md:w-40 text-[#798283] border-[#798283]/30 focus:ring-[#D42B22]">
-                <SelectValue placeholder="Todas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ver">Ver</SelectItem>
-                <SelectItem value="crear">Crear</SelectItem>
-                <SelectItem value="editar">Editar</SelectItem>
-                <SelectItem value="eliminar">Eliminar</SelectItem>
-                <SelectItem value="activar">Administrar</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-[#798283] mb-2">
-              Estado
-            </label>
-            <Select
-              value={filters.estado}
-              onValueChange={(value) => handleFilterChange("estado", value)}
-            >
-              <SelectTrigger className="w-full md:w-40 text-[#798283] border-[#798283]/30 focus:ring-[#D42B22]">
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="activo">Activo</SelectItem>
-                <SelectItem value="inactivo">Inactivo</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button
-            onClick={clearFilters}
-            className="bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] px-4 py-2 rounded-lg transition-all duration-200 font-semibold h-[42px]"
-          >
-            Limpiar
-          </Button>
-        </div>
-
-        <div className="text-sm text-[#798283]/70">
-          Mostrando {currentRoles.length} de {filteredRoles.length} roles
-          {filters.search ||
-          filters.modulo ||
-          filters.tipo_accion ||
-          filters.estado
-            ? ` (filtrados de ${roles.length} totales)`
-            : ` de ${roles.length} totales`}
-        </div>
-      </div>
-
-      {/* Roles List */}
+      {/* Roles Table Section */}
       <div className="bg-white rounded-xl shadow-sm border border-[#798283]/10">
         <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-[#798283]">
-              Roles del Sistema
-            </h3>
-
-            {/* Items per page selector */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-[#798283]">Mostrar:</label>
-              <Select
-                value={itemsPerPage.toString()}
-                onValueChange={handleItemsPerPageChange}
-              >
-                <SelectTrigger className="w-20 text-[#798283] border-[#798283]/30 focus:ring-[#D42B22]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Roles Table Component */}
           <RolesTable
-            data={currentRoles}
+            data={filteredRoles}
             onEdit={handleEdit}
             onDelete={handleDelete}
             isLoading={isLoading}
           />
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex justify-between items-center mt-6 pt-4 border-t border-[#798283]/10">
-              <div className="text-sm text-[#798283]/70">
-                Página {currentPage} de {totalPages} • Mostrando{" "}
-                {startIndex + 1}-{Math.min(endIndex, filteredRoles.length)} de{" "}
-                {filteredRoles.length} roles
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#798283]/10 transition-all duration-200"
-                >
-                  Anterior
-                </Button>
-
-                <div className="flex gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                    (page) => (
-                      <Button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`px-3 py-2 rounded-lg transition-all duration-200 ${
-                          currentPage === page
-                            ? "bg-[#D42B22] text-white"
-                            : "border border-[#798283]/30 text-[#798283] hover:bg-[#798283]/10"
-                        }`}
-                      >
-                        {page}
-                      </Button>
-                    )
-                  )}
-                </div>
-
-                <Button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#798283]/10 transition-all duration-200"
-                >
-                  Siguiente
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
