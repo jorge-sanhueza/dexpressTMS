@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ProfilesManager } from "./admin/ProfilesManager";
+import { ProfilesManager } from "./admin/Profiles/ProfilesManager";
 import { RolesManager } from "./admin/Roles/RolesManager";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
