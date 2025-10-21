@@ -53,17 +53,24 @@ body {
   color: hsl(var(--brand));
 }
 
-button, a, input, select, textarea {
+button,
+a,
+input,
+select,
+textarea {
   transition: all 0.2s ease-in-out;
 }
 
 button:focus-visible,
 a:focus-visible,
-input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
+}
+
+input:focus-visible {
+  outline: none;
 }
 
 ::-webkit-scrollbar {

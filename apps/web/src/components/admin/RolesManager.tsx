@@ -8,6 +8,15 @@ import {
 } from "../../hooks/useRoles";
 import type { Rol } from "../../types/role";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { RolesTable } from "./RolesTable";
 
 export const RolesManager: React.FC = () => {
   const { tenant } = useAuthStore();
@@ -29,9 +38,9 @@ export const RolesManager: React.FC = () => {
   // Filter state
   const [filters, setFilters] = useState({
     search: "",
-    modulo: "",
-    tipo_accion: "",
-    estado: "",
+    modulo: undefined as string | undefined,
+    tipo_accion: undefined as string | undefined,
+    estado: undefined as string | undefined,
   });
 
   // Use TanStack Query hooks
@@ -94,7 +103,10 @@ export const RolesManager: React.FC = () => {
     return true;
   });
 
-  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+  const handleFilterChange = (
+    key: keyof typeof filters,
+    value: string | undefined
+  ) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value,
@@ -104,9 +116,9 @@ export const RolesManager: React.FC = () => {
   const clearFilters = () => {
     setFilters({
       search: "",
-      modulo: "",
-      tipo_accion: "",
-      estado: "",
+      modulo: undefined,
+      tipo_accion: undefined,
+      estado: undefined,
     });
   };
 
@@ -170,10 +182,8 @@ export const RolesManager: React.FC = () => {
     }
   };
 
-  const handleItemsPerPageChange = (
-    e: React.ChangeEvent<HTMLSelectElement>
-  ) => {
-    setItemsPerPage(Number(e.target.value));
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(Number(value));
     setCurrentPage(1);
   };
 
@@ -238,7 +248,7 @@ export const RolesManager: React.FC = () => {
               <label className="block text-sm font-medium text-[#798283] mb-2">
                 Código del Rol *
               </label>
-              <input
+              <Input
                 type="text"
                 required
                 value={formData.codigo}
@@ -248,7 +258,7 @@ export const RolesManager: React.FC = () => {
                 disabled={
                   createRoleMutation.isPending || updateRoleMutation.isPending
                 }
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
+                className="placeholder-[#798283]/60 text-[#798283]"
                 placeholder="Ej: ver_ordenes, crear_usuarios"
               />
             </div>
@@ -257,7 +267,7 @@ export const RolesManager: React.FC = () => {
               <label className="block text-sm font-medium text-[#798283] mb-2">
                 Nombre del Rol *
               </label>
-              <input
+              <Input
                 type="text"
                 required
                 value={formData.nombre}
@@ -267,7 +277,6 @@ export const RolesManager: React.FC = () => {
                 disabled={
                   createRoleMutation.isPending || updateRoleMutation.isPending
                 }
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
                 placeholder="Ej: Ver Órdenes, Crear Usuarios"
               />
             </div>
@@ -276,46 +285,52 @@ export const RolesManager: React.FC = () => {
               <label className="block text-sm font-medium text-[#798283] mb-2">
                 Módulo *
               </label>
-              <select
-                required
+              <Select
                 value={formData.modulo}
-                onChange={(e) =>
-                  setFormData({ ...formData, modulo: e.target.value })
+                onValueChange={(value) =>
+                  setFormData({ ...formData, modulo: value })
                 }
                 disabled={
                   createRoleMutation.isPending || updateRoleMutation.isPending
                 }
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
               >
-                <option value="">Seleccionar módulo</option>
-                {uniqueModules.map((module) => (
-                  <option key={module} value={module}>
-                    {module.charAt(0).toUpperCase() + module.slice(1)}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="text-[#798283] border-[#798283]/30 focus:ring-[#D42B22]">
+                  <SelectValue placeholder="Seleccionar módulo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {uniqueModules.map((module) => (
+                    <SelectItem key={module} value={module}>
+                      {module.charAt(0).toUpperCase() + module.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-[#798283] mb-2">
                 Tipo de Acción *
               </label>
-              <select
+              <Select
                 value={formData.tipo_accion}
-                onChange={(e) =>
-                  setFormData({ ...formData, tipo_accion: e.target.value })
+                onValueChange={(value) =>
+                  setFormData({ ...formData, tipo_accion: value })
                 }
                 disabled={
                   createRoleMutation.isPending || updateRoleMutation.isPending
                 }
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
               >
-                <option value="ver">Ver</option>
-                <option value="crear">Crear</option>
-                <option value="editar">Editar</option>
-                <option value="eliminar">Eliminar</option>
-                <option value="activar">Administrar</option>
-              </select>
+                <SelectTrigger className="text-[#798283] border-[#798283]/30 focus:ring-[#D42B22]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ver">Ver</SelectItem>
+                  <SelectItem value="crear">Crear</SelectItem>
+                  <SelectItem value="editar">Editar</SelectItem>
+                  <SelectItem value="eliminar">Eliminar</SelectItem>
+                  <SelectItem value="activar">Administrar</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="md:col-span-2 flex space-x-3 pt-4">
@@ -324,7 +339,7 @@ export const RolesManager: React.FC = () => {
                 disabled={
                   createRoleMutation.isPending || updateRoleMutation.isPending
                 }
-                className="bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
               >
                 {createRoleMutation.isPending ||
                 updateRoleMutation.isPending ? (
@@ -363,18 +378,18 @@ export const RolesManager: React.FC = () => {
         </div>
       )}
 
-      {/* Filters Section - ALWAYS VISIBLE */}
+      {/* Filters Section */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
         <div className="flex flex-col md:flex-row md:items-end gap-4 mb-4">
           <div className="flex-1">
             <label className="block text-sm font-medium text-[#798283] mb-2">
               Buscar
             </label>
-            <input
+            <Input
               type="text"
               value={filters.search}
               onChange={(e) => handleFilterChange("search", e.target.value)}
-              className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
+              className="placeholder-[#798283]/60 text-[#798283]"
               placeholder="Buscar por código, nombre o descripción..."
             />
           </div>
@@ -383,53 +398,62 @@ export const RolesManager: React.FC = () => {
             <label className="block text-sm font-medium text-[#798283] mb-2">
               Módulo
             </label>
-            <select
+            <Select
               value={filters.modulo}
-              onChange={(e) => handleFilterChange("modulo", e.target.value)}
-              className="w-full md:w-40 px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
+              onValueChange={(value) => handleFilterChange("modulo", value)}
             >
-              <option value="">Todos</option>
-              <option value="general">General</option>
-              <option value="ordenes">Órdenes</option>
-              <option value="usuarios">Usuarios</option>
-              <option value="reportes">Reportes</option>
-              <option value="sistema">Sistema</option>
-            </select>
+              <SelectTrigger className="w-full md:w-40 text-[#798283] border-[#798283]/30 focus:ring-[#D42B22]">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="general">General</SelectItem>
+                <SelectItem value="ordenes">Órdenes</SelectItem>
+                <SelectItem value="usuarios">Usuarios</SelectItem>
+                <SelectItem value="reportes">Reportes</SelectItem>
+                <SelectItem value="sistema">Sistema</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-[#798283] mb-2">
               Acción
             </label>
-            <select
+            <Select
               value={filters.tipo_accion}
-              onChange={(e) =>
-                handleFilterChange("tipo_accion", e.target.value)
+              onValueChange={(value) =>
+                handleFilterChange("tipo_accion", value)
               }
-              className="w-full md:w-40 px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
             >
-              <option value="">Todas</option>
-              <option value="ver">Ver</option>
-              <option value="crear">Crear</option>
-              <option value="editar">Editar</option>
-              <option value="eliminar">Eliminar</option>
-              <option value="activar">Administrar</option>
-            </select>
+              <SelectTrigger className="w-full md:w-40 text-[#798283] border-[#798283]/30 focus:ring-[#D42B22]">
+                <SelectValue placeholder="Todas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ver">Ver</SelectItem>
+                <SelectItem value="crear">Crear</SelectItem>
+                <SelectItem value="editar">Editar</SelectItem>
+                <SelectItem value="eliminar">Eliminar</SelectItem>
+                <SelectItem value="activar">Administrar</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-[#798283] mb-2">
               Estado
             </label>
-            <select
+            <Select
               value={filters.estado}
-              onChange={(e) => handleFilterChange("estado", e.target.value)}
-              className="w-full md:w-40 px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
+              onValueChange={(value) => handleFilterChange("estado", value)}
             >
-              <option value="">Todos</option>
-              <option value="activo">Activo</option>
-              <option value="inactivo">Inactivo</option>
-            </select>
+              <SelectTrigger className="w-full md:w-40 text-[#798283] border-[#798283]/30 focus:ring-[#D42B22]">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="activo">Activo</SelectItem>
+                <SelectItem value="inactivo">Inactivo</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <Button
@@ -462,126 +486,30 @@ export const RolesManager: React.FC = () => {
             {/* Items per page selector */}
             <div className="flex items-center gap-2">
               <label className="text-sm text-[#798283]">Mostrar:</label>
-              <select
-                value={itemsPerPage}
-                onChange={handleItemsPerPageChange}
-                className="px-3 py-1 border border-[#798283]/30 rounded text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22]"
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={handleItemsPerPageChange}
               >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
+                <SelectTrigger className="w-20 text-[#798283] border-[#798283]/30 focus:ring-[#D42B22]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#798283]/10">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
-                    Código
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
-                    Nombre
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
-                    Módulo
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
-                    Acción
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
-                    Estado
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentRoles.length > 0 ? (
-                  currentRoles.map((role) => (
-                    <tr
-                      key={role.id}
-                      className="border-b border-[#798283]/5 hover:bg-[#EFF4F9]"
-                    >
-                      <td className="py-3 px-4">
-                        <code className="text-sm bg-[#798283]/10 px-2 py-1 rounded text-[#798283]">
-                          {role.codigo}
-                        </code>
-                      </td>
-                      <td className="py-3 px-4 font-medium text-[#798283]">
-                        {role.nombre}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-1 text-xs bg-[#798283]/10 text-[#798283] rounded-full">
-                          {role.modulo}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full ${
-                            role.tipo_accion === "activar"
-                              ? "bg-purple-100 text-purple-800"
-                              : role.tipo_accion === "crear"
-                              ? "bg-green-100 text-green-800"
-                              : role.tipo_accion === "editar"
-                              ? "bg-blue-100 text-blue-800"
-                              : role.tipo_accion === "eliminar"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {role.tipo_accion}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full ${
-                            role.activo
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {role.activo ? "Activo" : "Inactivo"}
-                        </span>
-                      </td>
-                      {role.codigo !== "admin_access" && (
-                        <td className="py-3 px-4 space-x-2">
-                          <Button
-                            onClick={() => handleEdit(role)}
-                            disabled={deleteRoleMutation.isPending}
-                            className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 disabled:opacity-50"
-                          >
-                            Editar
-                          </Button>
-                          <Button
-                            onClick={() => handleDelete(role.id)}
-                            disabled={deleteRoleMutation.isPending}
-                            className="text-red-600 hover:text-red-800 transition-colors duration-200 text-sm font-medium disabled:opacity-50"
-                          >
-                            {deleteRoleMutation.isPending
-                              ? "Eliminando..."
-                              : "Eliminar"}
-                          </Button>
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="py-8 text-center text-[#798283]/70"
-                    >
-                      No se encontraron roles que coincidan con los filtros
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {/* Roles Table Component */}
+          <RolesTable
+            data={currentRoles}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            isLoading={isLoading}
+          />
 
           {/* Pagination */}
           {totalPages > 1 && (
