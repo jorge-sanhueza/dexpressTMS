@@ -10,6 +10,7 @@ import { ProfilesModule } from './profiles/profiles.module';
 import { OrdersModule } from './orders/orders.module';
 import { ClientsModule } from './clients/clients.module';
 import { EmbarcadoresModule } from './embarcadores/embarcadores.module';
+import { ComunasModule } from './comunas/comunas.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { EmbarcadoresModule } from './embarcadores/embarcadores.module';
     OrdersModule,
     ClientsModule,
     EmbarcadoresModule,
+    ComunasModule,
   ],
   controllers: [AppController],
 })
