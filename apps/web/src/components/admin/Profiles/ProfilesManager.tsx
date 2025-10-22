@@ -23,6 +23,7 @@ import {
 import { TableFilters } from "@/components/TableFilters";
 import { RoleAssignmentModal } from "../Roles/RoleAssignmentModal";
 import { useAuthStore } from "@/store/authStore";
+import { Textarea } from "@/components/ui/textarea";
 
 export const ProfilesManager: React.FC = () => {
   const { tenant } = useAuthStore();
@@ -47,7 +48,7 @@ export const ProfilesManager: React.FC = () => {
     estado: undefined as string | undefined,
   });
 
-  // Use TanStack Query hooks - API returns Profile[] directly
+  // TanStack Query hooks
   const {
     data: profiles = [],
     isLoading,
@@ -143,7 +144,6 @@ export const ProfilesManager: React.FC = () => {
         tipo: profileTypes[0]?.tipoPerfil || "básico",
       });
     } catch (err) {
-      // Error is handled by the mutation
       console.error("Error saving profile:", err);
     }
   };
@@ -155,7 +155,6 @@ export const ProfilesManager: React.FC = () => {
     } as ProfileWithRoles);
   };
 
-  // Update viewing profile when roles data loads
   React.useEffect(() => {
     if (profileWithRoles && viewingProfile) {
       setViewingProfile(profileWithRoles);
@@ -171,7 +170,7 @@ export const ProfilesManager: React.FC = () => {
     setFormData({
       nombre: profile.nombre,
       descripcion: profile.descripcion || "",
-      tipo: profile.tipo, // This is now a string from the API
+      tipo: profile.tipo,
     });
     setShowForm(true);
   };
@@ -186,18 +185,10 @@ export const ProfilesManager: React.FC = () => {
     setSelectedProfileForRoles(null);
   };
 
-  const handleRolesAssigned = () => {
-    // This function is passed to RoleAssignmentModal
-    // The modal will call this when roles are successfully assigned
-    // This allows the parent component to handle cache invalidation or other side effects
-  };
-
   const handleDeactivate = async (profileId: string) => {
-    // No need for window.confirm - handled by AlertDialog in ProfilesTable
     try {
       await deactivateProfileMutation.mutateAsync(profileId);
     } catch (err) {
-      // Error is handled by the mutation
       console.error("Error deactivating profile:", err);
     }
   };
@@ -292,7 +283,7 @@ export const ProfilesManager: React.FC = () => {
               <label className="block text-sm font-medium text-[#798283] mb-2">
                 Descripción
               </label>
-              <textarea
+              <Textarea
                 value={formData.descripcion}
                 onChange={(e) =>
                   setFormData({ ...formData, descripcion: e.target.value })
@@ -302,7 +293,7 @@ export const ProfilesManager: React.FC = () => {
                   createProfileMutation.isPending ||
                   updateProfileMutation.isPending
                 }
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
+                className="placeholder-[#798283]/60 text-[#798283] resize-none"
                 placeholder="Descripción de las funciones y permisos del perfil..."
               />
             </div>
@@ -437,7 +428,6 @@ export const ProfilesManager: React.FC = () => {
           profile={selectedProfileForRoles}
           isOpen={roleAssignmentModalOpen}
           onClose={handleCloseRoleAssignment}
-          onRolesAssigned={handleRolesAssigned}
         />
       )}
     </div>

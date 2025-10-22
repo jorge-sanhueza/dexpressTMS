@@ -14,8 +14,7 @@ export const profilesFilterConfig: FilterConfig[] = [
     placeholder: "Todos",
     options: [
       { value: "básico", label: "Básico" },
-      { value: "avanzado", label: "Avanzado" },
-      { value: "administrador", label: "Administrador" },
+      { value: "administrativo", label: "Administrativo" },
     ],
     width: "w-full md:w-40",
   },

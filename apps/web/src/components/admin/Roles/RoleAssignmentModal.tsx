@@ -5,23 +5,41 @@ import {
 } from "../../../hooks/useProfilesService";
 import type { AvailableRole } from "../../../services/profilesService";
 import type { Profile } from "../../../types/profile";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface RoleAssignmentModalProps {
   profile: Profile;
   isOpen: boolean;
   onClose: () => void;
-  onRolesAssigned: () => void;
 }
 
 export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
   profile,
   isOpen,
   onClose,
-  onRolesAssigned,
 }) => {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [moduleFilter, setModuleFilter] = useState("");
+  const [moduleFilter, setModuleFilter] = useState<string | undefined>(
+    undefined
+  );
 
   const {
     data: availableRoles = [],
@@ -59,18 +77,11 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
 
   const handleSave = async () => {
     try {
-      await assignRolesMutation.mutateAsync(
-        {
-          profileId: profile.id,
-          roleIds: selectedRoles,
-        },
-        {
-          onSuccess: () => {
-            onRolesAssigned();
-            onClose();
-          },
-        }
-      );
+      await assignRolesMutation.mutateAsync({
+        profileId: profile.id,
+        roleIds: selectedRoles,
+      });
+      onClose();
     } catch (err) {
       console.error("Error assigning roles:", err);
     }
@@ -78,7 +89,7 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
 
   const handleClose = () => {
     setSearchTerm("");
-    setModuleFilter("");
+    setModuleFilter(undefined);
     setSelectedRoles([]);
     assignRolesMutation.reset();
     onClose();
@@ -99,69 +110,48 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
     ...new Set(availableRoles.map((role: AvailableRole) => role.modulo)),
   ].sort();
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
-        <div className="p-6 border-b border-[#798283]/10">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-xl font-bold text-[#798283]">
-                Gestionar Roles - {profile.nombre}
-              </h3>
-              <p className="text-sm text-[#798283]/70 mt-1">
-                Selecciona los roles que quieres asignar a este perfil
-              </p>
-            </div>
-            <button
-              onClick={handleClose}
-              disabled={assignRolesMutation.isPending}
-              className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 disabled:opacity-50"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="bg-white max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-[#798283]">
+            Gestionar Roles - {profile.nombre}
+          </DialogTitle>
+          <DialogDescription>
+            Selecciona los roles que quieres asignar a este perfil
+          </DialogDescription>
+        </DialogHeader>
 
+        {/* Search and Filter Section */}
         <div className="p-4 bg-[#EFF4F9] border-b border-[#798283]/10">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
-              <input
+              <Input
                 type="text"
                 placeholder="Buscar roles por código, nombre o módulo..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 disabled={assignRolesMutation.isPending}
-                className="w-full px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
+                className="placeholder-[#798283]/60 text-[#798283]"
               />
             </div>
             <div>
-              <select
+              <Select
                 value={moduleFilter}
-                onChange={(e) => setModuleFilter(e.target.value)}
+                onValueChange={setModuleFilter}
                 disabled={assignRolesMutation.isPending}
-                className="w-full md:w-48 px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
               >
-                <option value="">Todos los módulos</option>
-                {modules.map((module: string) => (
-                  <option key={module} value={module}>
-                    {module.charAt(0).toUpperCase() + module.slice(1)}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full md:w-48 text-[#798283] border-[#798283]/30 focus:ring-[#D42B22]">
+                  <SelectValue placeholder="Todos los módulos" />
+                </SelectTrigger>
+                <SelectContent>
+                  {modules.map((module: string) => (
+                    <SelectItem key={module} value={module}>
+                      {module.charAt(0).toUpperCase() + module.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -182,24 +172,28 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
             seleccionados
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleSelectAll}
               disabled={
                 assignRolesMutation.isPending || availableRoles.length === 0
               }
-              className="px-3 py-1 text-sm bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] rounded transition-all duration-200 disabled:opacity-50"
+              className="bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283]"
             >
               Seleccionar Todos
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleDeselectAll}
               disabled={
                 assignRolesMutation.isPending || selectedRoles.length === 0
               }
-              className="px-3 py-1 text-sm bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283] rounded transition-all duration-200 disabled:opacity-50"
+              className="bg-[#798283]/10 hover:bg-[#798283]/20 text-[#798283]"
             >
               Deseleccionar Todos
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -213,7 +207,7 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
         )}
 
         {/* Roles List */}
-        <div className="overflow-y-auto max-h-96">
+        <div className="overflow-y-auto flex-1">
           {isLoading ? (
             <div className="p-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D42B22] mx-auto"></div>
@@ -228,13 +222,14 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
                   key={role.id as string}
                   className="p-4 hover:bg-[#EFF4F9] transition-colors duration-200"
                 >
-                  <label className="flex items-start space-x-3 cursor-pointer">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-start space-x-3">
+                    <Checkbox
                       checked={selectedRoles.includes(role.id as string)}
-                      onChange={() => handleRoleToggle(role.id as string)}
+                      onCheckedChange={() =>
+                        handleRoleToggle(role.id as string)
+                      }
                       disabled={assignRolesMutation.isPending}
-                      className="mt-1 rounded border-[#798283]/30 text-[#D42B22] focus:ring-[#D42B22] disabled:opacity-50"
+                      className="mt-1"
                     />
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
@@ -249,46 +244,52 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
                           </p>
                         </div>
                         <div className="flex gap-2">
-                          <span className="px-2 py-1 text-xs bg-[#798283]/10 text-[#798283] rounded-full">
+                          <Badge
+                            variant="secondary"
+                            className="bg-[#798283]/10 text-[#798283]"
+                          >
                             {role.modulo as string}
-                          </span>
-                          <span
-                            className={`px-2 py-1 text-xs rounded-full ${
+                          </Badge>
+                          <Badge
+                            variant="secondary"
+                            className={
                               role.tipo_accion === "administrar"
-                                ? "bg-purple-100 text-purple-800"
+                                ? "bg-purple-100 text-purple-800 hover:bg-purple-100"
                                 : role.tipo_accion === "crear"
-                                ? "bg-green-100 text-green-800"
+                                ? "bg-green-100 text-green-800 hover:bg-green-100"
                                 : role.tipo_accion === "editar"
-                                ? "bg-blue-100 text-blue-800"
+                                ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
                                 : role.tipo_accion === "eliminar"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
+                                ? "bg-red-100 text-red-800 hover:bg-red-100"
+                                : "bg-gray-100 text-gray-800 hover:bg-gray-100"
+                            }
                           >
                             {role.tipo_accion as string}
-                          </span>
+                          </Badge>
                         </div>
                       </div>
                     </div>
-                  </label>
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="p-8 text-center">
-              <svg
-                className="mx-auto h-12 w-12 text-[#798283]/40"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
+              <div className="text-[#798283]/40 mb-3">
+                <svg
+                  className="mx-auto h-12 w-12"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
               <p className="mt-2 text-sm text-[#798283]/70">
                 {availableRoles.length === 0
                   ? "No hay roles disponibles para asignar"
@@ -297,23 +298,26 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
             </div>
           )}
         </div>
+
+        {/* Footer Actions */}
         <div className="p-6 border-t border-[#798283]/10 bg-[#EFF4F9]">
           <div className="flex justify-between items-center">
             <div className="text-sm text-[#798283]">
               {selectedRoles.length} roles seleccionados
             </div>
             <div className="flex space-x-3">
-              <button
+              <Button
+                variant="outline"
                 onClick={handleClose}
                 disabled={assignRolesMutation.isPending}
-                className="px-6 py-2 border border-[#798283]/30 text-[#798283] rounded-lg hover:bg-[#798283]/10 transition-all duration-200 disabled:opacity-50"
+                className="border-[#798283]/30 text-[#798283] hover:bg-[#798283]/10"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleSave}
                 disabled={assignRolesMutation.isPending || isLoading}
-                className="px-6 py-2 bg-[#D42B22] hover:bg-[#B3251E] text-[#798283] rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-white"
               >
                 {assignRolesMutation.isPending ? (
                   <div className="flex items-center">
@@ -323,11 +327,11 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
                 ) : (
                   "Guardar Cambios"
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
