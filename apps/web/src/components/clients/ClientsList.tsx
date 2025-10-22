@@ -7,10 +7,40 @@ import {
   useClients,
   useDeactivateClient,
   useActivateClient,
+  useCreateClient,
 } from "../../hooks/useClients";
 import { useAuthStore } from "../../store/authStore";
-import type { Client, ClientsFilter } from "@/types/client";
+import type { Client, ClientsFilter, CreateClientData } from "@/types/client";
 import { Input } from "@/components/ui/input";
+import { ClientForm } from "./ClientForm";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+// Debounce hook for search
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 export const ClientsList: React.FC = () => {
   const { hasPermission } = useAuthStore();
@@ -18,12 +48,35 @@ export const ClientsList: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<boolean | undefined>(
     undefined
   );
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Alert Dialog state
+  const [deactivateDialog, setDeactivateDialog] = useState<{
+    isOpen: boolean;
+    clientId: string | null;
+    clientName: string;
+  }>({
+    isOpen: false,
+    clientId: null,
+    clientName: "",
+  });
+
+  // Use debounced search term
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   // Filters state
   const [filters, setFilters] = useState<ClientsFilter>({
     search: "",
     activo: undefined,
   });
+
+  // Update filters when debounced search term changes
+  React.useEffect(() => {
+    setFilters((prev) => ({
+      ...prev,
+      search: debouncedSearchTerm || undefined,
+    }));
+  }, [debouncedSearchTerm]);
 
   // Use TanStack Query hooks
   const { data: clientsData, isLoading, error } = useClients(filters);
@@ -32,18 +85,12 @@ export const ClientsList: React.FC = () => {
 
   const deactivateClientMutation = useDeactivateClient();
   const activateClientMutation = useActivateClient();
+  const createClientMutation = useCreateClient();
 
   const canManageClients = hasPermission("admin_access");
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
-    // Debounce search - update filters after a delay
-    setTimeout(() => {
-      setFilters((prev) => ({
-        ...prev,
-        search: value || undefined,
-      }));
-    }, 300);
   };
 
   const handleStatusFilter = (activo: boolean | undefined) => {
@@ -54,37 +101,89 @@ export const ClientsList: React.FC = () => {
     }));
   };
 
-  const handleDeactivate = async (id: string) => {
-    if (window.confirm("¿Está seguro de que desea desactivar este cliente?")) {
-      try {
-        await deactivateClientMutation.mutateAsync(id);
-      } catch (err) {
-        console.error("Error deactivating client:", err);
-      }
+  // Open deactivate confirmation dialog
+  const openDeactivateDialog = (client: Client) => {
+    setDeactivateDialog({
+      isOpen: true,
+      clientId: client.id,
+      clientName: client.nombre,
+    });
+  };
+
+  // Close deactivate dialog
+  const closeDeactivateDialog = () => {
+    setDeactivateDialog({
+      isOpen: false,
+      clientId: null,
+      clientName: "",
+    });
+  };
+
+  // Handle deactivate confirmation
+  const handleDeactivateConfirm = async () => {
+    if (!deactivateDialog.clientId) return;
+
+    try {
+      await deactivateClientMutation.mutateAsync(deactivateDialog.clientId);
+      toast.success("Cliente desactivado correctamente");
+      closeDeactivateDialog();
+    } catch (err: any) {
+      console.error("Error deactivating client:", err);
+      toast.error(err.message || "Error al desactivar el cliente");
     }
   };
 
   const handleActivate = async (id: string) => {
     try {
       await activateClientMutation.mutateAsync(id);
-    } catch (err) {
+      toast.success("Cliente activado correctamente");
+    } catch (err: any) {
       console.error("Error activating client:", err);
+      toast.error(err.message || "Error al activar el cliente");
     }
   };
 
   const handleEdit = (client: Client) => {
     // TODO: Implement edit functionality
     console.log("Edit client:", client);
+    toast.info("Funcionalidad de edición en desarrollo");
   };
 
   const handleView = (client: Client) => {
     // TODO: Implement view functionality
     console.log("View client:", client);
+    toast.info("Funcionalidad de visualización en desarrollo");
   };
 
   const handleCreateClient = () => {
-    // TODO: Implement create client functionality
-    console.log("Create new client");
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCreateSubmit = async (clientData: CreateClientData) => {
+    try {
+      await createClientMutation.mutateAsync(clientData);
+      setIsCreateModalOpen(false);
+      toast.success("Cliente creado correctamente");
+    } catch (err: any) {
+      console.error("Error creating client:", err);
+
+      // Handle specific backend errors
+      if (err.message?.includes("RUT already exists")) {
+        toast.error("Ya existe un cliente con este RUT");
+      } else {
+        toast.error(err.message || "Error al crear el cliente");
+      }
+    }
+  };
+
+  const handleCreateCancel = () => {
+    setIsCreateModalOpen(false);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter(undefined);
+    setFilters({ search: "", activo: undefined });
   };
 
   return (
@@ -103,8 +202,11 @@ export const ClientsList: React.FC = () => {
               <Button
                 onClick={handleCreateClient}
                 className="bg-brand hover:bg-brand/90 text-white"
+                disabled={createClientMutation.isPending}
               >
-                + Nuevo Cliente
+                {createClientMutation.isPending
+                  ? "Creando..."
+                  : "+ Nuevo Cliente"}
               </Button>
             )}
           </div>
@@ -113,12 +215,15 @@ export const ClientsList: React.FC = () => {
         {/* Error Messages */}
         {(error ||
           deactivateClientMutation.error ||
-          activateClientMutation.error) && (
+          activateClientMutation.error ||
+          createClientMutation.error) && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="text-red-700">
               {error?.message ||
                 deactivateClientMutation.error?.message ||
-                activateClientMutation.error?.message}
+                activateClientMutation.error?.message ||
+                createClientMutation.error?.message ||
+                "Ha ocurrido un error inesperado"}
             </div>
           </div>
         )}
@@ -208,11 +313,7 @@ export const ClientsList: React.FC = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  setSearchTerm("");
-                  setStatusFilter(undefined);
-                  setFilters({ search: "", activo: undefined });
-                }}
+                onClick={handleClearFilters}
                 className="h-6 text-xs text-muted-foreground hover:text-foreground"
               >
                 Limpiar filtros
@@ -229,8 +330,17 @@ export const ClientsList: React.FC = () => {
                 Lista de Clientes
               </h3>
               <div className="text-sm text-muted-foreground">
-                {clients.length} {clients.length === 1 ? "cliente" : "clientes"}{" "}
-                encontrados
+                {isLoading ? (
+                  "Cargando..."
+                ) : (
+                  <>
+                    {clients.length}{" "}
+                    {clients.length === 1 ? "cliente" : "clientes"} encontrados
+                    {clientsData?.total &&
+                      clientsData.total > clients.length &&
+                      ` de ${clientsData.total}`}
+                  </>
+                )}
               </div>
             </div>
 
@@ -238,7 +348,7 @@ export const ClientsList: React.FC = () => {
               data={clients}
               onEdit={handleEdit}
               onView={handleView}
-              onDeactivate={handleDeactivate}
+              onDeactivate={openDeactivateDialog}
               onActivate={handleActivate}
               canManageClients={canManageClients}
               isLoading={isLoading}
@@ -256,6 +366,49 @@ export const ClientsList: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Create Client Modal */}
+      {isCreateModalOpen && (
+        <ClientForm
+          onSubmit={handleCreateSubmit}
+          onCancel={handleCreateCancel}
+          isLoading={createClientMutation.isPending}
+        />
+      )}
+
+      {/* Deactivate Client Confirmation Dialog */}
+      <AlertDialog
+        open={deactivateDialog.isOpen}
+        onOpenChange={closeDeactivateDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Desactivar cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Estás a punto de desactivar al cliente{" "}
+              <strong>{deactivateDialog.clientName}</strong>. Esta acción no se
+              puede deshacer y el cliente ya no podrá acceder al sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={deactivateClientMutation.isPending}
+              onClick={closeDeactivateDialog}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeactivateConfirm}
+              disabled={deactivateClientMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deactivateClientMutation.isPending
+                ? "Desactivando..."
+                : "Sí, desactivar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </WideLayout>
   );
 };

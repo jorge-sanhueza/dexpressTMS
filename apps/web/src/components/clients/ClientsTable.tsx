@@ -1,34 +1,13 @@
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  getPaginationRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-} from "@tanstack/react-table";
-import type {
-  ColumnDef,
-  SortingState,
-  ColumnFiltersState,
-} from "@tanstack/react-table";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
 import type { Client } from "@/types/client";
 
 interface ClientsTableProps {
   data: Client[];
   onEdit: (client: Client) => void;
   onView: (client: Client) => void;
-  onDeactivate: (id: string) => void;
+  onDeactivate: (client: Client) => void;
   onActivate: (id: string) => void;
   canManageClients: boolean;
   isLoading?: boolean;
@@ -43,220 +22,130 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
   canManageClients,
   isLoading = false,
 }) => {
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-
-  const columns: ColumnDef<Client>[] = [
-    {
-      accessorKey: "nombre",
-      header: "Cliente",
-      cell: ({ row }) => (
-        <div className="flex flex-col">
-          <div className="font-medium text-foreground">
-            {row.getValue("nombre") || "Sin nombre"}
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {row.original.rut}
-          </div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "contacto",
-      header: "Contacto",
-      cell: ({ row }) => (
-        <div className="flex flex-col">
-          <div className="text-foreground">{row.getValue("contacto")}</div>
-          <div className="text-sm text-muted-foreground">
-            {row.original.email}
-          </div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "comuna.nombre",
-      header: "Ubicación",
-      cell: ({ row }) => (
-        <div className="text-foreground">
-          {row.original.comuna?.nombre || "N/A"}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "activo",
-      header: "Estado",
-      cell: ({ row }) => (
-        <Badge
-          variant={row.getValue("activo") ? "default" : "secondary"}
-          className={
-            row.getValue("activo")
-              ? "bg-green-100 text-green-800 hover:bg-green-100"
-              : "bg-red-100 text-red-800 hover:bg-red-100"
-          }
-        >
-          {row.getValue("activo") ? "Activo" : "Inactivo"}
-        </Badge>
-      ),
-    },
-    {
-      id: "actions",
-      header: "Acciones",
-      cell: ({ row }) => (
-        <div className="flex space-x-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onView(row.original)}
-            className="h-8 px-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-          >
-            Ver
-          </Button>
-          {canManageClients && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onEdit(row.original)}
-                className="h-8 px-2 text-green-600 hover:text-green-800 hover:bg-green-50"
-              >
-                Editar
-              </Button>
-              {row.original.activo ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDeactivate(row.original.id)}
-                  className="h-8 px-2 text-red-600 hover:text-red-800 hover:bg-red-50"
-                >
-                  Desactivar
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onActivate(row.original.id)}
-                  className="h-8 px-2 text-green-600 hover:text-green-800 hover:bg-green-50"
-                >
-                  Activar
-                </Button>
-              )}
-            </>
-          )}
-        </div>
-      ),
-    },
-  ];
-
-  const table = useReactTable({
-    data,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    state: {
-      sorting,
-      columnFilters,
-    },
-  });
-
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-muted-foreground">Cargando clientes...</div>
+      <div className="flex justify-center items-center py-8">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand"></div>
+        <span className="ml-2 text-muted-foreground">Cargando clientes...</span>
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">No se encontraron clientes</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <div className="text-muted-foreground text-lg mb-2">
-                      No se encontraron clientes
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {table.getState().columnFilters.length > 0
-                        ? "Intenta ajustar los filtros de búsqueda."
-                        : "Comienza agregando tu primer cliente."}
-                    </div>
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-border">
+            <th className="text-left py-3 px-4 text-sm font-medium text-foreground">
+              Nombre
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-foreground">
+              RUT
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-foreground">
+              Contacto
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-foreground">
+              Email
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-foreground">
+              Teléfono
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-foreground">
+              Estado
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-foreground">
+              Acciones
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((client) => (
+            <tr
+              key={client.id}
+              className="border-b border-border hover:bg-muted/50"
+            >
+              <td className="py-3 px-4">
+                <div>
+                  <div className="font-medium text-foreground">
+                    {client.nombre}
                   </div>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Pagination */}
-      <div className="flex items-center justify-between px-2">
-        <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredRowModel().rows.length} clientes
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Anterior
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Siguiente
-          </Button>
-        </div>
-      </div>
+                  {client.razonSocial && (
+                    <div className="text-sm text-muted-foreground">
+                      {client.razonSocial}
+                    </div>
+                  )}
+                </div>
+              </td>
+              <td className="py-3 px-4 text-sm">{client.rut}</td>
+              <td className="py-3 px-4 text-sm">{client.contacto}</td>
+              <td className="py-3 px-4 text-sm">{client.email}</td>
+              <td className="py-3 px-4 text-sm">{client.telefono}</td>
+              <td className="py-3 px-4">
+                <Badge
+                  variant={client.activo ? "default" : "secondary"}
+                  className={
+                    client.activo
+                      ? "bg-green-100 text-green-800 hover:bg-green-100"
+                      : "bg-red-100 text-red-800 hover:bg-red-100"
+                  }
+                >
+                  {client.activo ? "Activo" : "Inactivo"}
+                </Badge>
+              </td>
+              <td className="py-3 px-4">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onView(client)}
+                  >
+                    Ver
+                  </Button>
+                  {canManageClients && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEdit(client)}
+                      >
+                        Editar
+                      </Button>
+                      {client.activo ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onDeactivate(client)}
+                          className="text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                          Desactivar
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onActivate(client.id)}
+                          className="text-green-600 border-green-200 hover:bg-green-50"
+                        >
+                          Activar
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

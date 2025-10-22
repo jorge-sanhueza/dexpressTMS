@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   useAvailableRoles,
   useAssignRolesToProfile,
-} from "../../../hooks/useProfilesService";
+} from "../../../hooks/useProfiles";
 import type { AvailableRole } from "../../../services/profilesService";
 import type { Profile } from "../../../types/profile";
 import { Button } from "@/components/ui/button";
