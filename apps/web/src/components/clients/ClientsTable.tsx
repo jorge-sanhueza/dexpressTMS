@@ -9,7 +9,10 @@ interface ClientsTableProps {
   onView: (client: Client) => void;
   onDeactivate: (client: Client) => void;
   onActivate: (id: string) => void;
-  canManageClients: boolean;
+  canView: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canActivate: boolean;
   isLoading?: boolean;
 }
 
@@ -19,7 +22,10 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
   onView,
   onDeactivate,
   onActivate,
-  canManageClients,
+  canView,
+  canEdit,
+  canDelete,
+  canActivate,
   isLoading = false,
 }) => {
   if (isLoading) {
@@ -103,44 +109,45 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
               </td>
               <td className="py-3 px-4">
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onView(client)}
-                    className="text-zinc-500 border-blue-200 hover:bg-blue-50"
-                  >
-                    Ver
-                  </Button>
-                  {canManageClients && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onEdit(client)}
-                        className="text-zinc-500 border-blue-200 hover:bg-blue-50"
-                      >
-                        Editar
-                      </Button>
-                      {client.activo ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onDeactivate(client)}
-                          className="text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                          Desactivar
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onActivate(client.id)}
-                          className="text-green-600 border-green-200 hover:bg-green-50"
-                        >
-                          Activar
-                        </Button>
-                      )}
-                    </>
+                  {canView && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onView(client)}
+                      className="text-zinc-500 border-blue-200 hover:bg-blue-50"
+                    >
+                      Ver
+                    </Button>
+                  )}
+                  {canEdit && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEdit(client)}
+                      className="text-zinc-500 border-blue-200 hover:bg-blue-50"
+                    >
+                      Editar
+                    </Button>
+                  )}
+                  {canDelete && client.activo && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onDeactivate(client)}
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                    >
+                      Desactivar
+                    </Button>
+                  )}
+                  {canActivate && !client.activo && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onActivate(client.id)}
+                      className="text-green-600 border-green-200 hover:bg-green-50"
+                    >
+                      Activar
+                    </Button>
                   )}
                 </div>
               </td>

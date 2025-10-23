@@ -1,25 +1,45 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import type { Client } from "@/types/client";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import type { Embarcador } from "../../services/embarcadoresService";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useComuna } from "@/hooks/useComunas";
 
-interface ClientViewModalProps {
-  client: Client;
+interface EmbarcadorViewModalProps {
+  embarcador: Embarcador;
   onClose: () => void;
   onEdit: () => void;
   canEdit: boolean;
 }
 
-export const ClientViewModal: React.FC<ClientViewModalProps> = ({
-  client,
+export const EmbarcadorViewModal: React.FC<EmbarcadorViewModalProps> = ({
+  embarcador,
   onClose,
   onEdit,
   canEdit,
 }) => {
+  const { data: comunaData } = useComuna(embarcador.comunaId);
+
   const formatDate = (date: Date) => {
     return format(new Date(date), "PPP", { locale: es });
+  };
+
+  const getTipoLabel = (tipo: string) => {
+    switch (tipo) {
+      case "exportador":
+        return "Exportador";
+      case "importador":
+        return "Importador";
+      case "nacional":
+        return "Nacional";
+      default:
+        return tipo;
+    }
+  };
+
+  const getEstadoLabel = (activo: boolean) => {
+    return activo ? "Activo" : "Inactivo";
   };
 
   return (
@@ -29,22 +49,25 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
           {/* Header */}
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-foreground">
-                {client.nombre}
+              <h2 className="text-2xl font-bold text-[#798283]">
+                {embarcador.nombre}
               </h2>
               <div className="flex items-center gap-2 mt-2">
                 <Badge
-                  variant={client.activo ? "default" : "secondary"}
+                  variant={embarcador.activo ? "default" : "secondary"}
                   className={
-                    client.activo
+                    embarcador.activo
                       ? "bg-green-100 text-green-800 hover:bg-green-100"
                       : "bg-red-100 text-red-800 hover:bg-red-100"
                   }
                 >
-                  {client.activo ? "Activo" : "Inactivo"}
+                  {getEstadoLabel(embarcador.activo)}
                 </Badge>
-                <Badge variant="outline" className="text-muted-foreground">
-                  {client.tipo}
+                <Badge
+                  variant="outline"
+                  className="text-[#798283] border-[#798283]/30"
+                >
+                  {getTipoLabel(embarcador.tipo)}
                 </Badge>
               </div>
             </div>
@@ -52,7 +75,7 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 text-[#798283]"
             >
               ×
             </Button>
@@ -62,32 +85,30 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
             {/* Basic Information */}
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-foreground mb-4">
+                <h3 className="text-lg font-semibold text-[#798283] mb-4">
                   Información Básica
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-sm font-medium text-[#798283]/70">
                       RUT
                     </label>
-                    <p className="text-foreground">{client.rut}</p>
+                    <p className="text-[#798283]">{embarcador.rut}</p>
                   </div>
 
-                  {client.razonSocial && (
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">
-                        Razón Social
-                      </label>
-                      <p className="text-foreground">{client.razonSocial}</p>
-                    </div>
-                  )}
+                  <div>
+                    <label className="text-sm font-medium text-[#798283]/70">
+                      Razón Social
+                    </label>
+                    <p className="text-[#798283]">{embarcador.razonSocial}</p>
+                  </div>
 
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Tipo de Entidad
+                    <label className="text-sm font-medium text-[#798283]/70">
+                      Tipo
                     </label>
-                    <p className="text-foreground capitalize">
-                      {client.tipoEntidad}
+                    <p className="text-[#798283] capitalize">
+                      {getTipoLabel(embarcador.tipo)}
                     </p>
                   </div>
                 </div>
@@ -95,41 +116,41 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
 
               {/* Contact Information */}
               <div>
-                <h3 className="text-lg font-semibold text-foreground mb-4">
+                <h3 className="text-lg font-semibold text-[#798283] mb-4">
                   Información de Contacto
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-sm font-medium text-[#798283]/70">
                       Contacto Principal
                     </label>
-                    <p className="text-foreground">{client.contacto}</p>
+                    <p className="text-[#798283]">{embarcador.contacto}</p>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-sm font-medium text-[#798283]/70">
                       Email
                     </label>
-                    <p className="text-foreground">
+                    <p className="text-[#798283]">
                       <a
-                        href={`mailto:${client.email}`}
+                        href={`mailto:${embarcador.email}`}
                         className="text-blue-600 hover:text-blue-800 hover:underline"
                       >
-                        {client.email}
+                        {embarcador.email}
                       </a>
                     </p>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-sm font-medium text-[#798283]/70">
                       Teléfono
                     </label>
-                    <p className="text-foreground">
+                    <p className="text-[#798283]">
                       <a
-                        href={`tel:${client.telefono}`}
+                        href={`tel:${embarcador.telefono}`}
                         className="text-blue-600 hover:text-blue-800 hover:underline"
                       >
-                        {client.telefono}
+                        {embarcador.telefono}
                       </a>
                     </p>
                   </div>
@@ -141,26 +162,25 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
             <div className="space-y-6">
               {/* Location Information */}
               <div>
-                <h3 className="text-lg font-semibold text-foreground mb-4">
+                <h3 className="text-lg font-semibold text-[#798283] mb-4">
                   Ubicación
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-sm font-medium text-[#798283]/70">
                       Dirección
                     </label>
-                    <p className="text-foreground">{client.direccion}</p>
+                    <p className="text-[#798283]">{embarcador.direccion}</p>
                   </div>
 
-                  {client.comuna && (
+                  {comunaData && (
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">
+                      <label className="text-sm font-medium text-[#798283]/70">
                         Comuna
                       </label>
-                      <p className="text-foreground">
-                        {client.comuna.nombre}
-                        {client.comuna.region &&
-                          `, ${client.comuna.region.nombre}`}
+                      <p className="text-[#798283]">
+                        {comunaData.nombre}
+                        {comunaData.region && `, ${comunaData.region.nombre}`}
                       </p>
                     </div>
                   )}
@@ -169,43 +189,43 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
 
               {/* System Information */}
               <div>
-                <h3 className="text-lg font-semibold text-foreground mb-4">
+                <h3 className="text-lg font-semibold text-[#798283] mb-4">
                   Información del Sistema
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-sm font-medium text-[#798283]/70">
                       Estado
                     </label>
-                    <p className="text-foreground capitalize">
-                      {client.estado}
+                    <p className="text-[#798283] capitalize">
+                      {getEstadoLabel(embarcador.activo)}
                     </p>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-sm font-medium text-[#798283]/70">
                       Creado
                     </label>
-                    <p className="text-foreground">
-                      {formatDate(client.createdAt)}
+                    <p className="text-[#798283]">
+                      {formatDate(embarcador.createdAt)}
                     </p>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-sm font-medium text-[#798283]/70">
                       Última Actualización
                     </label>
-                    <p className="text-foreground">
-                      {formatDate(client.updatedAt)}
+                    <p className="text-[#798283]">
+                      {formatDate(embarcador.updatedAt)}
                     </p>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
-                      ID del Cliente
+                    <label className="text-sm font-medium text-[#798283]/70">
+                      ID del Embarcador
                     </label>
-                    <p className="text-foreground font-mono text-sm">
-                      {client.id}
+                    <p className="text-[#798283] font-mono text-sm">
+                      {embarcador.id}
                     </p>
                   </div>
                 </div>
@@ -215,15 +235,19 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3 pt-6 mt-6 border-t">
-            <Button variant="outline" onClick={onClose}>
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="border-[#798283]/30 text-[#798283]"
+            >
               Cerrar
             </Button>
             {canEdit && (
               <Button
                 onClick={onEdit}
-                className="bg-brand hover:bg-brand/90 text-white"
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-white"
               >
-                Editar Cliente
+                Editar Embarcador
               </Button>
             )}
           </div>

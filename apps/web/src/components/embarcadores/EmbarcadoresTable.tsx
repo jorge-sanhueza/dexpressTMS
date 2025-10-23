@@ -1,254 +1,197 @@
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../../components/ui/table";
-import type {
-  ColumnDef,
-  SortingState,
-  ColumnFiltersState,
-} from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  getPaginationRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-} from "@tanstack/react-table";
-import { useState } from "react";
-import type { Embarcador } from "../../services/embarcadoresService";
+import React from "react";
 import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
+import type { Embarcador } from "../../services/embarcadoresService";
 
 interface EmbarcadoresTableProps {
   data: Embarcador[];
-  onView: (id: string) => void;
   onEdit: (embarcador: Embarcador) => void;
-  onDelete: (id: string) => void;
+  onView: (embarcador: Embarcador) => void;
+  onDelete: (embarcador: Embarcador) => void;
+  onActivate: (id: string) => void;
+  canView: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canActivate: boolean;
   isLoading?: boolean;
 }
 
 export const EmbarcadoresTable: React.FC<EmbarcadoresTableProps> = ({
   data,
-  onView,
   onEdit,
+  onView,
   onDelete,
+  onActivate,
+  canView,
+  canEdit,
+  canDelete,
+  canActivate,
   isLoading = false,
 }) => {
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [rowSelection, setRowSelection] = useState({});
-
-  // Define columns
-  const columns: ColumnDef<Embarcador>[] = [
-    {
-      accessorKey: "nombre",
-      header: "Nombre",
-      cell: ({ row }) => (
-        <div
-          className="font-medium max-w-[150px] truncate"
-          title={row.getValue("nombre")}
-        >
-          {row.getValue("nombre")}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "razonSocial",
-      header: "Razón Social",
-      cell: ({ row }) => (
-        <div
-          className="max-w-[180px] truncate"
-          title={row.getValue("razonSocial")}
-        >
-          {row.getValue("razonSocial")}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "comuna.nombre",
-      header: "Comuna",
-      cell: ({ row }) => (
-        <div className="font-medium">
-          {row.original.comuna?.nombre || "N/A"}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "contacto",
-      header: "Contacto",
-      cell: ({ row }) => <div>{row.getValue("contacto")}</div>,
-    },
-    {
-      accessorKey: "direccion",
-      header: "Dirección",
-      cell: ({ row }) => (
-        <div
-          className="max-w-[200px] truncate"
-          title={row.getValue("direccion")}
-        >
-          {row.getValue("direccion")}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "email",
-      header: "Email",
-      cell: ({ row }) => (
-        <div className="max-w-[180px] truncate" title={row.getValue("email")}>
-          {row.getValue("email")}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "rut",
-      header: "RUT",
-      cell: ({ row }) => (
-        <code className="bg-muted px-2 py-1 rounded text-sm">
-          {row.getValue("rut")}
-        </code>
-      ),
-    },
-    {
-      accessorKey: "telefono",
-      header: "Teléfono",
-      cell: ({ row }) => <div>{row.getValue("telefono")}</div>,
-    },
-    {
-      id: "actions",
-      header: "Acciones",
-      cell: ({ row }) => (
-        <div className="flex space-x-2">
-          <Button
-            variant="link"
-            onClick={() => onView(row.original.id)}
-            className="h-auto p-0 text-zinc-500 hover:text-blue-800"
-          >
-            Ver
-          </Button>
-          <Button
-            variant="link"
-            onClick={() => onEdit(row.original)}
-            className="h-auto p-0 text-zinc-500 hover:text-blue-800"
-          >
-            Editar
-          </Button>
-          <Button
-            variant="link"
-            onClick={() => onDelete(row.original.id)}
-            className="h-auto p-0 text-red-600 hover:text-red-800"
-          >
-            Eliminar
-          </Button>
-        </div>
-      ),
-    },
-  ];
-
-  const table = useReactTable({
-    data,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onRowSelectionChange: setRowSelection,
-    state: {
-      sorting,
-      columnFilters,
-      rowSelection,
-    },
-  });
-
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-muted-foreground">Cargando embarcadores...</div>
+      <div className="flex justify-center items-center py-8">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#D42B22]"></div>
+        <span className="ml-2 text-[#798283]/70">Cargando embarcadores...</span>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {/* Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No se encontraron embarcadores.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+  if (data.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-[#798283]/70">No se encontraron embarcadores</p>
       </div>
+    );
+  }
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          Mostrando {table.getFilteredRowModel().rows.length} embarcadores
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            className="border rounded p-4"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Anterior
-          </Button>
-          <Button
-            className="border rounded p-4"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Siguiente
-          </Button>
-        </div>
-      </div>
+  const getTipoBadge = (tipo: string) => {
+    const variants = {
+      exportador: "bg-blue-100 text-blue-800 hover:bg-blue-100",
+      importador: "bg-purple-100 text-purple-800 hover:bg-purple-100",
+      nacional: "bg-green-100 text-green-800 hover:bg-green-100",
+    };
+
+    const labels = {
+      exportador: "Exportador",
+      importador: "Importador",
+      nacional: "Nacional",
+    };
+
+    return (
+      <Badge
+        variant="secondary"
+        className={variants[tipo as keyof typeof variants]}
+      >
+        {labels[tipo as keyof typeof labels]}
+      </Badge>
+    );
+  };
+
+  const getEstadoBadge = (activo: boolean) => {
+    return (
+      <Badge
+        variant={activo ? "default" : "secondary"}
+        className={
+          activo
+            ? "bg-green-100 text-green-800 hover:bg-green-100"
+            : "bg-red-100 text-red-800 hover:bg-red-100"
+        }
+      >
+        {activo ? "Activo" : "Inactivo"}
+      </Badge>
+    );
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-[#798283]/20">
+            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
+              Nombre
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
+              RUT
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
+              Contacto
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
+              Email
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
+              Teléfono
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
+              Tipo
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
+              Estado
+            </th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
+              Acciones
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((embarcador) => (
+            <tr
+              key={embarcador.id}
+              className="border-b border-[#798283]/10 hover:bg-[#798283]/5"
+            >
+              <td className="py-3 px-4">
+                <div>
+                  <div className="font-medium text-[#798283]">
+                    {embarcador.nombre}
+                  </div>
+                  <div className="text-sm text-[#798283]/70">
+                    {embarcador.razonSocial}
+                  </div>
+                </div>
+              </td>
+              <td className="py-3 px-4 text-sm text-[#798283]">
+                {embarcador.rut}
+              </td>
+              <td className="py-3 px-4 text-sm text-[#798283]">
+                {embarcador.contacto}
+              </td>
+              <td className="py-3 px-4 text-sm text-[#798283]">
+                {embarcador.email}
+              </td>
+              <td className="py-3 px-4 text-sm text-[#798283]">
+                {embarcador.telefono}
+              </td>
+              <td className="py-3 px-4">{getTipoBadge(embarcador.tipo)}</td>
+              <td className="py-3 px-4">{getEstadoBadge(embarcador.activo)}</td>
+              <td className="py-3 px-4">
+                <div className="flex gap-2">
+                  {canView && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onView(embarcador)}
+                      className="text-[#798283] border-[#798283]/20 hover:bg-[#798283]/10"
+                    >
+                      Ver
+                    </Button>
+                  )}
+                  {canEdit && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEdit(embarcador)}
+                      className="text-[#798283] border-[#798283]/20 hover:bg-[#798283]/10"
+                    >
+                      Editar
+                    </Button>
+                  )}
+                  {canDelete && embarcador.activo && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onDelete(embarcador)}
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                    >
+                      Eliminar
+                    </Button>
+                  )}
+                  {canActivate && !embarcador.activo && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onActivate(embarcador.id)}
+                      className="text-green-600 border-green-200 hover:bg-green-50"
+                    >
+                      Activar
+                    </Button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

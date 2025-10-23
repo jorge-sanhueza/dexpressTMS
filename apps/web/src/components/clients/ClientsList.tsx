@@ -50,7 +50,7 @@ const useDebounce = (value: string, delay: number) => {
 };
 
 export const ClientsList: React.FC = () => {
-  const { hasPermission } = useAuthStore();
+  const { hasModulePermission } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<boolean | undefined>(
     undefined
@@ -87,6 +87,34 @@ export const ClientsList: React.FC = () => {
     }));
   }, [debouncedSearchTerm]);
 
+  // Granular permissions for clients module
+  const canViewClients = hasModulePermission("clientes", "ver");
+  const canCreateClients = hasModulePermission("clientes", "crear");
+  const canEditClients = hasModulePermission("clientes", "editar");
+  const canDeleteClients = hasModulePermission("clientes", "eliminar");
+  const canActivateClients = hasModulePermission("clientes", "activar");
+
+  // If user doesn't have view permission, show unauthorized message
+  if (!canViewClients) {
+    return (
+      <WideLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-foreground mb-4">
+              Acceso No Autorizado
+            </div>
+            <p className="text-muted-foreground">
+              No tienes permisos para ver clientes.
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Contacta al administrador del sistema para solicitar acceso.
+            </p>
+          </div>
+        </div>
+      </WideLayout>
+    );
+  }
+
   // Use TanStack Query hooks
   const { data: clientsData, isLoading, error } = useClients(filters);
 
@@ -96,8 +124,6 @@ export const ClientsList: React.FC = () => {
   const activateClientMutation = useActivateClient();
   const createClientMutation = useCreateClient();
   const updateClientMutation = useUpdateClient();
-
-  const canManageClients = hasPermission("admin_access");
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
@@ -154,7 +180,9 @@ export const ClientsList: React.FC = () => {
   };
 
   const handleEdit = (client: Client) => {
-    setEditingClient(client);
+    if (canEditClients) {
+      setEditingClient(client);
+    }
   };
 
   const handleEditSubmit = async (clientData: UpdateClientData) => {
@@ -186,7 +214,9 @@ export const ClientsList: React.FC = () => {
   };
 
   const handleCreateClient = () => {
-    setIsCreateModalOpen(true);
+    if (canCreateClients) {
+      setIsCreateModalOpen(true);
+    }
   };
 
   const handleCreateSubmit = async (clientData: CreateClientData) => {
@@ -228,7 +258,7 @@ export const ClientsList: React.FC = () => {
                 Gestiona los clientes de tu organización
               </p>
             </div>
-            {canManageClients && (
+            {canCreateClients && (
               <Button
                 onClick={handleCreateClient}
                 className="bg-brand hover:bg-brand/90 text-white"
@@ -382,7 +412,10 @@ export const ClientsList: React.FC = () => {
               onView={handleView}
               onDeactivate={openDeactivateDialog}
               onActivate={handleActivate}
-              canManageClients={canManageClients}
+              canView={canViewClients}
+              canEdit={canEditClients}
+              canDelete={canDeleteClients}
+              canActivate={canActivateClients}
               isLoading={isLoading}
             />
           </div>
@@ -432,43 +465,45 @@ export const ClientsList: React.FC = () => {
             setViewingClient(null);
             setEditingClient(viewingClient);
           }}
-          canManageClients={canManageClients}
+          canEdit={canEditClients}
         />
       )}
 
       {/* Deactivate Client Confirmation Dialog */}
-      <AlertDialog
-        open={deactivateDialog.isOpen}
-        onOpenChange={closeDeactivateDialog}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Desactivar cliente?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Estás a punto de desactivar al cliente{" "}
-              <strong>{deactivateDialog.clientName}</strong>. Esta acción no se
-              puede deshacer y el cliente ya no podrá acceder al sistema.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={deactivateClientMutation.isPending}
-              onClick={closeDeactivateDialog}
-            >
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeactivateConfirm}
-              disabled={deactivateClientMutation.isPending}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              {deactivateClientMutation.isPending
-                ? "Desactivando..."
-                : "Sí, desactivar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {canDeleteClients && (
+        <AlertDialog
+          open={deactivateDialog.isOpen}
+          onOpenChange={closeDeactivateDialog}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Desactivar cliente?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Estás a punto de desactivar al cliente{" "}
+                <strong>{deactivateDialog.clientName}</strong>. Esta acción no
+                se puede deshacer y el cliente ya no podrá acceder al sistema.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                disabled={deactivateClientMutation.isPending}
+                onClick={closeDeactivateDialog}
+              >
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeactivateConfirm}
+                disabled={deactivateClientMutation.isPending}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deactivateClientMutation.isPending
+                  ? "Desactivando..."
+                  : "Sí, desactivar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </WideLayout>
   );
 };

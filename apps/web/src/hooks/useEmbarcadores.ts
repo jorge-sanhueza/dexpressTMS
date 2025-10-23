@@ -5,11 +5,23 @@ import {
   type UpdateEmbarcadorDto,
 } from "../services/embarcadoresService";
 
-export const useEmbarcadores = (tenantId: string) => {
+export interface UseEmbarcadoresFilters {
+  search?: string;
+  activo?: boolean;
+  tipo?: string;
+  page?: number;
+  limit?: number;
+}
+
+export const useEmbarcadores = (
+  tenantId: string,
+  filters?: UseEmbarcadoresFilters
+) => {
   return useQuery({
-    queryKey: ["embarcadores", tenantId],
-    queryFn: () => embarcadoresService.getEmbarcadores(),
+    queryKey: ["embarcadores", tenantId, filters],
+    queryFn: () => embarcadoresService.getEmbarcadores(filters),
     enabled: !!tenantId,
+    placeholderData: (previousData) => previousData,
   });
 };
 

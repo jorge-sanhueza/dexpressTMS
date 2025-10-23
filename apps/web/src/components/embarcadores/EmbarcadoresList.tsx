@@ -1,129 +1,265 @@
-import React, { useState, useEffect } from "react";
-import { useAuthStore } from "../../store/authStore";
+import React, { useState } from "react";
+import { WideLayout } from "../layout/WideLayout";
+import { EmbarcadoresTable } from "./EmbarcadoresTable";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
 import {
   useEmbarcadores,
   useCreateEmbarcador,
   useUpdateEmbarcador,
   useDeleteEmbarcador,
 } from "../../hooks/useEmbarcadores";
+import { useAuthStore } from "../../store/authStore";
 import type {
   Embarcador,
   CreateEmbarcadorDto,
 } from "../../services/embarcadoresService";
-import { WideLayout } from "../layout/WideLayout";
-import { EmbarcadoresTable } from "./EmbarcadoresTable";
-import { Button } from "../ui/button";
-import { useNavigate } from "react-router-dom";
+import { Input } from "../ui/input";
+import { EmbarcadorForm } from "./EmbarcadorForm";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
+import { EmbarcadorViewModal } from "./EmbarcadorViewModal";
+
+// Debounce hook for search
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 export const EmbarcadoresList: React.FC = () => {
-  const { tenant } = useAuthStore();
-  const [showForm, setShowForm] = useState(false);
+  const { tenant, hasModulePermission } = useAuthStore();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [tipoFilter, setTipoFilter] = useState<string | undefined>(undefined);
+  const [activoFilter, setActivoFilter] = useState<boolean | undefined>(
+    undefined
+  );
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingEmbarcador, setEditingEmbarcador] = useState<Embarcador | null>(
     null
   );
-  const [formData, setFormData] = useState<CreateEmbarcadorDto>({
-    nombre: "",
-    razonSocial: "",
-    rut: "",
-    contacto: "",
-    email: "",
-    telefono: "",
-    direccion: "",
-    comunaId: "",
-    tipo: "exportador",
+  const [viewingEmbarcador, setViewingEmbarcador] = useState<Embarcador | null>(
+    null
+  );
+
+  // Alert Dialog state
+  const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    embarcadorId: string | null;
+    embarcadorName: string;
+  }>({
+    isOpen: false,
+    embarcadorId: null,
+    embarcadorName: "",
   });
 
-  // We'll fetch comunas from the API - for now using mock data
-  const [comunas, setComunas] = useState<any[]>([]);
+  // Use debounced search term for API calls
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  useEffect(() => {
-    // TODO: Replace with actual API call to fetch comunas
-    const mockComunas = [
-      { id: "1", nombre: "Santiago" },
-      { id: "2", nombre: "Providencia" },
-      { id: "3", nombre: "Las Condes" },
-      { id: "4", nombre: "Ñuñoa" },
-      { id: "5", nombre: "Maipú" },
-      { id: "6", nombre: "Puente Alto" },
-    ];
-    setComunas(mockComunas);
-  }, []);
+  // Build filters object for API - matches your backend EmbarcadoresFilterDto
+  const filters = React.useMemo(() => {
+    const filterObj: any = {};
 
-  // TanStack Query hooks
+    if (debouncedSearchTerm) {
+      filterObj.search = debouncedSearchTerm;
+    }
+
+    if (tipoFilter) {
+      filterObj.tipo = tipoFilter;
+    }
+
+    if (activoFilter !== undefined) {
+      filterObj.activo = activoFilter;
+    }
+
+    // Add pagination if needed
+    filterObj.page = 1;
+    filterObj.limit = 50;
+
+    return filterObj;
+  }, [debouncedSearchTerm, tipoFilter, activoFilter]);
+
+  // Granular permissions for embarcadores module
+  const canViewEmbarcadores = hasModulePermission("embarcadores", "ver");
+  const canCreateEmbarcadores = hasModulePermission("embarcadores", "crear");
+  const canEditEmbarcadores = hasModulePermission("embarcadores", "editar");
+  const canDeleteEmbarcadores = hasModulePermission("embarcadores", "eliminar");
+  const canActivateEmbarcadores = hasModulePermission(
+    "embarcadores",
+    "activar"
+  );
+
+  // If user doesn't have view permission, show unauthorized message
+  if (!canViewEmbarcadores) {
+    return (
+      <WideLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-[#798283] mb-4">
+              Acceso No Autorizado
+            </div>
+            <p className="text-[#798283]/70">
+              No tienes permisos para ver embarcadores.
+            </p>
+            <p className="text-sm text-[#798283]/50 mt-2">
+              Contacta al administrador del sistema para solicitar acceso.
+            </p>
+          </div>
+        </div>
+      </WideLayout>
+    );
+  }
+
+  // TanStack Query hooks with keepPreviousData
   const {
     data: embarcadoresData,
     isLoading,
+    isFetching,
     error,
-  } = useEmbarcadores(tenant?.id || "");
+  } = useEmbarcadores(tenant?.id || "", filters);
+
   const embarcadores = embarcadoresData?.embarcadores || [];
+  const totalCount = embarcadoresData?.total || 0;
 
   const createEmbarcadorMutation = useCreateEmbarcador();
   const updateEmbarcadorMutation = useUpdateEmbarcador();
   const deleteEmbarcadorMutation = useDeleteEmbarcador();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      if (editingEmbarcador) {
-        await updateEmbarcadorMutation.mutateAsync({
-          id: editingEmbarcador.id,
-          embarcadorData: formData,
-        });
-      } else {
-        await createEmbarcadorMutation.mutateAsync(formData);
-      }
-
-      setShowForm(false);
-      setEditingEmbarcador(null);
-      setFormData({
-        nombre: "",
-        razonSocial: "",
-        rut: "",
-        contacto: "",
-        email: "",
-        telefono: "",
-        direccion: "",
-        comunaId: "",
-        tipo: "exportador",
-      });
-    } catch (err) {
-      console.error("Failed to save embarcador:", err);
-    }
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
   };
 
-  const navigate = useNavigate();
+  const handleTipoFilter = (tipo: string | undefined) => {
+    setTipoFilter(tipo);
+  };
 
-  const handleView = (embarcadorId: string) => {
-    navigate(`/embarcadores/${embarcadorId}`);
+  const handleActivoFilter = (activo: boolean | undefined) => {
+    setActivoFilter(activo);
+  };
+
+  // Open delete confirmation dialog
+  const openDeleteDialog = (embarcador: Embarcador) => {
+    setDeleteDialog({
+      isOpen: true,
+      embarcadorId: embarcador.id,
+      embarcadorName: embarcador.nombre,
+    });
+  };
+
+  // Close delete dialog
+  const closeDeleteDialog = () => {
+    setDeleteDialog({
+      isOpen: false,
+      embarcadorId: null,
+      embarcadorName: "",
+    });
+  };
+
+  // Handle delete confirmation
+  const handleDeleteConfirm = async () => {
+    if (!deleteDialog.embarcadorId) return;
+
+    try {
+      await deleteEmbarcadorMutation.mutateAsync(deleteDialog.embarcadorId);
+      toast.success("Embarcador eliminado correctamente");
+      closeDeleteDialog();
+    } catch (err: any) {
+      console.error("Error deleting embarcador:", err);
+      toast.error(err.message || "Error al eliminar el embarcador");
+    }
   };
 
   const handleEdit = (embarcador: Embarcador) => {
-    setEditingEmbarcador(embarcador);
-    setFormData({
-      nombre: embarcador.nombre,
-      razonSocial: embarcador.razonSocial,
-      rut: embarcador.rut,
-      contacto: embarcador.contacto,
-      email: embarcador.email,
-      telefono: embarcador.telefono,
-      direccion: embarcador.direccion,
-      comunaId: embarcador.comunaId,
-      tipo: embarcador.tipo,
-    });
-    setShowForm(true);
+    if (canEditEmbarcadores) {
+      setEditingEmbarcador(embarcador);
+    }
   };
 
-  const handleDelete = async (embarcadorId: string) => {
-    if (
-      window.confirm("¿Estás seguro de que quieres eliminar este embarcador?")
-    ) {
-      try {
-        await deleteEmbarcadorMutation.mutateAsync(embarcadorId);
-      } catch (err) {
-        console.error("Failed to delete embarcador:", err);
-      }
+  const handleActivate = async (id: string) => {
+    try {
+      await updateEmbarcadorMutation.mutateAsync({
+        id,
+        embarcadorData: { activo: true },
+      });
+      toast.success("Embarcador activado correctamente");
+    } catch (err: any) {
+      console.error("Error activating embarcador:", err);
+      toast.error(err.message || "Error al activar el embarcador");
     }
+  };
+
+  const handleEditSubmit = async (embarcadorData: CreateEmbarcadorDto) => {
+    if (!editingEmbarcador) return;
+
+    try {
+      await updateEmbarcadorMutation.mutateAsync({
+        id: editingEmbarcador.id,
+        embarcadorData,
+      });
+      setEditingEmbarcador(null);
+      toast.success("Embarcador actualizado correctamente");
+    } catch (err: any) {
+      console.error("Error updating embarcador:", err);
+      toast.error(err.message || "Error al actualizar el embarcador");
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditingEmbarcador(null);
+  };
+
+  const handleView = (embarcador: Embarcador) => {
+    setViewingEmbarcador(embarcador);
+  };
+
+  const handleViewClose = () => {
+    setViewingEmbarcador(null);
+  };
+
+  const handleCreateEmbarcador = () => {
+    if (canCreateEmbarcadores) {
+      setIsCreateModalOpen(true);
+    }
+  };
+
+  const handleCreateSubmit = async (embarcadorData: CreateEmbarcadorDto) => {
+    try {
+      await createEmbarcadorMutation.mutateAsync(embarcadorData);
+      setIsCreateModalOpen(false);
+      toast.success("Embarcador creado correctamente");
+    } catch (err: any) {
+      console.error("Error creating embarcador:", err);
+      toast.error(err.message || "Error al crear el embarcador");
+    }
+  };
+
+  const handleCreateCancel = () => {
+    setIsCreateModalOpen(false);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setTipoFilter(undefined);
+    setActivoFilter(undefined);
   };
 
   const isInitialLoad = isLoading && embarcadores.length === 0;
@@ -151,12 +287,17 @@ export const EmbarcadoresList: React.FC = () => {
                 {tenant && `- ${tenant.nombre}`}
               </p>
             </div>
-            <Button
-              onClick={() => setShowForm(true)}
-              className="bg-[#D42B22] hover:bg-[#B3251E] text-white"
-            >
-              + Nuevo Embarcador
-            </Button>
+            {canCreateEmbarcadores && (
+              <Button
+                onClick={handleCreateEmbarcador}
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-white"
+                disabled={createEmbarcadorMutation.isPending}
+              >
+                {createEmbarcadorMutation.isPending
+                  ? "Creando..."
+                  : "+ Nuevo Embarcador"}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -170,274 +311,286 @@ export const EmbarcadoresList: React.FC = () => {
               {error?.message ||
                 createEmbarcadorMutation.error?.message ||
                 updateEmbarcadorMutation.error?.message ||
-                deleteEmbarcadorMutation.error?.message}
+                deleteEmbarcadorMutation.error?.message ||
+                "Ha ocurrido un error inesperado"}
             </div>
           </div>
         )}
 
-        {/* Embarcador Form */}
-        {showForm && (
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
-            <h3 className="text-lg font-semibold text-[#798283] mb-4">
-              {editingEmbarcador
-                ? "Editar Embarcador"
-                : "Crear Nuevo Embarcador"}
-            </h3>
-            <form
-              onSubmit={handleSubmit}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4"
-            >
-              {/* Form fields remain the same */}
-              <div>
-                <label className="block text-sm font-medium text-[#798283] mb-2">
-                  Nombre *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.nombre}
-                  onChange={(e) =>
-                    setFormData({ ...formData, nombre: e.target.value })
-                  }
-                  disabled={
-                    createEmbarcadorMutation.isPending ||
-                    updateEmbarcadorMutation.isPending
-                  }
-                  className="w-full px-2 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
-                  placeholder="Nombre del embarcador"
-                />
-              </div>
+        {/* Enhanced Filters Section */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            {/* Search Input */}
+            <div>
+              <label className="block text-sm font-medium text-[#798283] mb-2">
+                Buscar embarcadores
+              </label>
+              <Input
+                type="text"
+                placeholder="Buscar por nombre, RUT, contacto o email..."
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="w-full"
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-[#798283] mb-2">
-                  Razón Social *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.razonSocial}
-                  onChange={(e) =>
-                    setFormData({ ...formData, razonSocial: e.target.value })
-                  }
-                  disabled={
-                    createEmbarcadorMutation.isPending ||
-                    updateEmbarcadorMutation.isPending
-                  }
-                  className="w-full px-2 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
-                  placeholder="Razón social"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#798283] mb-2">
-                  RUT *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.rut}
-                  onChange={(e) =>
-                    setFormData({ ...formData, rut: e.target.value })
-                  }
-                  disabled={
-                    createEmbarcadorMutation.isPending ||
-                    updateEmbarcadorMutation.isPending
-                  }
-                  className="w-full px-2 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
-                  placeholder="12.345.678-9"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#798283] mb-2">
-                  Contacto *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.contacto}
-                  onChange={(e) =>
-                    setFormData({ ...formData, contacto: e.target.value })
-                  }
-                  disabled={
-                    createEmbarcadorMutation.isPending ||
-                    updateEmbarcadorMutation.isPending
-                  }
-                  className="w-full px-2 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
-                  placeholder="Persona de contacto"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#798283] mb-2">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  disabled={
-                    createEmbarcadorMutation.isPending ||
-                    updateEmbarcadorMutation.isPending
-                  }
-                  className="w-full px-2 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
-                  placeholder="email@empresa.cl"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#798283] mb-2">
-                  Teléfono *
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.telefono}
-                  onChange={(e) =>
-                    setFormData({ ...formData, telefono: e.target.value })
-                  }
-                  disabled={
-                    createEmbarcadorMutation.isPending ||
-                    updateEmbarcadorMutation.isPending
-                  }
-                  className="w-full px-2 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
-                  placeholder="+56912345678"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#798283] mb-2">
-                  Dirección *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.direccion}
-                  onChange={(e) =>
-                    setFormData({ ...formData, direccion: e.target.value })
-                  }
-                  disabled={
-                    createEmbarcadorMutation.isPending ||
-                    updateEmbarcadorMutation.isPending
-                  }
-                  className="w-full px-2 py-2 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
-                  placeholder="Dirección completa"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#798283] mb-2">
-                  Comuna *
-                </label>
-                <select
-                  required
-                  value={formData.comunaId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, comunaId: e.target.value })
-                  }
-                  disabled={
-                    createEmbarcadorMutation.isPending ||
-                    updateEmbarcadorMutation.isPending
-                  }
-                  className="w-full px-2 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
-                >
-                  <option value="">Seleccionar comuna</option>
-                  {comunas.map((comuna) => (
-                    <option key={comuna.id} value={comuna.id}>
-                      {comuna.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#798283] mb-2">
-                  Tipo *
-                </label>
-                <select
-                  required
-                  value={formData.tipo}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tipo: e.target.value })
-                  }
-                  disabled={
-                    createEmbarcadorMutation.isPending ||
-                    updateEmbarcadorMutation.isPending
-                  }
-                  className="w-full px-2 py-2 border border-[#798283]/30 rounded-lg text-[#798283] focus:outline-none focus:ring-2 focus:ring-[#D42B22] focus:border-[#D42B22] disabled:opacity-50"
-                >
-                  <option value="exportador">Exportador</option>
-                  <option value="importador">Importador</option>
-                  <option value="nacional">Nacional</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2 flex space-x-3 pt-4">
+            {/* Tipo Filter */}
+            <div>
+              <label className="block text-sm font-medium text-[#798283] mb-2">
+                Tipo
+              </label>
+              <div className="flex gap-2">
                 <Button
-                  type="submit"
-                  disabled={
-                    createEmbarcadorMutation.isPending ||
-                    updateEmbarcadorMutation.isPending
+                  variant={tipoFilter === undefined ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleTipoFilter(undefined)}
+                  className={
+                    tipoFilter === undefined
+                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
+                      : ""
                   }
-                  className="bg-[#D42B22] hover:bg-[#B3251E] text-white"
                 >
-                  {createEmbarcadorMutation.isPending ||
-                  updateEmbarcadorMutation.isPending ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      {editingEmbarcador ? "Actualizando..." : "Creando..."}
-                    </div>
-                  ) : editingEmbarcador ? (
-                    "Actualizar Embarcador"
-                  ) : (
-                    "Crear Embarcador"
-                  )}
+                  Todos
                 </Button>
                 <Button
-                  type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditingEmbarcador(null);
-                    setFormData({
-                      nombre: "",
-                      razonSocial: "",
-                      rut: "",
-                      contacto: "",
-                      email: "",
-                      telefono: "",
-                      direccion: "",
-                      comunaId: "",
-                      tipo: "exportador",
-                    });
-                  }}
-                  disabled={
-                    createEmbarcadorMutation.isPending ||
-                    updateEmbarcadorMutation.isPending
+                  variant={tipoFilter === "exportador" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleTipoFilter("exportador")}
+                  className={
+                    tipoFilter === "exportador"
+                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
+                      : ""
                   }
-                  variant="outline"
                 >
-                  Cancelar
+                  Exportadores
+                </Button>
+                <Button
+                  variant={tipoFilter === "importador" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleTipoFilter("importador")}
+                  className={
+                    tipoFilter === "importador"
+                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
+                      : ""
+                  }
+                >
+                  Importadores
+                </Button>
+                <Button
+                  variant={tipoFilter === "nacional" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleTipoFilter("nacional")}
+                  className={
+                    tipoFilter === "nacional"
+                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
+                      : ""
+                  }
+                >
+                  Nacionales
                 </Button>
               </div>
-            </form>
+            </div>
+
+            {/* Estado Filter */}
+            <div>
+              <label className="block text-sm font-medium text-[#798283] mb-2">
+                Estado
+              </label>
+              <div className="flex gap-2">
+                <Button
+                  variant={activoFilter === undefined ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleActivoFilter(undefined)}
+                  className={
+                    activoFilter === undefined
+                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
+                      : ""
+                  }
+                >
+                  Todos
+                </Button>
+                <Button
+                  variant={activoFilter === true ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleActivoFilter(true)}
+                  className={
+                    activoFilter === true
+                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
+                      : ""
+                  }
+                >
+                  Activos
+                </Button>
+                <Button
+                  variant={activoFilter === false ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleActivoFilter(false)}
+                  className={
+                    activoFilter === false
+                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
+                      : ""
+                  }
+                >
+                  Inactivos
+                </Button>
+              </div>
+            </div>
           </div>
-        )}
 
+          {/* Active filters display */}
+          <div className="flex items-center gap-2 mt-4">
+            <span className="text-sm text-[#798283]/70">Filtros activos:</span>
+            {searchTerm && (
+              <Badge variant="secondary" className="bg-blue-50 text-blue-700">
+                Búsqueda: "{searchTerm}"
+              </Badge>
+            )}
+            {tipoFilter && (
+              <Badge variant="secondary" className="bg-green-50 text-green-700">
+                Tipo: {tipoFilter}
+              </Badge>
+            )}
+            {activoFilter !== undefined && (
+              <Badge
+                variant="secondary"
+                className="bg-purple-50 text-purple-700"
+              >
+                Estado: {activoFilter ? "Activos" : "Inactivos"}
+              </Badge>
+            )}
+            {(searchTerm ||
+              tipoFilter !== undefined ||
+              activoFilter !== undefined) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearFilters}
+                className="h-6 text-xs text-[#798283]/70 hover:text-[#798283]"
+              >
+                Limpiar filtros
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Embarcadores Table */}
         <div className="bg-white rounded-xl shadow-sm border border-[#798283]/10">
-          <div className="bg-white rounded-xl shadow-sm border border-[#798283]/10 p-6">
-            <EmbarcadoresTable
-              data={embarcadores}
-              onView={handleView}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              isLoading={isLoading}
-            />
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold text-[#798283]">
+                Lista de Embarcadores
+              </h3>
+              <div className="text-sm text-[#798283]/70">
+                {isFetching ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#D42B22]"></div>
+                    Actualizando...
+                  </div>
+                ) : (
+                  <>
+                    {embarcadores.length} de {totalCount}{" "}
+                    {totalCount === 1 ? "embarcador" : "embarcadores"}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Show loading overlay only on the table during filter changes */}
+            <div className="relative">
+              {isFetching && (
+                <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10 rounded-lg">
+                  <div className="flex items-center gap-2 text-[#798283]">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#D42B22]"></div>
+                    <span>Actualizando datos...</span>
+                  </div>
+                </div>
+              )}
+
+              <EmbarcadoresTable
+                data={embarcadores}
+                onEdit={handleEdit}
+                onView={handleView}
+                onDelete={openDeleteDialog}
+                onActivate={handleActivate}
+                canView={canViewEmbarcadores}
+                canEdit={canEditEmbarcadores}
+                canDelete={canDeleteEmbarcadores}
+                canActivate={canActivateEmbarcadores}
+                isLoading={isLoading}
+              />
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Create Embarcador Modal */}
+      {isCreateModalOpen && (
+        <EmbarcadorForm
+          onSubmit={handleCreateSubmit}
+          onCancel={handleCreateCancel}
+          isLoading={createEmbarcadorMutation.isPending}
+        />
+      )}
+
+      {/* Edit Embarcador Modal */}
+      {editingEmbarcador && (
+        <EmbarcadorForm
+          embarcador={editingEmbarcador}
+          onSubmit={handleEditSubmit}
+          onCancel={handleEditCancel}
+          isLoading={updateEmbarcadorMutation.isPending}
+          isEditing={true}
+        />
+      )}
+
+      {/* View Embarcador Modal */}
+      {viewingEmbarcador && (
+        <EmbarcadorViewModal
+          embarcador={viewingEmbarcador}
+          onClose={handleViewClose}
+          onEdit={() => {
+            setViewingEmbarcador(null);
+            setEditingEmbarcador(viewingEmbarcador);
+          }}
+          canEdit={canEditEmbarcadores}
+        />
+      )}
+
+      {/* Delete Embarcador Confirmation Dialog */}
+      {canDeleteEmbarcadores && (
+        <AlertDialog
+          open={deleteDialog.isOpen}
+          onOpenChange={closeDeleteDialog}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar embarcador?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Estás a punto de eliminar al embarcador{" "}
+                <strong>{deleteDialog.embarcadorName}</strong>. Esta acción no
+                se puede deshacer y se perderán todos los datos asociados.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                disabled={deleteEmbarcadorMutation.isPending}
+                onClick={closeDeleteDialog}
+              >
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                disabled={deleteEmbarcadorMutation.isPending}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deleteEmbarcadorMutation.isPending
+                  ? "Eliminando..."
+                  : "Sí, eliminar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </WideLayout>
   );
 };

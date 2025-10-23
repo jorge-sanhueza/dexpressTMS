@@ -44,13 +44,41 @@ export interface UpdateEmbarcadorDto {
   activo?: boolean;
 }
 
+export interface EmbarcadoresFilter {
+  search?: string;
+  activo?: boolean;
+  tipo?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface EmbarcadoresResponse {
+  embarcadores: Embarcador[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 class EmbarcadoresService {
   private baseUrl = `${API_BASE}/api/embarcadores`;
 
-  async getEmbarcadores(): Promise<{ embarcadores: Embarcador[] }> {
+  async getEmbarcadores(
+    filter: EmbarcadoresFilter = {}
+  ): Promise<EmbarcadoresResponse> {
     try {
       const token = localStorage.getItem("access_token");
-      const response = await fetch(this.baseUrl, {
+      const queryParams = new URLSearchParams();
+
+      if (filter.search) queryParams.append("search", filter.search);
+      if (filter.activo !== undefined)
+        queryParams.append("activo", filter.activo.toString());
+      if (filter.tipo) queryParams.append("tipo", filter.tipo);
+      if (filter.page) queryParams.append("page", filter.page.toString());
+      if (filter.limit) queryParams.append("limit", filter.limit.toString());
+
+      const url = `${this.baseUrl}?${queryParams.toString()}`;
+
+      const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

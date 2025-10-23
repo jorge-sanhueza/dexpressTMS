@@ -26,14 +26,12 @@ interface AuthState {
   fetchUserRoles: (rolesIds: string[]) => Promise<void>;
   initializeAuth: () => Promise<void>;
   hasPermission: (permissionCode: string) => boolean;
+  hasModulePermission: (module: string, action: string) => boolean;
   handleTenantAndRoles: (user: AuthUser) => Promise<void>;
   isTokenExpired: (token: string) => boolean;
 }
 
 // JWT decoding utility function (base64url safe)
-// Expects a standard JWT string with three dot-separated parts.
-// Only decodes the payload; does not verify signature or validate claims.
-// Returns null if the token is malformed or cannot be decoded.
 const decodeJWT = (token: string): any => {
   try {
     const parts = token.split(".");
@@ -42,9 +40,7 @@ const decodeJWT = (token: string): any => {
       return null;
     }
     const payload = parts[1];
-    // Convert base64url to base64
     const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-    // Pad with '=' if necessary
     const padded = base64.padEnd(
       base64.length + ((4 - (base64.length % 4)) % 4),
       "="
@@ -105,43 +101,27 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       typeof response.user.tenant_id === "string" &&
       response.user.tenant_id.trim() !== ""
     ) {
-      console.log(
-        "📋 Fetching tenant data for tenant_id:",
-        response.user.tenant_id
-      );
       await get().fetchTenantData(response.user.tenant_id);
 
       if (response.user.permissions && response.user.permissions.length > 0) {
-        console.log("🔐 Fetching user roles...", response.user.permissions);
         await get().fetchUserRoles(response.user.permissions);
       } else {
-        console.log("ℹ️ No permissions to fetch");
         set({ rolesLoaded: true });
       }
     } else {
-      console.log("❌ No valid tenant ID found in user response");
       set({ isLoading: false, rolesLoaded: true });
     }
-
     console.log("✅ Login completed");
   },
 
   fetchTenantData: async (tenant_id: string) => {
-    console.log("🎯 fetchTenantData CALLED with tenant_id:", tenant_id);
-
     try {
-      console.log("📋 fetchTenantData started for tenant:", tenant_id);
       set({ isLoading: true });
-
       let tenantData: Tenant;
 
       try {
-        console.log("🏢 Calling tenantService.getTenantById...");
         tenantData = await tenantService.getTenantById(tenant_id);
-        console.log("✅ Tenant data fetched from API:", tenantData);
       } catch (apiError: unknown) {
-        console.error("❌ API call failed, using fallback:");
-
         if (apiError instanceof Error) {
           console.error("API Error message:", apiError.message);
           console.error("API Error name:", apiError.name);
@@ -159,8 +139,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         };
         console.log("🔄 Using fallback tenant:", tenantData);
       }
-
-      console.log("🏢 Setting tenant data in store:", tenantData);
       set({ tenant: tenantData });
     } catch (error: unknown) {
       console.error("❌ Unexpected error in fetchTenantData:");
@@ -180,28 +158,15 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         rut: "12345678-9",
         activo: true,
       };
-
-      console.log("🔄 Using final fallback tenant");
       set({ tenant: fallbackTenant });
     } finally {
-      console.log("📋 fetchTenantData completed");
       set({ isLoading: false, isInitialized: true });
     }
   },
 
   fetchUserRoles: async (rolesIds: string[]) => {
     try {
-      console.log("🔄 fetchUserRoles called with IDs:", rolesIds);
-      console.log("🔄 Number of role IDs:", rolesIds.length);
-      console.log("🔄 First few role IDs:", rolesIds.slice(0, 5));
-
-      // Add debug for the API call
-      console.log("🌐 Making API call to roles service...");
       const roles = await rolesService.getRolesByIds(rolesIds);
-
-      console.log("✅ Roles fetched successfully:", roles);
-      console.log("✅ Number of roles returned:", roles.length);
-
       if (roles.length === 0) {
         console.warn(
           "⚠️ WARNING: Roles service returned empty array despite having",
@@ -209,7 +174,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
           "role IDs"
         );
       }
-
       set({ roles, rolesLoaded: true });
     } catch (error) {
       console.error("❌ Error fetching user roles:", error);
@@ -220,6 +184,13 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   hasPermission: (permissionCode: string): boolean => {
     const { roles } = get();
     return roles.some((role) => role.codigo === permissionCode);
+  },
+
+  hasModulePermission: (module: string, action: string): boolean => {
+    const { roles } = get();
+    return roles.some(
+      (role) => role.modulo === module && role.tipo_accion === action
+    );
   },
 
   isTokenExpired: (token: string): boolean => {
@@ -244,7 +215,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   },
 
   initializeAuth: async () => {
-    console.log("🔄 initializeAuth started");
     const token = localStorage.getItem("access_token");
     const userData = localStorage.getItem("user");
 
