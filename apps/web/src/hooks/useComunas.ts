@@ -1,6 +1,6 @@
 import { comunasService } from "@/services/comunasService";
 import type { Comuna, ComunaFilter } from "@/services/comunasService";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 
 export const useComunas = (filter: ComunaFilter = {}) => {
   return useQuery({
@@ -10,10 +10,14 @@ export const useComunas = (filter: ComunaFilter = {}) => {
   });
 };
 
-export const useComuna = (id: string) => {
+export const useComuna = (
+  id: string,
+  options?: Omit<UseQueryOptions<Comuna, Error>, "queryKey" | "queryFn">
+) => {
   return useQuery({
     queryKey: ["comuna", id],
     queryFn: () => comunasService.getComunaById(id),
     enabled: !!id,
+    ...options,
   });
 };

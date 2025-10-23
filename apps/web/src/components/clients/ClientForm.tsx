@@ -1,16 +1,23 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { CreateClientData } from "@/types/client";
+import type {
+  Client,
+  CreateClientData,
+  UpdateClientData,
+} from "@/types/client";
 import type { Comuna } from "@/services/comunasService";
 import { ComunaSelect } from "../ComunaSelect";
+import { useComuna } from "@/hooks/useComunas";
 
 interface ClientFormProps {
-  onSubmit: (data: CreateClientData) => void;
+  client?: Client | null;
+  onSubmit: (data: CreateClientData | UpdateClientData) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  isEditing?: boolean;
 }
 
 const TIPO_OPTIONS = [
@@ -20,16 +27,25 @@ const TIPO_OPTIONS = [
 ];
 
 export const ClientForm: React.FC<ClientFormProps> = ({
+  client,
   onSubmit,
   onCancel,
   isLoading = false,
+  isEditing = false,
 }) => {
+  // Fetch comuna data if we're in edit mode and have a comunaId
+  const { data: comunaData } = useComuna(client?.comunaId || "", {
+    enabled: isEditing && !!client?.comunaId,
+  });
+
+  // Fixed: Only one useForm declaration
   const {
     register,
     handleSubmit,
     formState: { errors },
     watch,
     setValue,
+    reset,
   } = useForm<CreateClientData & { comuna?: Comuna | null }>({
     defaultValues: {
       tipo: "empresa",
@@ -39,19 +55,38 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   const selectedTipo = watch("tipo");
   const selectedComuna = watch("comuna");
 
+  useEffect(() => {
+    if (isEditing && client) {
+      reset({
+        nombre: client.nombre,
+        razonSocial: client.razonSocial || "",
+        rut: client.rut,
+        contacto: client.contacto,
+        email: client.email,
+        telefono: client.telefono,
+        direccion: client.direccion,
+        tipo: client.tipo,
+        comuna: comunaData || null,
+      });
+    }
+  }, [isEditing, client, comunaData, reset]);
+
   const handleFormSubmit = (data: any) => {
-    // Transform the data to match CreateClientData
-    const submitData: CreateClientData = {
-      nombre: data.nombre,
+    const submitData: any = {
+      nombre: data.nombre || "",
       razonSocial: data.razonSocial,
-      rut: data.rut,
-      contacto: data.contacto,
-      email: data.email,
-      telefono: data.telefono,
-      direccion: data.direccion,
-      tipo: data.tipo,
-      comunaId: data.comuna?.id,
+      rut: data.rut || "",
+      contacto: data.contacto || "",
+      email: data.email || "",
+      telefono: data.telefono || "",
+      direccion: data.direccion || "",
+      tipo: data.tipo || "empresa",
     };
+
+    // Only include comunaId if a comuna is selected
+    if (data.comuna?.id) {
+      submitData.comunaId = data.comuna.id;
+    }
 
     onSubmit(submitData);
   };
@@ -60,17 +95,24 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     setValue("comuna", comuna);
   };
 
+  const title = isEditing ? "Editar Cliente" : "Crear Nuevo Cliente";
+  const description = isEditing
+    ? "Modifica la información del cliente"
+    : "Completa la información del nuevo cliente";
+  const submitText = isLoading
+    ? isEditing
+      ? "Actualizando..."
+      : "Creando..."
+    : isEditing
+    ? "Actualizar Cliente"
+    : "Crear Cliente";
+
   return (
     <div className="fixed inset-0 bg-zinc-500/80 bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-foreground mb-2">
-            Crear Nuevo Cliente
-          </h2>
-          <p className="text-muted-foreground mb-6">
-            Completa la información del nuevo cliente
-          </p>
-
+          <h2 className="text-2xl font-bold text-foreground mb-2">{title}</h2>
+          <p className="text-muted-foreground mb-6">{description}</p>
           <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Basic Information */}
@@ -111,8 +153,13 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                     },
                   })}
                   placeholder="12.345.678-9"
-                  disabled={isLoading}
+                  disabled={isLoading || isEditing}
                 />
+                {isEditing && (
+                  <p className="text-xs text-muted-foreground">
+                    El RUT no se puede modificar
+                  </p>
+                )}
                 {errors.rut && (
                   <p className="text-red-500 text-sm">{errors.rut.message}</p>
                 )}
@@ -252,6 +299,28 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               </div>
             </div>
 
+            {/* Status field for editing (if you want to show activo status) */}
+            {isEditing && client && (
+              <div className="p-4 bg-muted rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Estado:</span>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs ${
+                      client.activo
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {client.activo ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Para cambiar el estado del cliente, utiliza los botones de
+                  activar/desactivar en la lista.
+                </p>
+              </div>
+            )}
+
             {/* Form Actions */}
             <div className="flex justify-end gap-3 pt-4 border-t">
               <Button
@@ -267,7 +336,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 className="bg-brand hover:bg-brand/90 text-white"
                 disabled={isLoading}
               >
-                {isLoading ? "Creando..." : "Crear Cliente"}
+                {submitText} {/* Fixed: Use submitText variable */}
               </Button>
             </div>
           </form>

@@ -107,6 +107,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={() => onView(client)}
+                    className="text-zinc-500 border-blue-200 hover:bg-blue-50"
                   >
                     Ver
                   </Button>
@@ -116,6 +117,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => onEdit(client)}
+                        className="text-zinc-500 border-blue-200 hover:bg-blue-50"
                       >
                         Editar
                       </Button>

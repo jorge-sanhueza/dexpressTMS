@@ -8,9 +8,15 @@ import {
   useDeactivateClient,
   useActivateClient,
   useCreateClient,
+  useUpdateClient,
 } from "../../hooks/useClients";
 import { useAuthStore } from "../../store/authStore";
-import type { Client, ClientsFilter, CreateClientData } from "@/types/client";
+import type {
+  Client,
+  ClientsFilter,
+  CreateClientData,
+  UpdateClientData,
+} from "@/types/client";
 import { Input } from "@/components/ui/input";
 import { ClientForm } from "./ClientForm";
 import { toast } from "sonner";
@@ -24,6 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ClientViewModal } from "./ClientViewModal";
 
 // Debounce hook for search
 const useDebounce = (value: string, delay: number) => {
@@ -49,6 +56,8 @@ export const ClientsList: React.FC = () => {
     undefined
   );
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [viewingClient, setViewingClient] = useState<Client | null>(null);
 
   // Alert Dialog state
   const [deactivateDialog, setDeactivateDialog] = useState<{
@@ -86,6 +95,7 @@ export const ClientsList: React.FC = () => {
   const deactivateClientMutation = useDeactivateClient();
   const activateClientMutation = useActivateClient();
   const createClientMutation = useCreateClient();
+  const updateClientMutation = useUpdateClient();
 
   const canManageClients = hasPermission("admin_access");
 
@@ -144,15 +154,35 @@ export const ClientsList: React.FC = () => {
   };
 
   const handleEdit = (client: Client) => {
-    // TODO: Implement edit functionality
-    console.log("Edit client:", client);
-    toast.info("Funcionalidad de edición en desarrollo");
+    setEditingClient(client);
+  };
+
+  const handleEditSubmit = async (clientData: UpdateClientData) => {
+    if (!editingClient) return;
+
+    try {
+      await updateClientMutation.mutateAsync({
+        id: editingClient.id,
+        clientData,
+      });
+      setEditingClient(null);
+      toast.success("Cliente actualizado correctamente");
+    } catch (err: any) {
+      console.error("Error updating client:", err);
+      toast.error(err.message || "Error al actualizar el cliente");
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditingClient(null);
   };
 
   const handleView = (client: Client) => {
-    // TODO: Implement view functionality
-    console.log("View client:", client);
-    toast.info("Funcionalidad de visualización en desarrollo");
+    setViewingClient(client);
+  };
+
+  const handleViewClose = () => {
+    setViewingClient(null);
   };
 
   const handleCreateClient = () => {
@@ -216,13 +246,15 @@ export const ClientsList: React.FC = () => {
         {(error ||
           deactivateClientMutation.error ||
           activateClientMutation.error ||
-          createClientMutation.error) && (
+          createClientMutation.error ||
+          updateClientMutation.error) && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="text-red-700">
               {error?.message ||
                 deactivateClientMutation.error?.message ||
                 activateClientMutation.error?.message ||
                 createClientMutation.error?.message ||
+                updateClientMutation.error?.message ||
                 "Ha ocurrido un error inesperado"}
             </div>
           </div>
@@ -370,9 +402,37 @@ export const ClientsList: React.FC = () => {
       {/* Create Client Modal */}
       {isCreateModalOpen && (
         <ClientForm
-          onSubmit={handleCreateSubmit}
+          onSubmit={
+            handleCreateSubmit as (
+              data: CreateClientData | UpdateClientData
+            ) => void
+          }
           onCancel={handleCreateCancel}
           isLoading={createClientMutation.isPending}
+        />
+      )}
+
+      {/* Edit Client Modal */}
+      {editingClient && (
+        <ClientForm
+          client={editingClient}
+          onSubmit={handleEditSubmit}
+          onCancel={handleEditCancel}
+          isLoading={updateClientMutation.isPending}
+          isEditing={true}
+        />
+      )}
+
+      {/* View Client Modal */}
+      {viewingClient && (
+        <ClientViewModal
+          client={viewingClient}
+          onClose={handleViewClose}
+          onEdit={() => {
+            setViewingClient(null);
+            setEditingClient(viewingClient);
+          }}
+          canManageClients={canManageClients}
         />
       )}
 
