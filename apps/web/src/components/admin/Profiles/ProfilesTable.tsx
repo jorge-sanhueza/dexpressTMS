@@ -44,6 +44,10 @@ interface ProfilesTableProps {
   onAssignRoles: (profile: Profile) => void;
   isLoading?: boolean;
   isDeleting?: boolean;
+  canView: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canAssignRoles: boolean;
 }
 
 export const ProfilesTable: React.FC<ProfilesTableProps> = ({
@@ -51,6 +55,11 @@ export const ProfilesTable: React.FC<ProfilesTableProps> = ({
   onView,
   onEdit,
   onDelete,
+  onAssignRoles,
+  canView,
+  canEdit,
+  canDelete,
+  canAssignRoles,
   isLoading = false,
   isDeleting = false,
 }) => {
@@ -120,65 +129,82 @@ export const ProfilesTable: React.FC<ProfilesTableProps> = ({
         const profile = row.original;
         return (
           <div className="flex space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onView(profile)}
-              disabled={isDeleting}
-              className="h-8 px-2 text-[#798283] hover:text-[#D42B22] hover:bg-[#D42B22]/10"
-            >
-              Ver
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onEdit(profile)}
-              disabled={isDeleting}
-              className="h-8 px-2 text-[#798283] hover:text-[#D42B22] hover:bg-[#D42B22]/10"
-            >
-              Editar
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={isDeleting}
-                  className="h-8 px-2 text-red-600 hover:text-red-800 hover:bg-red-50"
-                >
-                  Desactivar
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="bg-white">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta acción desactivará el perfil{" "}
-                    <strong>"{profile.nombre}"</strong>. Los usuarios con este
-                    perfil perderán sus permisos hasta que sea reactivado.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={isDeleting}>
-                    Cancelar
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => onDelete(profile.id)}
+            {canView && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onView(profile)}
+                disabled={isDeleting}
+                className="h-8 px-2 text-[#798283] hover:text-[#D42B22] hover:bg-[#D42B22]/10"
+              >
+                Ver
+              </Button>
+            )}
+            {canEdit && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onEdit(profile)}
+                disabled={isDeleting}
+                className="h-8 px-2 text-[#798283] hover:text-[#D42B22] hover:bg-[#D42B22]/10"
+              >
+                Editar
+              </Button>
+            )}
+            {canAssignRoles && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onAssignRoles(profile)}
+                disabled={isDeleting}
+                className="h-8 px-2 text-[#798283] hover:text-[#D42B22] hover:bg-[#D42B22]/10"
+              >
+                Asignar Roles
+              </Button>
+            )}
+            {canDelete && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     disabled={isDeleting}
-                    className="bg-red-600 hover:bg-red-700 text-white"
+                    className="h-8 px-2 text-red-600 hover:text-red-800 hover:bg-red-50"
                   >
-                    {isDeleting ? (
-                      <div className="flex items-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Desactivando...
-                      </div>
-                    ) : (
-                      "Desactivar"
-                    )}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                    Desactivar
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-white">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta acción desactivará el perfil{" "}
+                      <strong>"{profile.nombre}"</strong>. Los usuarios con este
+                      perfil perderán sus permisos hasta que sea reactivado.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isDeleting}>
+                      Cancelar
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onDelete(profile.id)}
+                      disabled={isDeleting}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      {isDeleting ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Desactivando...
+                        </div>
+                      ) : (
+                        "Desactivar"
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         );
       },

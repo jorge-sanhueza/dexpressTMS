@@ -10,6 +10,7 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import { ProfilesService } from '../services/profiles.service';
 import { Auth0Guard } from '../../auth/guards/auth0.guard';
@@ -18,6 +19,7 @@ import { CreateProfileDto } from '../dto/create-profile.dto';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { AssignRolesDto } from '../dto/assign-roles.dto';
 import { RoleResponseDto } from 'src/roles/dto/role-response.dto';
+import { ProfilesFilterDto } from '../dto/profile-filter.dto';
 
 @Controller('api/profiles')
 @UseGuards(Auth0Guard)
@@ -27,10 +29,30 @@ export class ProfilesController {
   constructor(private readonly profilesService: ProfilesService) {}
 
   @Get()
-  async findAll(@Request() req): Promise<ProfileResponseDto[]> {
+  async findAll(
+    @Query() filter: ProfilesFilterDto,
+    @Request() req,
+  ): Promise<{
+    profiles: ProfileResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     this.logger.log(`Fetching profiles for tenant: ${req.user.tenant_id}`);
-    const profiles = await this.profilesService.findAll(req.user.tenant_id);
-    return profiles.map((profile) => new ProfileResponseDto(profile));
+
+    const result = await this.profilesService.findAll(
+      req.user.tenant_id,
+      filter,
+    );
+
+    return {
+      profiles: result.profiles.map(
+        (profile) => new ProfileResponseDto(profile),
+      ),
+      total: result.total,
+      page: filter.page || 1,
+      limit: filter.limit || 10,
+    };
   }
 
   @Get('types')

@@ -11,6 +11,7 @@ import {
   NotFoundException,
   Request,
   ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import { RolesService } from '../services/roles.service';
 import { RoleResponseDto } from '../dto/role-response.dto';
@@ -18,6 +19,7 @@ import { Auth0Guard } from 'src/auth/guards/auth0.guard';
 import { CreateRoleDto } from '../dto/create-role.dto';
 import { UpdateRoleDto } from '../dto/update-role.dto';
 import { RolesByIdsDto } from '../dto/roles-by-ids.dto';
+import { RolesFilterDto } from '../dto/role-filter.dto';
 
 @Controller('api/roles')
 export class RolesController {
@@ -27,13 +29,33 @@ export class RolesController {
 
   @UseGuards(Auth0Guard)
   @Get()
-  async getAllRoles(@Request() req): Promise<RoleResponseDto[]> {
-    this.logger.log('Fetching all roles');
+  async getAllRoles(
+    @Query() filter: RolesFilterDto,
+    @Request() req,
+  ): Promise<{
+    roles: RoleResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    this.logger.log('Fetching roles with filters');
     const tenantId = this.getCurrentTenantId(req);
-    return this.rolesService.getRolesByTenant(tenantId);
+
+    const result = await this.rolesService.getRolesByTenantWithFilters(
+      tenantId,
+      filter,
+    );
+
+    return {
+      roles: result.roles,
+      total: result.total,
+      page: filter.page || 1,
+      limit: filter.limit || 10,
+    };
   }
 
   @UseGuards(Auth0Guard)
+  @Post()
   @Post()
   async createRole(
     @Body() createRoleDto: CreateRoleDto,
@@ -123,5 +145,21 @@ export class RolesController {
     // Fallback for development or if user info is not available
     this.logger.warn('Tenant ID not found in request, using default');
     return 'default-tenant';
+  }
+
+  @UseGuards(Auth0Guard)
+  @Get('filters/modules')
+  async getAvailableModules(@Request() req): Promise<string[]> {
+    this.logger.log('Fetching available modules for filtering');
+    const tenantId = this.getCurrentTenantId(req);
+    return this.rolesService.getAvailableModules(tenantId);
+  }
+
+  @UseGuards(Auth0Guard)
+  @Get('filters/tipo-acciones')
+  async getAvailableTipoAcciones(@Request() req): Promise<string[]> {
+    this.logger.log('Fetching available tipo acciones for filtering');
+    const tenantId = this.getCurrentTenantId(req);
+    return this.rolesService.getAvailableTipoAcciones(tenantId);
   }
 }

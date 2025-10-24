@@ -25,8 +25,17 @@ import { RoleAssignmentModal } from "../Roles/RoleAssignmentModal";
 import { useAuthStore } from "@/store/authStore";
 import { Textarea } from "@/components/ui/textarea";
 
+// Define the filter type that matches our API
+interface ProfilesFilter {
+  search?: string;
+  tipo?: string;
+  activo?: boolean;
+  page?: number;
+  limit?: number;
+}
+
 export const ProfilesManager: React.FC = () => {
-  const { tenant } = useAuthStore();
+  const { hasModulePermission } = useAuthStore();
   const [showForm, setShowForm] = useState(false);
   const [roleAssignmentModalOpen, setRoleAssignmentModalOpen] = useState(false);
   const [selectedProfileForRoles, setSelectedProfileForRoles] =
@@ -41,19 +50,56 @@ export const ProfilesManager: React.FC = () => {
     tipo: "",
   });
 
-  // Filter state
-  const [filters, setFilters] = useState({
+  // Filter state - now matches API parameters
+  const [filters, setFilters] = useState<ProfilesFilter>({
     search: "",
-    tipo: undefined as string | undefined,
-    estado: undefined as string | undefined,
+    tipo: undefined,
+    activo: undefined,
   });
 
-  // TanStack Query hooks
+  // Granular permissions for profiles module
+  const canViewProfiles = hasModulePermission("perfiles", "ver");
+  const canCreateProfiles = hasModulePermission("perfiles", "crear");
+  const canEditProfiles = hasModulePermission("perfiles", "editar");
+  const canDeleteProfiles = hasModulePermission("perfiles", "activar");
+  const canAssignRoles = hasModulePermission("perfiles", "editar");
+
+  console.log("Permissions:", {
+    canViewProfiles,
+    canCreateProfiles,
+    canEditProfiles,
+    canDeleteProfiles,
+    canAssignRoles,
+  });
+
+  // If user doesn't have view permission, show unauthorized message
+  if (!canViewProfiles) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-[#798283] mb-4">
+            Acceso No Autorizado
+          </div>
+          <p className="text-[#798283]/70">
+            No tienes permisos para ver perfiles.
+          </p>
+          <p className="text-sm text-[#798283]/50 mt-2">
+            Contacta al administrador del sistema para solicitar acceso.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // TanStack Query hooks - now with API-side filtering
   const {
-    data: profiles = [],
+    data: profilesData,
     isLoading,
     error: profilesError,
-  } = useProfiles(tenant?.id || "");
+  } = useProfiles(filters);
+
+  const profiles = profilesData?.profiles || [];
+  const totalCount = profilesData?.total || 0;
 
   const { data: profileTypes = [], isLoading: profileTypesLoading } =
     useProfileTypes();
@@ -78,36 +124,6 @@ export const ProfilesManager: React.FC = () => {
     }
   }, [profileTypes, formData.tipo]);
 
-  // Apply filters
-  const filteredProfiles = profiles.filter((profile) => {
-    // Apply search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      if (
-        !profile.nombre.toLowerCase().includes(searchLower) &&
-        !profile.descripcion?.toLowerCase().includes(searchLower) &&
-        !profile.tipo.toLowerCase().includes(searchLower)
-      ) {
-        return false;
-      }
-    }
-
-    // Apply type filter
-    if (filters.tipo && profile.tipo !== filters.tipo) {
-      return false;
-    }
-
-    // Apply status filter
-    if (filters.estado) {
-      const isActive = filters.estado === "activo";
-      if (profile.activo !== isActive) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-
   const handleFilterChange = (key: string, value: any) => {
     setFilters((prev) => ({
       ...prev,
@@ -119,7 +135,7 @@ export const ProfilesManager: React.FC = () => {
     setFilters({
       search: "",
       tipo: undefined,
-      estado: undefined,
+      activo: undefined,
     });
   };
 
@@ -166,18 +182,22 @@ export const ProfilesManager: React.FC = () => {
   };
 
   const handleEdit = (profile: Profile) => {
-    setEditingProfile(profile);
-    setFormData({
-      nombre: profile.nombre,
-      descripcion: profile.descripcion || "",
-      tipo: profile.tipo,
-    });
-    setShowForm(true);
+    if (canEditProfiles) {
+      setEditingProfile(profile);
+      setFormData({
+        nombre: profile.nombre,
+        descripcion: profile.descripcion || "",
+        tipo: profile.tipo,
+      });
+      setShowForm(true);
+    }
   };
 
   const handleOpenRoleAssignment = (profile: Profile) => {
-    setSelectedProfileForRoles(profile);
-    setRoleAssignmentModalOpen(true);
+    if (canAssignRoles) {
+      setSelectedProfileForRoles(profile);
+      setRoleAssignmentModalOpen(true);
+    }
   };
 
   const handleCloseRoleAssignment = () => {
@@ -186,10 +206,12 @@ export const ProfilesManager: React.FC = () => {
   };
 
   const handleDeactivate = async (profileId: string) => {
-    try {
-      await deactivateProfileMutation.mutateAsync(profileId);
-    } catch (err) {
-      console.error("Error deactivating profile:", err);
+    if (canDeleteProfiles) {
+      try {
+        await deactivateProfileMutation.mutateAsync(profileId);
+      } catch (err) {
+        console.error("Error deactivating profile:", err);
+      }
     }
   };
 
@@ -226,12 +248,14 @@ export const ProfilesManager: React.FC = () => {
               Crear y administrar perfiles de usuario
             </p>
           </div>
-          <Button
-            onClick={() => setShowForm(true)}
-            className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
-          >
-            + Nuevo Perfil
-          </Button>
+          {canCreateProfiles && (
+            <Button
+              onClick={() => setShowForm(true)}
+              className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
+            >
+              + Nuevo Perfil
+            </Button>
+          )}
         </div>
       </div>
 
@@ -386,12 +410,8 @@ export const ProfilesManager: React.FC = () => {
         onClearFilters={clearFilters}
         filterConfigs={profilesFilterConfig}
         resultsInfo={{
-          currentCount: filteredProfiles.length,
-          totalCount: profiles.length,
-          filteredCount:
-            filteredProfiles.length !== profiles.length
-              ? filteredProfiles.length
-              : undefined,
+          currentCount: profiles.length,
+          totalCount: totalCount,
           singularLabel: "perfil",
           pluralLabel: "perfiles",
         }}
@@ -401,11 +421,15 @@ export const ProfilesManager: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-[#798283]/10">
         <div className="p-6">
           <ProfilesTable
-            data={filteredProfiles}
+            data={profiles}
             onView={handleViewProfile}
             onEdit={handleEdit}
             onDelete={handleDeactivate}
             onAssignRoles={handleOpenRoleAssignment}
+            canView={canViewProfiles}
+            canEdit={canEditProfiles}
+            canDelete={canDeleteProfiles}
+            canAssignRoles={canAssignRoles}
             isLoading={isLoading}
             isDeleting={deactivateProfileMutation.isPending}
           />
@@ -413,14 +437,28 @@ export const ProfilesManager: React.FC = () => {
       </div>
 
       {/* Profile Details Modal */}
-      <ProfileDetailsModal
-        profile={viewingProfile}
-        isOpen={!!viewingProfile}
-        onClose={handleCloseView}
-        onEdit={handleEdit}
-        onAssignRoles={handleOpenRoleAssignment}
-        isLoadingRoles={profileRolesLoading}
-      />
+      {viewingProfile && (
+        <ProfileDetailsModal
+          profile={viewingProfile}
+          isOpen={!!viewingProfile}
+          onClose={handleCloseView}
+          onEdit={() => {
+            if (viewingProfile) {
+              setViewingProfile(null);
+              handleEdit(viewingProfile);
+            }
+          }}
+          onAssignRoles={() => {
+            if (viewingProfile) {
+              setViewingProfile(null);
+              handleOpenRoleAssignment(viewingProfile);
+            }
+          }}
+          isLoadingRoles={profileRolesLoading}
+          canEdit={canEditProfiles}
+          canAssignRoles={canAssignRoles}
+        />
+      )}
 
       {/* Role Assignment Modal */}
       {selectedProfileForRoles && (

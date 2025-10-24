@@ -1,29 +1,13 @@
-// src/services/rolesService.ts
 import { apiClient } from "../lib/api-client";
 import { useAuthStore } from "../store/authStore";
-import type { Rol } from "../types/role";
+import type {
+  CreateRoleDto,
+  PaginatedRolesResponse,
+  Rol,
+  RolesFilterDto,
+  UpdateRoleDto,
+} from "../types/role";
 import { API_BASE } from "./apiConfig";
-
-export interface CreateRoleDto {
-  codigo: string;
-  nombre: string;
-  modulo: string;
-  tipo_accion: string;
-  descripcion?: string;
-  orden?: number;
-  activo?: boolean;
-  tenantId?: string;
-}
-
-export interface UpdateRoleDto {
-  codigo?: string;
-  nombre?: string;
-  modulo?: string;
-  tipo_accion?: string;
-  descripcion?: string;
-  orden?: number;
-  activo?: boolean;
-}
 
 class RolesService {
   private baseUrl = `${API_BASE}/api/roles`;
@@ -37,17 +21,10 @@ class RolesService {
   }
 
   async getRolesByIds(roleIds: string[]): Promise<Rol[]> {
-    console.log("🔧 rolesService.getRolesByIds called with:", roleIds);
-    console.log("🔧 Making POST request to:", `${this.baseUrl}/by-ids`);
-
     try {
       const response = await apiClient.post(`${this.baseUrl}/by-ids`, {
         roleIds,
       });
-
-      console.log("🔧 API Response status:", response.status);
-      console.log("🔧 API Response ok:", response.ok);
-
       if (!response.ok) {
         const errorText = await response.text();
         console.error("🔧 API Error response:", errorText);
@@ -55,9 +32,7 @@ class RolesService {
           `Failed to fetch roles: ${response.statusText} - ${errorText}`
         );
       }
-
       const roles = await response.json();
-      console.log("🔧 Parsed roles from API:", roles);
       return roles;
     } catch (error) {
       console.error("🔧 Error in getRolesByIds:", error);
@@ -65,21 +40,49 @@ class RolesService {
     }
   }
 
-  async getRolesByTenant(tenantId: string): Promise<Rol[]> {
-    const response = await apiClient.get(
-      `${this.baseUrl}/by-tenant/${tenantId}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch tenant roles: ${response.statusText}`);
-    }
-
-    return await response.json();
+  async getRolesByTenant(): Promise<Rol[]> {
+    const response = await this.getAllRoles();
+    return response.roles;
   }
 
-  async getAllRoles(): Promise<Rol[]> {
-    const tenantId = this.getCurrentTenantId();
-    return await this.getRolesByTenant(tenantId);
+  async getAllRoles(filters?: RolesFilterDto): Promise<PaginatedRolesResponse> {
+    const queryParams = new URLSearchParams();
+
+    if (filters?.search) {
+      queryParams.append("search", filters.search);
+    }
+    if (filters?.modulo) {
+      queryParams.append("modulo", filters.modulo);
+    }
+    if (filters?.tipo_accion) {
+      queryParams.append("tipo_accion", filters.tipo_accion);
+    }
+    if (filters?.activo !== undefined) {
+      queryParams.append("activo", filters.activo.toString());
+    }
+    if (filters?.page) {
+      queryParams.append("page", filters.page.toString());
+    }
+    if (filters?.limit) {
+      queryParams.append("limit", filters.limit.toString());
+    }
+
+    const queryString = queryParams.toString();
+    const url = queryString ? `${this.baseUrl}?${queryString}` : this.baseUrl;
+
+    const response = await apiClient.get(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch roles: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return {
+      roles: data.roles,
+      total: Number(data.total),
+      page: Number(data.page),
+      limit: Number(data.limit),
+    };
   }
 
   async createRole(roleData: CreateRoleDto): Promise<Rol> {
@@ -112,6 +115,28 @@ class RolesService {
     if (!response.ok) {
       throw new Error(`Failed to delete role: ${response.statusText}`);
     }
+  }
+
+  async getAvailableModules(): Promise<string[]> {
+    const response = await apiClient.get(`${this.baseUrl}/filters/modules`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch modules: ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
+
+  async getAvailableTipoAcciones(): Promise<string[]> {
+    const response = await apiClient.get(
+      `${this.baseUrl}/filters/tipo-acciones`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch tipo acciones: ${response.statusText}`);
+    }
+
+    return await response.json();
   }
 }
 

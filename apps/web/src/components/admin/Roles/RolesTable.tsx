@@ -2,7 +2,6 @@ import {
   flexRender,
   getCoreRowModel,
   useReactTable,
-  getPaginationRowModel,
   getSortedRowModel,
   getFilteredRowModel,
 } from "@tanstack/react-table";
@@ -42,17 +41,44 @@ interface RolesTableProps {
   onDelete: (roleId: string) => void;
   isLoading?: boolean;
   isDeleting?: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  pagination?: {
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+    totalItems: number;
+    itemsPerPage: number;
+  };
 }
 
 export const RolesTable: React.FC<RolesTableProps> = ({
   data,
   onEdit,
   onDelete,
+  canEdit,
+  canDelete,
   isLoading = false,
   isDeleting = false,
+  pagination,
 }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+
+  const getTipoAccionBadgeVariant = (tipoAccion: string) => {
+    switch (tipoAccion) {
+      case "activar":
+        return "bg-purple-100 text-purple-800 hover:bg-purple-100";
+      case "crear":
+        return "bg-green-100 text-green-800 hover:bg-green-100";
+      case "editar":
+        return "bg-blue-100 text-blue-800 hover:bg-blue-100";
+      case "eliminar":
+        return "bg-red-100 text-red-800 hover:bg-red-100";
+      default:
+        return "bg-gray-100 text-gray-800 hover:bg-gray-100";
+    }
+  };
 
   const columns: ColumnDef<Rol>[] = [
     {
@@ -90,17 +116,7 @@ export const RolesTable: React.FC<RolesTableProps> = ({
         return (
           <Badge
             variant="secondary"
-            className={
-              tipoAccion === "activar"
-                ? "bg-purple-100 text-purple-800 hover:bg-purple-100"
-                : tipoAccion === "crear"
-                ? "bg-green-100 text-green-800 hover:bg-green-100"
-                : tipoAccion === "editar"
-                ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
-                : tipoAccion === "eliminar"
-                ? "bg-red-100 text-red-800 hover:bg-red-100"
-                : "bg-gray-100 text-gray-800 hover:bg-gray-100"
-            }
+            className={getTipoAccionBadgeVariant(tipoAccion)}
           >
             {tipoAccion}
           </Badge>
@@ -108,13 +124,29 @@ export const RolesTable: React.FC<RolesTableProps> = ({
       },
     },
     {
+      accessorKey: "activo",
+      header: "Estado",
+      cell: ({ row }) => (
+        <Badge
+          variant="secondary"
+          className={
+            row.getValue("activo")
+              ? "bg-green-100 text-green-800 hover:bg-green-100"
+              : "bg-red-100 text-red-800 hover:bg-red-100"
+          }
+        >
+          {row.getValue("activo") ? "Activo" : "Inactivo"}
+        </Badge>
+      ),
+    },
+    {
       id: "actions",
       header: "Acciones",
       cell: ({ row }) => {
         const role = row.original;
         return (
-          role.codigo !== "admin_access" && (
-            <div className="flex space-x-2">
+          <div className="flex space-x-2">
+            {canEdit && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -124,7 +156,8 @@ export const RolesTable: React.FC<RolesTableProps> = ({
               >
                 Editar
               </Button>
-
+            )}
+            {canDelete && role.codigo !== "admin_access" && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -136,7 +169,7 @@ export const RolesTable: React.FC<RolesTableProps> = ({
                     Eliminar
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent className="bg-white">
                   <AlertDialogHeader>
                     <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                     <AlertDialogDescription>
@@ -166,8 +199,8 @@ export const RolesTable: React.FC<RolesTableProps> = ({
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            </div>
-          )
+            )}
+          </div>
         );
       },
     },
@@ -177,7 +210,6 @@ export const RolesTable: React.FC<RolesTableProps> = ({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onSortingChange: setSorting,
@@ -185,11 +217,6 @@ export const RolesTable: React.FC<RolesTableProps> = ({
     state: {
       sorting,
       columnFilters,
-    },
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
     },
   });
 
@@ -200,16 +227,6 @@ export const RolesTable: React.FC<RolesTableProps> = ({
       </div>
     );
   }
-
-  const currentPage = table.getState().pagination.pageIndex + 1;
-  const totalPages = table.getPageCount();
-  const pageSize = table.getState().pagination.pageSize;
-  const startItem = currentPage * pageSize - pageSize + 1;
-  const endItem = Math.min(
-    currentPage * pageSize,
-    table.getFilteredRowModel().rows.length
-  );
-  const totalItems = table.getFilteredRowModel().rows.length;
 
   return (
     <div className="space-y-4">
@@ -284,44 +301,57 @@ export const RolesTable: React.FC<RolesTableProps> = ({
         </Table>
       </div>
 
-      {/* Enhanced Pagination */}
-      {totalPages > 1 && (
+      {/* Server-side Pagination */}
+      {pagination && pagination.totalPages > 1 && (
         <div className="flex justify-between items-center pt-4 border-t border-[#798283]/10">
           <div className="text-sm text-[#798283]/70">
-            Página {currentPage} de {totalPages} • Mostrando {startItem}-
-            {endItem} de {totalItems} roles
+            Página {pagination.currentPage} de {pagination.totalPages} •
+            Mostrando{" "}
+            {(pagination.currentPage - 1) * pagination.itemsPerPage + 1}-
+            {Math.min(
+              pagination.currentPage * pagination.itemsPerPage,
+              pagination.totalItems
+            )}
+            de {pagination.totalItems} roles
           </div>
 
           <div className="flex gap-2">
             <Button
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
+              onClick={() =>
+                pagination.onPageChange(Number(pagination.currentPage) - 1)
+              }
+              disabled={pagination.currentPage === 1}
               className="px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#798283]/10 transition-all duration-200"
             >
               Anterior
             </Button>
 
             <div className="flex gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (page) => (
-                  <Button
-                    key={page}
-                    onClick={() => table.setPageIndex(page - 1)}
-                    className={`px-3 py-2 rounded-lg transition-all duration-200 ${
-                      currentPage === page
-                        ? "bg-[#D42B22] text-white"
-                        : "border border-[#798283]/30 text-[#798283] hover:bg-[#798283]/10"
-                    }`}
-                  >
-                    {page}
-                  </Button>
-                )
-              )}
+              {Array.from(
+                { length: pagination.totalPages },
+                (_, i) => i + 1
+              ).map((page) => (
+                <Button
+                  key={page}
+                  onClick={() => pagination.onPageChange(Number(page))}
+                  className={`px-3 py-2 rounded-lg transition-all duration-200 ${
+                    Number(pagination.currentPage) === page
+                      ? "bg-[#D42B22] text-white"
+                      : "border border-[#798283]/30 text-[#798283] hover:bg-[#798283]/10"
+                  }`}
+                >
+                  {page}
+                </Button>
+              ))}
             </div>
 
             <Button
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
+              onClick={() =>
+                pagination.onPageChange(Number(pagination.currentPage) + 1)
+              }
+              disabled={
+                Number(pagination.currentPage) === pagination.totalPages
+              }
               className="px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#798283]/10 transition-all duration-200"
             >
               Siguiente

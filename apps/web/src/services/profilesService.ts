@@ -29,6 +29,21 @@ export interface AvailableRole {
   asignado: boolean;
 }
 
+export interface ProfilesFilter {
+  search?: string;
+  tipo?: string;
+  activo?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface ProfilesResponse {
+  profiles: Profile[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 class ProfilesService {
   private baseUrl = `${API_BASE}/api/profiles`;
 
@@ -50,14 +65,35 @@ class ProfilesService {
     return await response.json();
   }
 
-  async getProfiles(): Promise<Profile[]> {
-    const response = await apiClient.get(this.baseUrl);
+  async getProfiles(filter: ProfilesFilter = {}): Promise<ProfilesResponse> {
+    try {
+      const token = localStorage.getItem("access_token");
+      const queryParams = new URLSearchParams();
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch profiles: ${response.statusText}`);
+      if (filter.search) queryParams.append("search", filter.search);
+      if (filter.tipo) queryParams.append("tipo", filter.tipo);
+      if (filter.activo !== undefined)
+        queryParams.append("activo", filter.activo.toString());
+      if (filter.page) queryParams.append("page", filter.page.toString());
+      if (filter.limit) queryParams.append("limit", filter.limit.toString());
+
+      const url = `${this.baseUrl}?${queryParams.toString()}`;
+
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch profiles: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching profiles:", error);
+      throw error;
     }
-
-    return await response.json();
   }
 
   async getProfileWithRoles(profileId: string): Promise<ProfileWithRoles> {

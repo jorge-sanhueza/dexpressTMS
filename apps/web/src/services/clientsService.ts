@@ -5,7 +5,6 @@ import type {
   ClientsFilter,
 } from "../types/client";
 import { API_BASE } from "./apiConfig";
-import { cacheService } from "./cacheService";
 
 class ClientsService {
   private baseUrl = `${API_BASE}/api/clients`;
@@ -13,19 +12,10 @@ class ClientsService {
   async getClients(
     filter: ClientsFilter = {}
   ): Promise<{ clients: Client[]; total: number }> {
-    const cacheKey = `clients-${JSON.stringify(filter)}`;
-
-    const cached = cacheService.get(cacheKey);
-    if (cached) {
-      console.log("serving clients from cache");
-      return cached;
-    }
-
     try {
       const token = localStorage.getItem("access_token");
       const queryParams = new URLSearchParams();
 
-      // Add filter parameters
       if (filter.search) queryParams.append("search", filter.search);
       if (filter.activo !== undefined)
         queryParams.append("activo", filter.activo.toString());
@@ -44,78 +34,32 @@ class ClientsService {
         throw new Error(`Failed to fetch clients: ${response.statusText}`);
       }
 
-      const data = await response.json();
-
-      cacheService.set(cacheKey, data);
-
-      return data;
+      return await response.json();
     } catch (error) {
       console.error("Error fetching clients:", error);
       throw error;
     }
   }
 
-  async getClientById(id: string): Promise<Client> {
-    try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${this.baseUrl}/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch client: ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Error fetching client:", error);
-      throw error;
-    }
-  }
-
-  private invalidateClientsCache(): void {
-    // Clear all clients-related cache
-    const keys = Array.from(cacheService["cache"].keys());
-    keys.forEach((key) => {
-      if (key.startsWith("clients-")) {
-        cacheService.delete(key);
-      }
-    });
-  }
-
   async deactivateClient(id: string): Promise<void> {
     await this.makeRequest(`${this.baseUrl}/${id}`, "DELETE");
-    this.invalidateClientsCache();
   }
 
-  // Since there's no activate endpoint, we'll use update to set activo to true
   async activateClient(id: string): Promise<Client> {
-    const client = await this.makeRequest(`${this.baseUrl}/${id}`, "PUT", {
+    return await this.makeRequest(`${this.baseUrl}/${id}`, "PUT", {
       activo: true,
     });
-    this.invalidateClientsCache();
-    return client;
   }
 
   async createClient(clientData: CreateClientData): Promise<Client> {
-    const newClient = await this.makeRequest(this.baseUrl, "POST", clientData);
-    this.invalidateClientsCache();
-    return newClient;
+    return await this.makeRequest(this.baseUrl, "POST", clientData);
   }
 
   async updateClient(
     id: string,
     clientData: UpdateClientData
   ): Promise<Client> {
-    const updatedClient = await this.makeRequest(
-      `${this.baseUrl}/${id}`,
-      "PUT",
-      clientData
-    );
-    this.invalidateClientsCache();
-    return updatedClient;
+    return await this.makeRequest(`${this.baseUrl}/${id}`, "PUT", clientData);
   }
 
   private async makeRequest(

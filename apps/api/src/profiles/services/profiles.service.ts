@@ -7,6 +7,7 @@ import {
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateProfileDto } from '../dto/create-profile.dto';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
+import { ProfilesFilterDto } from '../dto/profile-filter.dto';
 
 @Injectable()
 export class ProfilesService {
@@ -14,30 +15,73 @@ export class ProfilesService {
 
   constructor(private prisma: PrismaService) {}
 
-  async findAll(tenantId: string) {
+  async findAll(
+    tenantId: string,
+    filter: ProfilesFilterDto = {},
+  ): Promise<{ profiles: any[]; total: number }> {
     try {
-      const profiles = await this.prisma.perfil.findMany({
-        where: {
-          tenantId,
-          activo: true,
-        },
-        include: {
-          tipo: true,
-        },
-        orderBy: {
-          nombre: 'asc',
-        },
-      });
+      const { search, tipo, activo, page = 1, limit = 10 } = filter;
 
-      this.logger.log(`Found ${profiles.length} profiles`);
+      const pageNumber = typeof page === 'string' ? parseInt(page, 10) : page;
+      const limitNumber =
+        typeof limit === 'string' ? parseInt(limit, 10) : limit;
+      const skip = (pageNumber - 1) * limitNumber;
 
-      return profiles.map((profile) => ({
+      const where: any = {
+        tenantId,
+      };
+
+      // Search filter
+      if (search) {
+        where.OR = [
+          { nombre: { contains: search, mode: 'insensitive' } },
+          { descripcion: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      // Type filter
+      if (tipo) {
+        where.tipo = {
+          tipoPerfil: tipo,
+        };
+      }
+
+      // Active filter
+      if (activo !== undefined) {
+        where.activo = typeof activo === 'string' ? activo === 'true' : activo;
+      }
+
+      const [profiles, total] = await this.prisma.$transaction([
+        this.prisma.perfil.findMany({
+          where,
+          include: {
+            tipo: true,
+          },
+          skip,
+          take: limitNumber,
+          orderBy: {
+            nombre: 'asc',
+          },
+        }),
+        this.prisma.perfil.count({ where }),
+      ]);
+
+      const formattedProfiles = profiles.map((profile) => ({
         id: profile.id,
         nombre: profile.nombre,
         tipo: profile.tipo?.tipoPerfil,
         descripcion: profile.descripcion,
         activo: profile.activo,
       }));
+
+      this.logger.log(
+        `Found ${profiles.length} profiles out of ${total} total`,
+      );
+
+      return {
+        profiles: formattedProfiles,
+        total,
+      };
     } catch (error) {
       this.logger.error('Error fetching profiles:', error);
       throw error;

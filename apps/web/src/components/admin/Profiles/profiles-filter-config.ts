@@ -5,7 +5,7 @@ export const profilesFilterConfig: FilterConfig[] = [
     key: "search",
     type: "search",
     label: "Buscar",
-    placeholder: "Buscar por nombre, descripción o tipo...",
+    placeholder: "Buscar por nombre o descripción...",
   },
   {
     key: "tipo",
@@ -19,13 +19,13 @@ export const profilesFilterConfig: FilterConfig[] = [
     width: "w-full md:w-40",
   },
   {
-    key: "estado",
+    key: "activo",
     type: "select",
     label: "Estado",
     placeholder: "Todos",
     options: [
-      { value: "activo", label: "Activo" },
-      { value: "inactivo", label: "Inactivo" },
+      { value: "true", label: "Activo" },
+      { value: "false", label: "Inactivo" },
     ],
     width: "w-full md:w-40",
   },

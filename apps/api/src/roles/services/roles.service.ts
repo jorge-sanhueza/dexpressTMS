@@ -9,6 +9,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { RoleResponseDto } from '../dto/role-response.dto';
 import { CreateRoleDto } from '../dto/create-role.dto';
 import { UpdateRoleDto } from '../dto/update-role.dto';
+import { RolesFilterDto } from '../dto/role-filter.dto';
 
 @Injectable()
 export class RolesService {
@@ -81,33 +82,146 @@ export class RolesService {
 
   async getRolesByTenant(tenantId: string): Promise<RoleResponseDto[]> {
     try {
-      const roles = await this.prisma.rol.findMany({
+      const result = await this.getRolesByTenantWithFilters(tenantId, {});
+      return result.roles;
+    } catch (error) {
+      this.logger.error(`Error fetching roles for tenant ${tenantId}:`, error);
+      throw error;
+    }
+  }
+
+  async getRolesByTenantWithFilters(
+    tenantId: string,
+    filter: RolesFilterDto = {},
+  ): Promise<{ roles: RoleResponseDto[]; total: number }> {
+    try {
+      const {
+        search,
+        modulo,
+        tipo_accion,
+        activo,
+        page = 1,
+        limit = 10,
+      } = filter;
+
+      const pageNumber = typeof page === 'string' ? parseInt(page, 10) : page;
+      const limitNumber =
+        typeof limit === 'string' ? parseInt(limit, 10) : limit;
+      const skip = (pageNumber - 1) * limitNumber;
+
+      const where: any = {
+        tenantId,
+      };
+      // Search filter (across multiple fields)
+      if (search) {
+        where.OR = [
+          { codigo: { contains: search, mode: 'insensitive' } },
+          { nombre: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      // Module filter
+      if (modulo) {
+        where.modulo = { contains: modulo, mode: 'insensitive' };
+      }
+
+      // TipoAccion filter
+      if (tipo_accion) {
+        where.tipoAccion = {
+          tipoAccion: { contains: tipo_accion, mode: 'insensitive' },
+        };
+      }
+
+      // Active filter
+      if (activo !== undefined) {
+        where.activo = typeof activo === 'string' ? activo === 'true' : activo;
+      }
+
+      const [roles, total] = await this.prisma.$transaction([
+        this.prisma.rol.findMany({
+          where,
+          select: {
+            id: true,
+            codigo: true,
+            nombre: true,
+            modulo: true,
+            activo: true,
+            orden: true,
+            tenantId: true,
+            tipoAccion: {
+              select: {
+                tipoAccion: true,
+              },
+            },
+          },
+          skip,
+          take: limitNumber,
+          orderBy: [{ modulo: 'asc' }, { orden: 'asc' }],
+        }),
+        this.prisma.rol.count({ where }),
+      ]);
+
+      const roleDtos = roles.map((role) => new RoleResponseDto(role));
+
+      this.logger.log(`Found ${roles.length} roles out of ${total} total`);
+
+      return {
+        roles: roleDtos,
+        total,
+      };
+    } catch (error) {
+      this.logger.error('Error fetching roles with filters:', error);
+      throw error;
+    }
+  }
+
+  async getAvailableModules(tenantId: string): Promise<string[]> {
+    try {
+      const modules = await this.prisma.rol.findMany({
         where: {
           tenantId,
           activo: true,
         },
+        distinct: ['modulo'],
         select: {
-          id: true,
-          codigo: true,
-          nombre: true,
           modulo: true,
+        },
+        orderBy: {
+          modulo: 'asc',
+        },
+      });
+
+      return modules.map((module) => module.modulo).filter(Boolean);
+    } catch (error) {
+      this.logger.error('Error fetching available modules:', error);
+      throw error;
+    }
+  }
+
+  // Add this method to get available tipoAccion values for filtering
+  async getAvailableTipoAcciones(tenantId: string): Promise<string[]> {
+    try {
+      const tipoAcciones = await this.prisma.rol.findMany({
+        where: {
+          tenantId,
           activo: true,
-          orden: true,
-          tenantId: true,
+        },
+        include: {
           tipoAccion: {
             select: {
               tipoAccion: true,
             },
           },
         },
-        orderBy: {
-          orden: 'asc',
-        },
+        distinct: ['tipoAccionId'],
       });
 
-      return roles.map((role) => new RoleResponseDto(role));
+      return tipoAcciones
+        .map((role) => role.tipoAccion?.tipoAccion)
+        .filter(Boolean)
+        .sort();
     } catch (error) {
-      this.logger.error(`Error fetching roles for tenant ${tenantId}:`, error);
+      this.logger.error('Error fetching available tipo acciones:', error);
       throw error;
     }
   }

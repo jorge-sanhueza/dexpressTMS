@@ -6,6 +6,14 @@ import {
 } from "../services/profilesService";
 import type { Profile } from "../types/profile";
 
+export interface UseProfilesFilters {
+  search?: string;
+  tipo?: string;
+  activo?: boolean;
+  page?: number;
+  limit?: number;
+}
+
 export const profileKeys = {
   all: ["profiles"] as const,
   lists: () => [...profileKeys.all, "list"] as const,
@@ -25,14 +33,13 @@ export function useProfileTypes() {
   });
 }
 
-export function useProfiles(tenantId: string) {
+export const useProfiles = (filters?: UseProfilesFilters) => {
   return useQuery({
-    queryKey: profileKeys.list(tenantId),
-    queryFn: () => profilesService.getProfiles(),
-    enabled: !!tenantId,
-    staleTime: 5 * 60 * 1000,
+    queryKey: ["profiles", filters],
+    queryFn: () => profilesService.getProfiles(filters),
+    placeholderData: (previousData) => previousData,
   });
-}
+};
 
 export function useProfileWithRoles(profileId: string) {
   return useQuery({

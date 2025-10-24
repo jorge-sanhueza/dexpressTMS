@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { RolesTable } from "./RolesTable";
-import { TableFilters } from "@/components/TableFilters";
 import { rolesFilterConfig } from "./roles-filter-config";
-import { useAuthStore } from "@/store/authStore";
+import type { Rol, RolesFilterDto } from "@/types/role";
 import {
   useCreateRole,
   useDeleteRole,
   useRoles,
+  useAvailableModules,
+  useAvailableTipoAcciones,
   useUpdateRole,
 } from "@/hooks/useRoles";
-import type { Rol } from "@/types/role";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,12 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TableFilters } from "@/components/TableFilters";
+import { useAuthStore } from "@/store/authStore";
 
 export const RolesManager: React.FC = () => {
-  const { tenant } = useAuthStore();
+  const { hasModulePermission } = useAuthStore();
   const [showForm, setShowForm] = useState(false);
-  const [editingRol, setEditingRol] = useState<Rol | null>(null);
-  const [uniqueModules, setUniqueModules] = useState<string[]>([]);
+  const [editingRole, setEditingRole] = useState<Rol | null>(null);
   const [formData, setFormData] = useState({
     codigo: "",
     nombre: "",
@@ -33,78 +34,77 @@ export const RolesManager: React.FC = () => {
     descripcion: "",
   });
 
-  // Filter state
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<RolesFilterDto>({
     search: "",
-    modulo: undefined as string | undefined,
-    tipo_accion: undefined as string | undefined,
-    estado: undefined as string | undefined,
+    modulo: undefined,
+    tipo_accion: undefined,
+    activo: undefined,
+    page: 1,
+    limit: 10,
   });
 
-  // Use TanStack Query hooks
-  const { data: roles = [], isLoading, error } = useRoles(tenant?.id || "");
+  const canViewRoles = hasModulePermission("roles", "ver");
+  const canCreateRoles = hasModulePermission("roles", "crear");
+  const canEditRoles = hasModulePermission("roles", "editar");
+  const canDeleteRoles = hasModulePermission("roles", "activar");
+
+  if (!canViewRoles) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-[#798283] mb-4">
+            Acceso No Autorizado
+          </div>
+          <p className="text-[#798283]/70">
+            No tienes permisos para ver roles.
+          </p>
+          <p className="text-sm text-[#798283]/50 mt-2">
+            Contacta al administrador del sistema para solicitar acceso.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const { data: rolesData, isLoading, error: rolesError } = useRoles(filters);
+
+  const roles = rolesData?.roles || [];
+  const totalCount = rolesData?.total || 0;
+  const currentPage = Number(rolesData?.page) || 1;
+  const limit = Number(rolesData?.limit) || 10;
+
+  const { data: availableModules = [] } = useAvailableModules();
+  const { data: availableTipoAcciones = [] } = useAvailableTipoAcciones();
 
   const createRoleMutation = useCreateRole();
   const updateRoleMutation = useUpdateRole();
   const deleteRoleMutation = useDeleteRole();
 
-  const commonModules = [
-    "general",
-    "ordenes",
-    "usuarios",
-    "reportes",
-    "sistema",
-  ];
-
-  useEffect(() => {
-    if (roles.length > 0) {
-      const roleModules = [...new Set(roles.map((role) => role.modulo))];
-      const allModules = [
-        ...new Set([...commonModules, ...roleModules]),
-      ].sort();
-      setUniqueModules(allModules);
+  React.useEffect(() => {
+    if (availableModules.length > 0 && !formData.modulo) {
+      setFormData((prev) => ({
+        ...prev,
+        modulo: availableModules[0] || "general",
+      }));
     }
-  }, [roles]);
-
-  // Apply filters
-  const filteredRoles = roles.filter((role) => {
-    // Apply search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      if (
-        !role.codigo.toLowerCase().includes(searchLower) &&
-        !role.nombre.toLowerCase().includes(searchLower) &&
-        !role.descripcion?.toLowerCase().includes(searchLower)
-      ) {
-        return false;
-      }
+    if (availableTipoAcciones.length > 0 && !formData.tipo_accion) {
+      setFormData((prev) => ({
+        ...prev,
+        tipo_accion: availableTipoAcciones[0] || "ver",
+      }));
     }
-
-    // Apply module filter
-    if (filters.modulo && role.modulo !== filters.modulo) {
-      return false;
-    }
-
-    // Apply action type filter
-    if (filters.tipo_accion && role.tipo_accion !== filters.tipo_accion) {
-      return false;
-    }
-
-    // Apply status filter
-    if (filters.estado) {
-      const isActive = filters.estado === "activo";
-      if (role.activo !== isActive) {
-        return false;
-      }
-    }
-
-    return true;
-  });
+  }, [
+    availableModules,
+    availableTipoAcciones,
+    formData.modulo,
+    formData.tipo_accion,
+  ]);
 
   const handleFilterChange = (key: string, value: any) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value === "" ? undefined : value,
+      page: 1,
     }));
   };
 
@@ -113,17 +113,26 @@ export const RolesManager: React.FC = () => {
       search: "",
       modulo: undefined,
       tipo_accion: undefined,
-      estado: undefined,
+      activo: undefined,
+      page: 1,
+      limit: 10,
     });
+  };
+
+  const handlePageChange = (page: number) => {
+    setFilters((prev) => ({
+      ...prev,
+      page: Number(page),
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
-      if (editingRol) {
+      if (editingRole) {
         await updateRoleMutation.mutateAsync({
-          id: editingRol.id,
+          id: editingRole.id,
           roleData: formData,
         });
       } else {
@@ -134,37 +143,40 @@ export const RolesManager: React.FC = () => {
       }
 
       setShowForm(false);
-      setEditingRol(null);
+      setEditingRole(null);
       setFormData({
         codigo: "",
         nombre: "",
-        modulo: "general",
-        tipo_accion: "ver",
+        modulo: availableModules[0] || "general",
+        tipo_accion: availableTipoAcciones[0] || "ver",
         descripcion: "",
       });
     } catch (err) {
-      // Error is handled by the mutation
-      console.error("Failed to save role:", err);
+      console.error("Error saving role:", err);
     }
   };
 
   const handleEdit = (role: Rol) => {
-    setEditingRol(role);
-    setFormData({
-      codigo: role.codigo,
-      nombre: role.nombre,
-      modulo: role.modulo,
-      tipo_accion: role.tipo_accion,
-      descripcion: role.descripcion || "",
-    });
-    setShowForm(true);
+    if (canEditRoles) {
+      setEditingRole(role);
+      setFormData({
+        codigo: role.codigo,
+        nombre: role.nombre,
+        modulo: role.modulo,
+        tipo_accion: role.tipo_accion,
+        descripcion: role.descripcion || "",
+      });
+      setShowForm(true);
+    }
   };
 
   const handleDelete = async (roleId: string) => {
-    try {
-      await deleteRoleMutation.mutateAsync(roleId);
-    } catch (err) {
-      console.error("Failed to delete role:", err);
+    if (canDeleteRoles) {
+      try {
+        await deleteRoleMutation.mutateAsync(roleId);
+      } catch (err) {
+        console.error("Error deleting role:", err);
+      }
     }
   };
 
@@ -172,11 +184,43 @@ export const RolesManager: React.FC = () => {
 
   if (isInitialLoad) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-[#798283]">Cargando roles...</div>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-[#798283]">
+              Gestión de Roles
+            </h2>
+            <p className="text-[#798283]/70">Cargando roles...</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D42B22]"></div>
+        </div>
       </div>
     );
   }
+
+  const updatedFilterConfig = rolesFilterConfig.map((config) => {
+    if (config.key === "modulo") {
+      return {
+        ...config,
+        options: availableModules.map((module) => ({
+          value: module,
+          label: module.charAt(0).toUpperCase() + module.slice(1),
+        })),
+      };
+    }
+    if (config.key === "tipo_accion") {
+      return {
+        ...config,
+        options: availableTipoAcciones.map((accion) => ({
+          value: accion,
+          label: accion.charAt(0).toUpperCase() + accion.slice(1),
+        })),
+      };
+    }
+    return config;
+  });
 
   return (
     <div className="space-y-6">
@@ -191,23 +235,25 @@ export const RolesManager: React.FC = () => {
               Crear y administrar roles de permisos
             </p>
           </div>
-          <Button
-            onClick={() => setShowForm(true)}
-            className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
-          >
-            + Nuevo Rol
-          </Button>
+          {canCreateRoles && (
+            <Button
+              onClick={() => setShowForm(true)}
+              className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-3 rounded-lg transition-all duration-200 font-semibold"
+            >
+              + Nuevo Rol
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Error Messages */}
-      {(error ||
+      {(rolesError ||
         createRoleMutation.error ||
         updateRoleMutation.error ||
         deleteRoleMutation.error) && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="text-red-700">
-            {error?.message ||
+            {rolesError?.message ||
               createRoleMutation.error?.message ||
               updateRoleMutation.error?.message ||
               deleteRoleMutation.error?.message}
@@ -215,11 +261,11 @@ export const RolesManager: React.FC = () => {
         </div>
       )}
 
-      {/* Role Form */}
+      {/* Create/Edit Form */}
       {showForm && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
           <h3 className="text-lg font-semibold text-[#798283] mb-4">
-            {editingRol ? "Editar Rol" : "Crear Nuevo Rol"}
+            {editingRole ? "Editar Rol" : "Crear Nuevo Rol"}
           </h3>
           <form
             onSubmit={handleSubmit}
@@ -279,7 +325,7 @@ export const RolesManager: React.FC = () => {
                   <SelectValue placeholder="Seleccionar módulo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {uniqueModules.map((module) => (
+                  {availableModules.map((module) => (
                     <SelectItem key={module} value={module}>
                       {module.charAt(0).toUpperCase() + module.slice(1)}
                     </SelectItem>
@@ -305,11 +351,11 @@ export const RolesManager: React.FC = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ver">Ver</SelectItem>
-                  <SelectItem value="crear">Crear</SelectItem>
-                  <SelectItem value="editar">Editar</SelectItem>
-                  <SelectItem value="eliminar">Eliminar</SelectItem>
-                  <SelectItem value="activar">Administrar</SelectItem>
+                  {availableTipoAcciones.map((accion) => (
+                    <SelectItem key={accion} value={accion}>
+                      {accion.charAt(0).toUpperCase() + accion.slice(1)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -326,9 +372,9 @@ export const RolesManager: React.FC = () => {
                 updateRoleMutation.isPending ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    {editingRol ? "Actualizando..." : "Creando..."}
+                    {editingRole ? "Actualizando..." : "Creando..."}
                   </div>
-                ) : editingRol ? (
+                ) : editingRole ? (
                   "Actualizar Rol"
                 ) : (
                   "Crear Rol"
@@ -338,12 +384,12 @@ export const RolesManager: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setShowForm(false);
-                  setEditingRol(null);
+                  setEditingRole(null);
                   setFormData({
                     codigo: "",
                     nombre: "",
-                    modulo: "general",
-                    tipo_accion: "ver",
+                    modulo: availableModules[0] || "general",
+                    tipo_accion: availableTipoAcciones[0] || "ver",
                     descripcion: "",
                   });
                 }}
@@ -364,14 +410,10 @@ export const RolesManager: React.FC = () => {
         filters={filters}
         onFilterChange={handleFilterChange}
         onClearFilters={clearFilters}
-        filterConfigs={rolesFilterConfig}
+        filterConfigs={updatedFilterConfig}
         resultsInfo={{
-          currentCount: filteredRoles.length,
-          totalCount: roles.length,
-          filteredCount:
-            filteredRoles.length !== roles.length
-              ? filteredRoles.length
-              : undefined,
+          currentCount: roles.length,
+          totalCount: totalCount,
           singularLabel: "rol",
           pluralLabel: "roles",
         }}
@@ -381,10 +423,20 @@ export const RolesManager: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-[#798283]/10">
         <div className="p-6">
           <RolesTable
-            data={filteredRoles}
+            data={roles}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            canEdit={canEditRoles}
+            canDelete={canDeleteRoles}
             isLoading={isLoading}
+            isDeleting={deleteRoleMutation.isPending}
+            pagination={{
+              currentPage: currentPage,
+              totalPages: Math.ceil(totalCount / limit),
+              onPageChange: handlePageChange,
+              totalItems: totalCount,
+              itemsPerPage: limit,
+            }}
           />
         </div>
       </div>
