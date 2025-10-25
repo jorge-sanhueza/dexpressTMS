@@ -1,4 +1,3 @@
-// components/ComunaSelect.tsx
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

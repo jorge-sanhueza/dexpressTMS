@@ -54,6 +54,7 @@ class ComunasService {
   }
 
   async getComunaById(id: string): Promise<Comuna> {
+    console.log(`${this.baseUrl}/${id}`);
     try {
       const token = localStorage.getItem("access_token");
       const response = await fetch(`${this.baseUrl}/${id}`, {
@@ -65,8 +66,8 @@ class ComunasService {
       if (!response.ok) {
         throw new Error(`Failed to fetch comuna: ${response.statusText}`);
       }
-
-      return await response.json();
+      const comunaResponse = await response.json();
+      return comunaResponse;
     } catch (error) {
       console.error("Error fetching comuna:", error);
       throw error;

@@ -20,6 +20,7 @@ export const EmbarcadorViewModal: React.FC<EmbarcadorViewModalProps> = ({
   canEdit,
 }) => {
   const { data: comunaData } = useComuna(embarcador.comunaId);
+  console.log("EmbarcadorViewModal - comunaData:", embarcador.comunaId);
 
   const formatDate = (date: Date) => {
     return format(new Date(date), "PPP", { locale: es });

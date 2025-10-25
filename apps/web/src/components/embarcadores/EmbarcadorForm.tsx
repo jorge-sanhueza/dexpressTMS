@@ -7,8 +7,9 @@ import type {
   Embarcador,
   CreateEmbarcadorDto,
 } from "../../services/embarcadoresService";
-import { useComunas } from "@/hooks/useComunas";
 import { useComuna } from "@/hooks/useComunas";
+import { ComunaSelect } from "../ComunaSelect";
+import type { Comuna } from "@/services/comunasService";
 
 interface EmbarcadorFormProps {
   embarcador?: Embarcador | null;
@@ -31,11 +32,6 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
   isLoading = false,
   isEditing = false,
 }) => {
-  // Fetch comunas data
-  const { data: comunasData, isLoading: isLoadingComunas } = useComunas();
-  const comunas = comunasData || [];
-
-  // Fetch comuna data if we're in edit mode and have a comunaId
   const { data: comunaData } = useComuna(embarcador?.comunaId || "", {
     enabled: isEditing && !!embarcador?.comunaId,
   });
@@ -44,12 +40,16 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
     register,
     handleSubmit,
     formState: { errors },
+    watch,
+    setValue,
     reset,
-  } = useForm<CreateEmbarcadorDto>({
+  } = useForm<CreateEmbarcadorDto & { comuna?: Comuna | null }>({
     defaultValues: {
       tipo: "exportador",
     },
   });
+
+  const selectedComuna = watch("comuna");
 
   useEffect(() => {
     if (isEditing && embarcador) {
@@ -62,13 +62,29 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
         telefono: embarcador.telefono,
         direccion: embarcador.direccion,
         tipo: embarcador.tipo,
-        comunaId: embarcador.comunaId,
+        comuna: comunaData || null,
       });
     }
-  }, [isEditing, embarcador, reset]);
+  }, [isEditing, embarcador, comunaData, reset]);
 
-  const handleFormSubmit = (data: CreateEmbarcadorDto) => {
-    onSubmit(data);
+  const handleFormSubmit = (data: any) => {
+    const submitData: CreateEmbarcadorDto = {
+      nombre: data.nombre || "",
+      razonSocial: data.razonSocial || "",
+      rut: data.rut || "",
+      contacto: data.contacto || "",
+      email: data.email || "",
+      telefono: data.telefono || "",
+      direccion: data.direccion || "",
+      tipo: data.tipo || "exportador",
+      comunaId: data.comuna?.id || "",
+    };
+
+    onSubmit(submitData);
+  };
+
+  const handleComunaSelect = (comuna: Comuna | null) => {
+    setValue("comuna", comuna);
   };
 
   const title = isEditing ? "Editar Embarcador" : "Crear Nuevo Embarcador";
@@ -270,38 +286,19 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="comunaId">
-                  Comuna <span className="text-red-500">*</span>
-                </Label>
-                <select
-                  id="comunaId"
-                  {...register("comunaId", {
-                    required: "La comuna es requerida",
-                  })}
-                  className="flex h-10 w-full rounded-md border border-[#798283]/30 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-[#798283]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D42B22] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={isLoading || isLoadingComunas}
-                >
-                  <option value="">Seleccionar comuna</option>
-                  {comunas.map((comuna) => (
-                    <option key={comuna.id} value={comuna.id}>
-                      {comuna.nombre}
-                    </option>
-                  ))}
-                </select>
-                {isLoadingComunas && (
-                  <p className="text-xs text-[#798283]/70">
-                    Cargando comunas...
-                  </p>
-                )}
-                {errors.comunaId && (
-                  <p className="text-red-500 text-sm">
-                    {errors.comunaId.message}
-                  </p>
-                )}
-                {isEditing && comunaData && (
+                <ComunaSelect
+                  onComunaSelect={handleComunaSelect}
+                  selectedComuna={selectedComuna}
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-[#798283]/70">
+                  Busca y selecciona una comuna
+                </p>
+                {selectedComuna && (
                   <p className="text-xs text-green-600">
-                    ✓ Seleccionado: {comunaData.nombre}
-                    {comunaData.region && `, ${comunaData.region.nombre}`}
+                    ✓ Seleccionado: {selectedComuna.nombre}
+                    {selectedComuna.region &&
+                      `, ${selectedComuna.region.nombre}`}
                   </p>
                 )}
               </div>
@@ -320,7 +317,7 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
               <Button
                 type="submit"
                 className="bg-[#D42B22] hover:bg-[#B3251E] text-white"
-                disabled={isLoading || isLoadingComunas}
+                disabled={isLoading}
               >
                 {submitText}
               </Button>

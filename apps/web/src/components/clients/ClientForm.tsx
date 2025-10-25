@@ -299,7 +299,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               </div>
             </div>
 
-            {/* Status field for editing (if you want to show activo status) */}
+            {/* Status field for editing */}
             {isEditing && client && (
               <div className="p-4 bg-muted rounded-lg">
                 <div className="flex items-center gap-2">
@@ -336,7 +336,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 className="bg-brand hover:bg-brand/90 text-white"
                 disabled={isLoading}
               >
-                {submitText} {/* Fixed: Use submitText variable */}
+                {submitText}
               </Button>
             </div>
           </form>

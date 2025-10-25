@@ -2,8 +2,8 @@ import {
   Controller,
   Get,
   Query,
+  Param,
   UseGuards,
-  Request,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
@@ -113,7 +113,8 @@ export class ComunasController {
   }
 
   @Get(':id')
-  async findOne(@Query('id') id: string) {
+  async findOne(@Param('id') id: string) {
+    console.log(`Fetching comuna with id: ${id}`);
     try {
       const comuna = await this.prisma.comuna.findFirst({
         where: {
