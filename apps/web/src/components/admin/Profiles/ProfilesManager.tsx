@@ -25,7 +25,6 @@ import { RoleAssignmentModal } from "../Roles/RoleAssignmentModal";
 import { useAuthStore } from "@/store/authStore";
 import { Textarea } from "@/components/ui/textarea";
 
-// Define the filter type that matches our API
 interface ProfilesFilter {
   search?: string;
   tipo?: string;
@@ -50,14 +49,13 @@ export const ProfilesManager: React.FC = () => {
     tipo: "",
   });
 
-  // Filter state - now matches API parameters
+  // Filter state
   const [filters, setFilters] = useState<ProfilesFilter>({
     search: "",
     tipo: undefined,
     activo: undefined,
   });
 
-  // Granular permissions for profiles module
   const canViewProfiles = hasModulePermission("perfiles", "ver");
   const canCreateProfiles = hasModulePermission("perfiles", "crear");
   const canEditProfiles = hasModulePermission("perfiles", "editar");
@@ -72,7 +70,7 @@ export const ProfilesManager: React.FC = () => {
     canAssignRoles,
   });
 
-  // If user doesn't have view permission, show unauthorized message
+  // unauthorized message
   if (!canViewProfiles) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -91,7 +89,7 @@ export const ProfilesManager: React.FC = () => {
     );
   }
 
-  // TanStack Query hooks - now with API-side filtering
+  // TanStack Query hooks
   const {
     data: profilesData,
     isLoading,
@@ -114,7 +112,6 @@ export const ProfilesManager: React.FC = () => {
   const updateProfileMutation = useUpdateProfile();
   const deactivateProfileMutation = useDeactivateProfile();
 
-  // Set default profile type when types load
   React.useEffect(() => {
     if (profileTypes.length > 0 && !formData.tipo) {
       setFormData((prev) => ({

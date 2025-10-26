@@ -33,12 +33,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({
   isLoading = false,
   isEditing = false,
 }) => {
-  // Fetch comuna data if we're in edit mode and have a comunaId
   const { data: comunaData } = useComuna(client?.comunaId || "", {
     enabled: isEditing && !!client?.comunaId,
   });
 
-  // Fixed: Only one useForm declaration
   const {
     register,
     handleSubmit,
@@ -83,7 +81,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({
       tipo: data.tipo || "empresa",
     };
 
-    // Only include comunaId if a comuna is selected
     if (data.comuna?.id) {
       submitData.comunaId = data.comuna.id;
     }
@@ -165,7 +162,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 )}
               </div>
 
-              {/* Razón Social (conditionally shown for empresas) */}
+              {/* Razón Social */}
               {selectedTipo === "empresa" && (
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="razonSocial">Razón Social</Label>

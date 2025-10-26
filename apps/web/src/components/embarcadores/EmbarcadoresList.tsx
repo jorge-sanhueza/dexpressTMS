@@ -10,10 +10,6 @@ import {
   useDeleteEmbarcador,
 } from "../../hooks/useEmbarcadores";
 import { useAuthStore } from "../../store/authStore";
-import type {
-  Embarcador,
-  CreateEmbarcadorDto,
-} from "../../services/embarcadoresService";
 import { Input } from "../ui/input";
 import { EmbarcadorForm } from "./EmbarcadorForm";
 import { toast } from "sonner";
@@ -28,6 +24,7 @@ import {
   AlertDialogTitle,
 } from "../ui/alert-dialog";
 import { EmbarcadorViewModal } from "./EmbarcadorViewModal";
+import type { CreateEmbarcadorDto, Embarcador } from "@/types/shipper";
 
 // Debounce hook for search
 const useDebounce = (value: string, delay: number) => {

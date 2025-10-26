@@ -1,4 +1,3 @@
-// src/lib/api-client.ts
 class ApiClient {
   private async fetchWithAuth(
     input: RequestInfo | URL,
@@ -16,7 +15,6 @@ class ApiClient {
         ? input.method
         : "GET");
 
-    // Skip modification for auth endpoints and OPTIONS requests
     const isAuthEndpoint = this.isAuthRequest(urlString);
     const isOptions = method === "OPTIONS";
 
@@ -81,7 +79,6 @@ class ApiClient {
     window.dispatchEvent(new CustomEvent("auth-expired"));
   }
 
-  // Public API methods
   async get(url: string, init?: RequestInit) {
     return this.fetchWithAuth(url, { ...init, method: "GET" });
   }

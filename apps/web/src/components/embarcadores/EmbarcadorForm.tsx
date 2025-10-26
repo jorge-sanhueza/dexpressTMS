@@ -3,13 +3,10 @@ import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import type {
-  Embarcador,
-  CreateEmbarcadorDto,
-} from "../../services/embarcadoresService";
 import { useComuna } from "@/hooks/useComunas";
 import { ComunaSelect } from "../ComunaSelect";
 import type { Comuna } from "@/services/comunasService";
+import type { CreateEmbarcadorDto, Embarcador } from "@/types/shipper";
 
 interface EmbarcadorFormProps {
   embarcador?: Embarcador | null;

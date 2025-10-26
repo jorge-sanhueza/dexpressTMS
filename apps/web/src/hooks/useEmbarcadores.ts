@@ -1,9 +1,6 @@
+import { embarcadoresService } from "@/services/embarcadoresService";
+import type { CreateEmbarcadorDto, UpdateEmbarcadorDto } from "@/types/shipper";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  embarcadoresService,
-  type CreateEmbarcadorDto,
-  type UpdateEmbarcadorDto,
-} from "../services/embarcadoresService";
 
 export interface UseEmbarcadoresFilters {
   search?: string;

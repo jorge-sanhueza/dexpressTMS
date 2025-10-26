@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
-import type { Embarcador } from "../../services/embarcadoresService";
+import type { Embarcador } from "@/types/shipper";
 
 interface EmbarcadoresTableProps {
   data: Embarcador[];

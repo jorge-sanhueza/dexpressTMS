@@ -32,11 +32,9 @@ export const Layout: React.FC<LayoutProps> = ({
     if (onBackClick) {
       onBackClick();
     } else {
-      navigate(-1); // Go back in history
+      navigate(-1);
     }
   };
-
-  // No need for loading check here - LoadingWrapper handles it
 
   return (
     <div className="min-h-screen bg-[#EFF4F9]">

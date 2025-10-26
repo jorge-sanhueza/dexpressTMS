@@ -36,7 +36,7 @@ const decodeJWT = (token: string): any => {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) {
-      console.error("Invalid JWT format: expected 3 parts separated by dots.");
+      console.error("Invalid JWT format");
       return null;
     }
     const payload = parts[1];
@@ -90,13 +90,11 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   },
 
   login: async (response: LoginResponse) => {
-    console.log("🔄 Login started", response.user);
     localStorage.setItem("access_token", response.access_token);
     localStorage.setItem("user", JSON.stringify(response.user));
 
     set({ user: response.user });
 
-    // Check if tenant_id exists and is a non-empty string
     if (
       typeof response.user.tenant_id === "string" &&
       response.user.tenant_id.trim() !== ""
@@ -111,46 +109,15 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     } else {
       set({ isLoading: false, rolesLoaded: true });
     }
-    console.log("✅ Login completed");
   },
 
   fetchTenantData: async (tenant_id: string) => {
+    set({ isLoading: true });
+
     try {
-      set({ isLoading: true });
-      let tenantData: Tenant;
-
-      try {
-        tenantData = await tenantService.getTenantById(tenant_id);
-      } catch (apiError: unknown) {
-        if (apiError instanceof Error) {
-          console.error("API Error message:", apiError.message);
-          console.error("API Error name:", apiError.name);
-        } else {
-          console.error("Unknown API error type:", apiError);
-        }
-
-        // Use fallback
-        tenantData = {
-          id: tenant_id,
-          nombre: "Organización Demo",
-          contacto: "contacto@demo.cl",
-          rut: "12345678-9",
-          activo: true,
-        };
-        console.log("🔄 Using fallback tenant:", tenantData);
-      }
+      const tenantData = await tenantService.getTenantById(tenant_id);
       set({ tenant: tenantData });
     } catch (error: unknown) {
-      console.error("❌ Unexpected error in fetchTenantData:");
-
-      if (error instanceof Error) {
-        console.error("Unexpected error message:", error.message);
-        console.error("Unexpected error name:", error.name);
-      } else {
-        console.error("Unknown unexpected error type:", error);
-      }
-
-      // Final fallback
       const fallbackTenant: Tenant = {
         id: tenant_id,
         nombre: "Organización Demo",
@@ -158,6 +125,10 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         rut: "12345678-9",
         activo: true,
       };
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
+      console.error("Failed to fetch tenant:", errorMessage);
       set({ tenant: fallbackTenant });
     } finally {
       set({ isLoading: false, isInitialized: true });
@@ -167,16 +138,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   fetchUserRoles: async (rolesIds: string[]) => {
     try {
       const roles = await rolesService.getRolesByIds(rolesIds);
-      if (roles.length === 0) {
-        console.warn(
-          "⚠️ WARNING: Roles service returned empty array despite having",
-          rolesIds.length,
-          "role IDs"
-        );
-      }
       set({ roles, rolesLoaded: true });
     } catch (error) {
-      console.error("❌ Error fetching user roles:", error);
+      console.error("Failed to fetch roles:", error);
       set({ rolesLoaded: true });
     }
   },
@@ -228,12 +192,11 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         return;
       }
 
-      const user = JSON.parse(userData ?? "") as AuthUser;
+      const user = JSON.parse(userData) as AuthUser;
       set({ user, isLoading: true, rolesLoaded: false });
 
       await get().handleTenantAndRoles(user);
     } catch (error) {
-      console.error("❌ Error initializing auth:", error);
       get().clearAuth();
     }
   },

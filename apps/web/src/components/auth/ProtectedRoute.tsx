@@ -13,15 +13,39 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredRole,
   requiredPermission,
 }) => {
-  const { user, isLoading, hasPermission, rolesLoaded } = useAuthStore();
+  const { user, isLoading, isInitialized, tenant, hasPermission, rolesLoaded } =
+    useAuthStore();
+
+  const shouldShowLoading = !isInitialized || isLoading || (user && !tenant);
+
+  if (shouldShowLoading) {
+    return (
+      <div className="min-h-screen bg-[#EFF4F9] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D42B22] mx-auto"></div>
+          <p className="mt-4 text-[#798283]">
+            {!isInitialized
+              ? "Inicializando aplicación..."
+              : isLoading
+              ? "Cargando..."
+              : "Cargando organización..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
   const permissionToCheck = requiredRole || requiredPermission;
 
-  // Show loading only during initial auth loading OR when roles are still loading for permission check
-  const shouldShowLoading = isLoading || 
-    (permissionToCheck && !rolesLoaded && user?.permissions && user.permissions.length > 0);
+  if (!permissionToCheck) {
+    return <>{children}</>;
+  }
 
-  if (shouldShowLoading) {
+  if (permissionToCheck && !rolesLoaded) {
     return (
       <div className="min-h-screen bg-[#EFF4F9] flex items-center justify-center">
         <div className="text-center">
@@ -32,21 +56,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // If no permission required, render children immediately
-  if (!permissionToCheck) {
-    return <>{children}</>;
-  }
-
-  // If user has no permissions at all, deny access
   if (!user.permissions || user.permissions.length === 0) {
     return <AccessDenied />;
   }
 
-  // Check permission only after roles are loaded
   if (!hasPermission(permissionToCheck)) {
     return <AccessDenied />;
   }
