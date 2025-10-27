@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { WideLayout } from "../layout/WideLayout";
 import { ClientsTable } from "./ClientsTable";
 import { Button } from "@/components/ui/button";
@@ -31,26 +31,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ClientViewModal } from "./ClientViewModal";
-
-// Debounce hook for search
-const useDebounce = (value: string, delay: number) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-};
+import { useDebounce } from "@/hooks/useDebounce";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { useCompositeError, useMutationError } from "@/hooks/useErrorHandling";
 
 export const ClientsList: React.FC = () => {
-  const { hasModulePermission } = useAuthStore();
+  // ========== STATE HOOKS ==========
+  const { hasModulePermission, isInitialized } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<boolean | undefined>(
     undefined
@@ -58,8 +45,6 @@ export const ClientsList: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
-
-  // Alert Dialog state
   const [deactivateDialog, setDeactivateDialog] = useState<{
     isOpen: boolean;
     clientId: string | null;
@@ -70,10 +55,8 @@ export const ClientsList: React.FC = () => {
     clientName: "",
   });
 
-  // Use debounced search term
+  // ========== DERIVED STATE & HOOKS ==========
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
-
-  // Filters state
   const [filters, setFilters] = useState<ClientsFilter>({
     search: "",
     activo: undefined,
@@ -87,14 +70,63 @@ export const ClientsList: React.FC = () => {
     }));
   }, [debouncedSearchTerm]);
 
-  // Granular permissions for clients module
+  // ========== DATA FETCHING ==========
+  const { data: clientsData, isLoading, error } = useClients(filters);
+  const clients = clientsData?.clients || [];
+
+  const deactivateClientMutation = useDeactivateClient();
+  const activateClientMutation = useActivateClient();
+  const createClientMutation = useCreateClient();
+  const updateClientMutation = useUpdateClient();
+
+  // ========== ERROR HANDLING ==========
+  const errors = useMemo(
+    () => [
+      { error, operation: "fetch" },
+      { error: deactivateClientMutation.error, operation: "deactivate" },
+      { error: activateClientMutation.error, operation: "activate" },
+      { error: createClientMutation.error, operation: "create" },
+      { error: updateClientMutation.error, operation: "update" },
+    ],
+    [
+      error,
+      deactivateClientMutation.error,
+      activateClientMutation.error,
+      createClientMutation.error,
+      updateClientMutation.error,
+    ]
+  );
+
+  const { message: errorMessage, hasError } = useCompositeError(errors);
+
+  // Individual mutation errors for toasts
+  const createError = useMutationError(createClientMutation, "create");
+  const updateError = useMutationError(updateClientMutation, "update");
+  const deactivateError = useMutationError(
+    deactivateClientMutation,
+    "deactivate"
+  );
+  const activateError = useMutationError(activateClientMutation, "activate");
+
+  // ========== PERMISSIONS ==========
   const canViewClients = hasModulePermission("clientes", "ver");
   const canCreateClients = hasModulePermission("clientes", "crear");
   const canEditClients = hasModulePermission("clientes", "editar");
   const canDeleteClients = hasModulePermission("clientes", "eliminar");
   const canActivateClients = hasModulePermission("clientes", "activar");
 
-  // If user doesn't have view permission, show unauthorized message
+  // ========== LOADING & AUTH STATES ==========
+  if (isLoading || !isInitialized) {
+    return (
+      <WideLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
+          <span className="ml-3 text-muted-foreground">Cargando...</span>
+        </div>
+      </WideLayout>
+    );
+  }
+
   if (!canViewClients) {
     return (
       <WideLayout>
@@ -115,16 +147,9 @@ export const ClientsList: React.FC = () => {
     );
   }
 
-  // Use TanStack Query hooks
-  const { data: clientsData, isLoading, error } = useClients(filters);
+  // ========== EVENT HANDLERS ==========
 
-  const clients = clientsData?.clients || [];
-
-  const deactivateClientMutation = useDeactivateClient();
-  const activateClientMutation = useActivateClient();
-  const createClientMutation = useCreateClient();
-  const updateClientMutation = useUpdateClient();
-
+  // Search & Filter handlers
   const handleSearch = (value: string) => {
     setSearchTerm(value);
   };
@@ -137,46 +162,33 @@ export const ClientsList: React.FC = () => {
     }));
   };
 
-  // Open deactivate confirmation dialog
-  const openDeactivateDialog = (client: Client) => {
-    setDeactivateDialog({
-      isOpen: true,
-      clientId: client.id,
-      clientName: client.nombre,
-    });
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter(undefined);
+    setFilters({ search: "", activo: undefined });
   };
 
-  // Close deactivate dialog
-  const closeDeactivateDialog = () => {
-    setDeactivateDialog({
-      isOpen: false,
-      clientId: null,
-      clientName: "",
-    });
-  };
-
-  // Handle deactivate confirmation
-  const handleDeactivateConfirm = async () => {
-    if (!deactivateDialog.clientId) return;
-
-    try {
-      await deactivateClientMutation.mutateAsync(deactivateDialog.clientId);
-      toast.success("Cliente desactivado correctamente");
-      closeDeactivateDialog();
-    } catch (err: any) {
-      console.error("Error deactivating client:", err);
-      toast.error(err.message || "Error al desactivar el cliente");
+  // Client CRUD handlers
+  const handleCreateClient = () => {
+    if (canCreateClients) {
+      setIsCreateModalOpen(true);
     }
   };
 
-  const handleActivate = async (id: string) => {
+  const handleCreateSubmit = async (clientData: CreateClientData) => {
     try {
-      await activateClientMutation.mutateAsync(id);
-      toast.success("Cliente activado correctamente");
-    } catch (err: any) {
-      console.error("Error activating client:", err);
-      toast.error(err.message || "Error al activar el cliente");
+      await createClientMutation.mutateAsync(clientData);
+      setIsCreateModalOpen(false);
+      toast.success("Cliente creado correctamente");
+    } catch {
+      if (createError) {
+        toast.error(createError);
+      }
     }
+  };
+
+  const handleCreateCancel = () => {
+    setIsCreateModalOpen(false);
   };
 
   const handleEdit = (client: Client) => {
@@ -195,9 +207,10 @@ export const ClientsList: React.FC = () => {
       });
       setEditingClient(null);
       toast.success("Cliente actualizado correctamente");
-    } catch (err: any) {
-      console.error("Error updating client:", err);
-      toast.error(err.message || "Error al actualizar el cliente");
+    } catch {
+      if (updateError) {
+        toast.error(updateError);
+      }
     }
   };
 
@@ -213,39 +226,49 @@ export const ClientsList: React.FC = () => {
     setViewingClient(null);
   };
 
-  const handleCreateClient = () => {
-    if (canCreateClients) {
-      setIsCreateModalOpen(true);
-    }
+  // Activation/Deactivation handlers
+  const openDeactivateDialog = (client: Client) => {
+    setDeactivateDialog({
+      isOpen: true,
+      clientId: client.id,
+      clientName: client.nombre,
+    });
   };
 
-  const handleCreateSubmit = async (clientData: CreateClientData) => {
-    try {
-      await createClientMutation.mutateAsync(clientData);
-      setIsCreateModalOpen(false);
-      toast.success("Cliente creado correctamente");
-    } catch (err: any) {
-      console.error("Error creating client:", err);
+  const closeDeactivateDialog = () => {
+    setDeactivateDialog({
+      isOpen: false,
+      clientId: null,
+      clientName: "",
+    });
+  };
 
-      // Handle specific backend errors
-      if (err.message?.includes("RUT already exists")) {
-        toast.error("Ya existe un cliente con este RUT");
-      } else {
-        toast.error(err.message || "Error al crear el cliente");
+  const handleDeactivateConfirm = async () => {
+    if (!deactivateDialog.clientId) return;
+
+    try {
+      await deactivateClientMutation.mutateAsync(deactivateDialog.clientId);
+      toast.success("Cliente desactivado correctamente");
+      closeDeactivateDialog();
+    } catch {
+      if (deactivateError) {
+        toast.error(deactivateError);
       }
     }
   };
 
-  const handleCreateCancel = () => {
-    setIsCreateModalOpen(false);
+  const handleActivate = async (id: string) => {
+    try {
+      await activateClientMutation.mutateAsync(id);
+      toast.success("Cliente activado correctamente");
+    } catch {
+      if (activateError) {
+        toast.error(activateError);
+      }
+    }
   };
 
-  const handleClearFilters = () => {
-    setSearchTerm("");
-    setStatusFilter(undefined);
-    setFilters({ search: "", activo: undefined });
-  };
-
+  // ========== RENDER ==========
   return (
     <WideLayout>
       <div className="space-y-6">
@@ -272,23 +295,8 @@ export const ClientsList: React.FC = () => {
           </div>
         </div>
 
-        {/* Error Messages */}
-        {(error ||
-          deactivateClientMutation.error ||
-          activateClientMutation.error ||
-          createClientMutation.error ||
-          updateClientMutation.error) && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="text-red-700">
-              {error?.message ||
-                deactivateClientMutation.error?.message ||
-                activateClientMutation.error?.message ||
-                createClientMutation.error?.message ||
-                updateClientMutation.error?.message ||
-                "Ha ocurrido un error inesperado"}
-            </div>
-          </div>
-        )}
+        {/* Error Display */}
+        {hasError && <ErrorDisplay message={errorMessage!} />}
 
         {/* Filters */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-border">
@@ -432,7 +440,7 @@ export const ClientsList: React.FC = () => {
         )}
       </div>
 
-      {/* Create Client Modal */}
+      {/* Modals */}
       {isCreateModalOpen && (
         <ClientForm
           onSubmit={
@@ -445,7 +453,6 @@ export const ClientsList: React.FC = () => {
         />
       )}
 
-      {/* Edit Client Modal */}
       {editingClient && (
         <ClientForm
           client={editingClient}
@@ -456,7 +463,6 @@ export const ClientsList: React.FC = () => {
         />
       )}
 
-      {/* View Client Modal */}
       {viewingClient && (
         <ClientViewModal
           client={viewingClient}

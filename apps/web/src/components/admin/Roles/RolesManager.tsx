@@ -180,26 +180,6 @@ export const RolesManager: React.FC = () => {
     }
   };
 
-  const isInitialLoad = isLoading && roles.length === 0;
-
-  if (isInitialLoad) {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-[#798283]">
-              Gestión de Roles
-            </h2>
-            <p className="text-[#798283]/70">Cargando roles...</p>
-          </div>
-        </div>
-        <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D42B22]"></div>
-        </div>
-      </div>
-    );
-  }
-
   const updatedFilterConfig = rolesFilterConfig.map((config) => {
     if (config.key === "modulo") {
       return {

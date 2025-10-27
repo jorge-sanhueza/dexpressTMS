@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { WideLayout } from "../layout/WideLayout";
 import { EmbarcadoresTable } from "./EmbarcadoresTable";
 import { Button } from "../ui/button";
@@ -25,26 +25,13 @@ import {
 } from "../ui/alert-dialog";
 import { EmbarcadorViewModal } from "./EmbarcadorViewModal";
 import type { CreateEmbarcadorDto, Embarcador } from "@/types/shipper";
-
-// Debounce hook for search
-const useDebounce = (value: string, delay: number) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-};
+import { useDebounce } from "@/hooks/useDebounce";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { useCompositeError, useMutationError } from "@/hooks/useErrorHandling";
 
 export const EmbarcadoresList: React.FC = () => {
-  const { tenant, hasModulePermission } = useAuthStore();
+  // ========== STATE HOOKS ==========
+  const { tenant, hasModulePermission, isInitialized } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [tipoFilter, setTipoFilter] = useState<string | undefined>(undefined);
   const [activoFilter, setActivoFilter] = useState<boolean | undefined>(
@@ -57,8 +44,6 @@ export const EmbarcadoresList: React.FC = () => {
   const [viewingEmbarcador, setViewingEmbarcador] = useState<Embarcador | null>(
     null
   );
-
-  // Alert Dialog state
   const [deleteDialog, setDeleteDialog] = useState<{
     isOpen: boolean;
     embarcadorId: string | null;
@@ -69,11 +54,11 @@ export const EmbarcadoresList: React.FC = () => {
     embarcadorName: "",
   });
 
-  // Use debounced search term for API calls
+  // ========== DERIVED STATE & HOOKS ==========
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  // Build filters object for API - matches your backend EmbarcadoresFilterDto
-  const filters = React.useMemo(() => {
+  // Build filters object for API
+  const filters = useMemo(() => {
     const filterObj: any = {};
 
     if (debouncedSearchTerm) {
@@ -88,14 +73,51 @@ export const EmbarcadoresList: React.FC = () => {
       filterObj.activo = activoFilter;
     }
 
-    // Add pagination if needed
     filterObj.page = 1;
     filterObj.limit = 50;
 
     return filterObj;
   }, [debouncedSearchTerm, tipoFilter, activoFilter]);
 
-  // Granular permissions for embarcadores module
+  // ========== DATA FETCHING ==========
+  const {
+    data: embarcadoresData,
+    isLoading,
+    isFetching,
+    error,
+  } = useEmbarcadores(tenant?.id || "", filters);
+
+  const embarcadores = embarcadoresData?.embarcadores || [];
+  const totalCount = embarcadoresData?.total || 0;
+
+  const createEmbarcadorMutation = useCreateEmbarcador();
+  const updateEmbarcadorMutation = useUpdateEmbarcador();
+  const deleteEmbarcadorMutation = useDeleteEmbarcador();
+
+  // ========== ERROR HANDLING ==========
+  const errors = useMemo(
+    () => [
+      { error, operation: "fetch" },
+      { error: createEmbarcadorMutation.error, operation: "create" },
+      { error: updateEmbarcadorMutation.error, operation: "update" },
+      { error: deleteEmbarcadorMutation.error, operation: "delete" },
+    ],
+    [
+      error,
+      createEmbarcadorMutation.error,
+      updateEmbarcadorMutation.error,
+      deleteEmbarcadorMutation.error,
+    ]
+  );
+
+  const { message: errorMessage, hasError } = useCompositeError(errors);
+
+  // Individual mutation errors for toasts
+  const createError = useMutationError(createEmbarcadorMutation, "create");
+  const updateError = useMutationError(updateEmbarcadorMutation, "update");
+  const deleteError = useMutationError(deleteEmbarcadorMutation, "delete");
+
+  // ========== PERMISSIONS ==========
   const canViewEmbarcadores = hasModulePermission("embarcadores", "ver");
   const canCreateEmbarcadores = hasModulePermission("embarcadores", "crear");
   const canEditEmbarcadores = hasModulePermission("embarcadores", "editar");
@@ -105,7 +127,18 @@ export const EmbarcadoresList: React.FC = () => {
     "activar"
   );
 
-  // If user doesn't have view permission, show unauthorized message
+  // ========== LOADING & AUTH STATES ==========
+  if (isLoading || !isInitialized) {
+    return (
+      <WideLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D42B22]"></div>
+          <span className="ml-3 text-[#798283]">Cargando...</span>
+        </div>
+      </WideLayout>
+    );
+  }
+
   if (!canViewEmbarcadores) {
     return (
       <WideLayout>
@@ -126,20 +159,7 @@ export const EmbarcadoresList: React.FC = () => {
     );
   }
 
-  // TanStack Query hooks with keepPreviousData
-  const {
-    data: embarcadoresData,
-    isLoading,
-    isFetching,
-    error,
-  } = useEmbarcadores(tenant?.id || "", filters);
-
-  const embarcadores = embarcadoresData?.embarcadores || [];
-  const totalCount = embarcadoresData?.total || 0;
-
-  const createEmbarcadorMutation = useCreateEmbarcador();
-  const updateEmbarcadorMutation = useUpdateEmbarcador();
-  const deleteEmbarcadorMutation = useDeleteEmbarcador();
+  // ========== EVENT HANDLERS ==========
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
@@ -179,9 +199,10 @@ export const EmbarcadoresList: React.FC = () => {
       await deleteEmbarcadorMutation.mutateAsync(deleteDialog.embarcadorId);
       toast.success("Embarcador eliminado correctamente");
       closeDeleteDialog();
-    } catch (err: any) {
-      console.error("Error deleting embarcador:", err);
-      toast.error(err.message || "Error al eliminar el embarcador");
+    } catch {
+      if (deleteError) {
+        toast.error(deleteError);
+      }
     }
   };
 
@@ -198,9 +219,10 @@ export const EmbarcadoresList: React.FC = () => {
         embarcadorData: { activo: true },
       });
       toast.success("Embarcador activado correctamente");
-    } catch (err: any) {
-      console.error("Error activating embarcador:", err);
-      toast.error(err.message || "Error al activar el embarcador");
+    } catch {
+      if (updateError) {
+        toast.error(updateError);
+      }
     }
   };
 
@@ -214,9 +236,10 @@ export const EmbarcadoresList: React.FC = () => {
       });
       setEditingEmbarcador(null);
       toast.success("Embarcador actualizado correctamente");
-    } catch (err: any) {
-      console.error("Error updating embarcador:", err);
-      toast.error(err.message || "Error al actualizar el embarcador");
+    } catch {
+      if (updateError) {
+        toast.error(updateError);
+      }
     }
   };
 
@@ -243,9 +266,10 @@ export const EmbarcadoresList: React.FC = () => {
       await createEmbarcadorMutation.mutateAsync(embarcadorData);
       setIsCreateModalOpen(false);
       toast.success("Embarcador creado correctamente");
-    } catch (err: any) {
-      console.error("Error creating embarcador:", err);
-      toast.error(err.message || "Error al crear el embarcador");
+    } catch {
+      if (createError) {
+        toast.error(createError);
+      }
     }
   };
 
@@ -259,16 +283,7 @@ export const EmbarcadoresList: React.FC = () => {
     setActivoFilter(undefined);
   };
 
-  const isInitialLoad = isLoading && embarcadores.length === 0;
-
-  if (isInitialLoad) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-[#798283]">Cargando embarcadores...</div>
-      </div>
-    );
-  }
-
+  // ========== RENDER ==========
   return (
     <WideLayout>
       <div className="space-y-6">
@@ -298,21 +313,8 @@ export const EmbarcadoresList: React.FC = () => {
           </div>
         </div>
 
-        {/* Error Messages */}
-        {(error ||
-          createEmbarcadorMutation.error ||
-          updateEmbarcadorMutation.error ||
-          deleteEmbarcadorMutation.error) && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="text-red-700">
-              {error?.message ||
-                createEmbarcadorMutation.error?.message ||
-                updateEmbarcadorMutation.error?.message ||
-                deleteEmbarcadorMutation.error?.message ||
-                "Ha ocurrido un error inesperado"}
-            </div>
-          </div>
-        )}
+        {/* Error Display */}
+        {hasError && <ErrorDisplay message={errorMessage!} />}
 
         {/* Enhanced Filters Section */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
