@@ -36,13 +36,13 @@ export const rolesFilterConfig: FilterConfig[] = [
     width: "w-full md:w-40",
   },
   {
-    key: "estado",
+    key: "activo",
     type: "select",
     label: "Estado",
     placeholder: "Todos",
     options: [
-      { value: "activo", label: "Activo" },
-      { value: "inactivo", label: "Inactivo" },
+      { value: "true", label: "Activo" },
+      { value: "false", label: "Inactivo" },
     ],
     width: "w-full md:w-40",
   },
