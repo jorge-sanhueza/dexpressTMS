@@ -1,6 +1,14 @@
 import React from "react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
 import type { Embarcador } from "@/types/shipper";
 
 interface EmbarcadoresTableProps {
@@ -40,7 +48,15 @@ export const EmbarcadoresTable: React.FC<EmbarcadoresTableProps> = ({
   if (data.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-[#798283]/70">No se encontraron embarcadores</p>
+        <div className="flex flex-col items-center justify-center py-8">
+          <div className="text-[#798283]/70 text-lg mb-2">
+            No se encontraron embarcadores
+          </div>
+          <div className="text-sm text-[#798283]/50">
+            Comienza agregando tu primer embarcador o ajusta los filtros de
+            búsqueda.
+          </div>
+        </div>
       </div>
     );
   }
@@ -84,43 +100,33 @@ export const EmbarcadoresTable: React.FC<EmbarcadoresTableProps> = ({
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-[#798283]/20">
-            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
-              Nombre
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
-              RUT
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
+    <div className="rounded-md border border-[#798283]/10">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="text-[#798283] font-medium">Nombre</TableHead>
+            <TableHead className="text-[#798283] font-medium">RUT</TableHead>
+            <TableHead className="text-[#798283] font-medium">
               Contacto
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
-              Email
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
+            </TableHead>
+            <TableHead className="text-[#798283] font-medium">Email</TableHead>
+            <TableHead className="text-[#798283] font-medium">
               Teléfono
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
-              Tipo
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
-              Estado
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-[#798283]">
+            </TableHead>
+            <TableHead className="text-[#798283] font-medium">Tipo</TableHead>
+            <TableHead className="text-[#798283] font-medium">Estado</TableHead>
+            <TableHead className="text-[#798283] font-medium">
               Acciones
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {data.map((embarcador) => (
-            <tr
+            <TableRow
               key={embarcador.id}
-              className="border-b border-[#798283]/10 hover:bg-[#798283]/5"
+              className="hover:bg-[#798283]/5 transition-colors duration-150"
             >
-              <td className="py-3 px-4">
+              <TableCell>
                 <div>
                   <div className="font-medium text-[#798283]">
                     {embarcador.nombre}
@@ -129,69 +135,69 @@ export const EmbarcadoresTable: React.FC<EmbarcadoresTableProps> = ({
                     {embarcador.razonSocial}
                   </div>
                 </div>
-              </td>
-              <td className="py-3 px-4 text-sm text-[#798283]">
+              </TableCell>
+              <TableCell className="text-sm text-[#798283]">
                 {embarcador.rut}
-              </td>
-              <td className="py-3 px-4 text-sm text-[#798283]">
+              </TableCell>
+              <TableCell className="text-sm text-[#798283]">
                 {embarcador.contacto}
-              </td>
-              <td className="py-3 px-4 text-sm text-[#798283]">
+              </TableCell>
+              <TableCell className="text-sm text-[#798283]">
                 {embarcador.email}
-              </td>
-              <td className="py-3 px-4 text-sm text-[#798283]">
+              </TableCell>
+              <TableCell className="text-sm text-[#798283]">
                 {embarcador.telefono}
-              </td>
-              <td className="py-3 px-4">{getTipoBadge(embarcador.tipo)}</td>
-              <td className="py-3 px-4">{getEstadoBadge(embarcador.activo)}</td>
-              <td className="py-3 px-4">
+              </TableCell>
+              <TableCell>{getTipoBadge(embarcador.tipo)}</TableCell>
+              <TableCell>{getEstadoBadge(embarcador.activo)}</TableCell>
+              <TableCell>
                 <div className="flex gap-2">
                   {canView && (
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={() => onView(embarcador)}
-                      className="text-[#798283] border-[#798283]/20 hover:bg-[#798283]/10"
+                      className="h-8 px-2 text-[#798283] hover:text-[#D42B22] hover:bg-[#D42B22]/10"
                     >
                       Ver
                     </Button>
                   )}
                   {canEdit && (
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={() => onEdit(embarcador)}
-                      className="text-[#798283] border-[#798283]/20 hover:bg-[#798283]/10"
+                      className="h-8 px-2 text-[#798283] hover:text-[#D42B22] hover:bg-[#D42B22]/10"
                     >
                       Editar
                     </Button>
                   )}
                   {canDelete && embarcador.activo && (
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={() => onDelete(embarcador)}
-                      className="text-red-600 border-red-200 hover:bg-red-50"
+                      className="h-8 px-2 text-red-600 hover:text-red-800 hover:bg-red-50"
                     >
                       Eliminar
                     </Button>
                   )}
                   {canActivate && !embarcador.activo && (
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={() => onActivate(embarcador.id)}
-                      className="text-green-600 border-green-200 hover:bg-green-50"
+                      className="h-8 px-2 text-green-600 hover:text-green-800 hover:bg-green-50"
                     >
                       Activar
                     </Button>
                   )}
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 };

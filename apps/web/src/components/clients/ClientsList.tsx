@@ -34,6 +34,14 @@ import { ClientViewModal } from "./ClientViewModal";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { useCompositeError, useMutationError } from "@/hooks/useErrorHandling";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 export const ClientsList: React.FC = () => {
   // ========== STATE HOOKS ==========
@@ -55,24 +63,42 @@ export const ClientsList: React.FC = () => {
     clientName: "",
   });
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   // ========== DERIVED STATE & HOOKS ==========
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
-  const [filters, setFilters] = useState<ClientsFilter>({
-    search: "",
-    activo: undefined,
-  });
 
-  // Update filters when debounced search term changes
-  React.useEffect(() => {
-    setFilters((prev) => ({
-      ...prev,
-      search: debouncedSearchTerm || undefined,
-    }));
-  }, [debouncedSearchTerm]);
+  // Build filters object for API
+  const filters = useMemo(() => {
+    const filterObj: ClientsFilter = {
+      page: currentPage,
+      limit: pageSize,
+    };
+
+    if (debouncedSearchTerm) {
+      filterObj.search = debouncedSearchTerm;
+    }
+
+    if (statusFilter !== undefined) {
+      filterObj.activo = statusFilter;
+    }
+
+    return filterObj;
+  }, [debouncedSearchTerm, statusFilter, currentPage, pageSize]);
 
   // ========== DATA FETCHING ==========
-  const { data: clientsData, isLoading, error } = useClients(filters);
+  const {
+    data: clientsData,
+    isLoading,
+    error,
+    isFetching,
+  } = useClients(filters);
+
   const clients = clientsData?.clients || [];
+  const totalCount = clientsData?.total || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   const deactivateClientMutation = useDeactivateClient();
   const activateClientMutation = useActivateClient();
@@ -115,57 +141,34 @@ export const ClientsList: React.FC = () => {
   const canDeleteClients = hasModulePermission("clientes", "eliminar");
   const canActivateClients = hasModulePermission("clientes", "activar");
 
-  // ========== LOADING & AUTH STATES ==========
-  if (isLoading || !isInitialized) {
-    return (
-      <WideLayout>
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
-          <span className="ml-3 text-muted-foreground">Cargando...</span>
-        </div>
-      </WideLayout>
-    );
-  }
-
-  if (!canViewClients) {
-    return (
-      <WideLayout>
-        <div className="flex justify-center items-center h-64">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-foreground mb-4">
-              Acceso No Autorizado
-            </div>
-            <p className="text-muted-foreground">
-              No tienes permisos para ver clientes.
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Contacta al administrador del sistema para solicitar acceso.
-            </p>
-          </div>
-        </div>
-      </WideLayout>
-    );
-  }
-
   // ========== EVENT HANDLERS ==========
 
   // Search & Filter handlers
   const handleSearch = (value: string) => {
     setSearchTerm(value);
+    setCurrentPage(1); // Reset to first page when searching
   };
 
-  const handleStatusFilter = (activo: boolean | undefined) => {
-    setStatusFilter(activo);
-    setFilters((prev) => ({
-      ...prev,
-      activo,
-    }));
+  const handleStatusFilter = (status: string) => {
+    // Use "all" for "Todos" option
+    const filterValue = status === "all" ? undefined : status === "true";
+    setStatusFilter(filterValue);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: string) => {
+    setPageSize(Number(size));
+    setCurrentPage(1);
   };
 
   const handleClearFilters = () => {
     setSearchTerm("");
     setStatusFilter(undefined);
-    setFilters({ search: "", activo: undefined });
+    setCurrentPage(1);
   };
 
   // Client CRUD handlers
@@ -268,23 +271,55 @@ export const ClientsList: React.FC = () => {
     }
   };
 
+  // ========== LOADING & AUTH STATES ==========
+  if (isLoading || !isInitialized) {
+    return (
+      <WideLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D42B22]"></div>
+          <span className="ml-3 text-[#798283]">Cargando...</span>
+        </div>
+      </WideLayout>
+    );
+  }
+
+  if (!canViewClients) {
+    return (
+      <WideLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-[#798283] mb-4">
+              Acceso No Autorizado
+            </div>
+            <p className="text-[#798283]/70">
+              No tienes permisos para ver clientes.
+            </p>
+            <p className="text-sm text-[#798283]/50 mt-2">
+              Contacta al administrador del sistema para solicitar acceso.
+            </p>
+          </div>
+        </div>
+      </WideLayout>
+    );
+  }
+
   // ========== RENDER ==========
   return (
     <WideLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-border p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-[#798283]/10 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-foreground">Clientes</h2>
-              <p className="text-muted-foreground mt-1">
+              <h2 className="text-2xl font-bold text-[#798283]">Clientes</h2>
+              <p className="text-[#798283]/70 mt-1">
                 Gestiona los clientes de tu organización
               </p>
             </div>
             {canCreateClients && (
               <Button
                 onClick={handleCreateClient}
-                className="bg-brand hover:bg-brand/90 text-white"
+                className="bg-[#D42B22] hover:bg-[#B3251E] text-white"
                 disabled={createClientMutation.isPending}
               >
                 {createClientMutation.isPending
@@ -298,14 +333,16 @@ export const ClientsList: React.FC = () => {
         {/* Error Display */}
         {hasError && <ErrorDisplay message={errorMessage!} />}
 
-        {/* Filters */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-border">
-          <div className="flex flex-col sm:flex-row gap-4 items-end">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-foreground mb-2">
+        {/* Enhanced Filters Section */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            {/* Search Input */}
+            <div>
+              <Label htmlFor="search" className="text-[#798283]">
                 Buscar clientes
-              </label>
+              </Label>
               <Input
+                id="search"
                 type="text"
                 placeholder="Buscar por nombre, RUT, contacto o email..."
                 value={searchTerm}
@@ -314,56 +351,44 @@ export const ClientsList: React.FC = () => {
               />
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2">
-              <label className="block text-sm font-medium text-foreground mb-2 sm:mb-0 sm:mr-2 sm:self-center">
-                Estado:
-              </label>
-              <div className="flex gap-2">
-                <Button
-                  variant={statusFilter === undefined ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleStatusFilter(undefined)}
-                  className={
-                    statusFilter === undefined
-                      ? "bg-brand hover:bg-brand/90 text-white"
-                      : ""
-                  }
-                >
-                  Todos
-                </Button>
-                <Button
-                  variant={statusFilter === true ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleStatusFilter(true)}
-                  className={
-                    statusFilter === true
-                      ? "bg-brand hover:bg-brand/90 text-white"
-                      : ""
-                  }
-                >
-                  Activos
-                </Button>
-                <Button
-                  variant={statusFilter === false ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleStatusFilter(false)}
-                  className={
-                    statusFilter === false
-                      ? "bg-brand hover:bg-brand/90 text-white"
-                      : ""
-                  }
-                >
-                  Inactivos
-                </Button>
-              </div>
+            {/* Status Filter */}
+            <div>
+              <Label htmlFor="status-filter" className="text-[#798283]">
+                Estado
+              </Label>
+              <Select
+                value={
+                  statusFilter === undefined ? "all" : statusFilter.toString()
+                }
+                onValueChange={handleStatusFilter}
+              >
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Todos los estados" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="true">Activos</SelectItem>
+                  <SelectItem value="false">Inactivos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Clear Filters */}
+            <div>
+              <Label className="text-[#798283] opacity-0">Acciones</Label>
+              <Button
+                variant="outline"
+                onClick={handleClearFilters}
+                className="w-full border-[#798283]/20 text-[#798283] hover:bg-[#798283]/10"
+              >
+                Limpiar Filtros
+              </Button>
             </div>
           </div>
 
           {/* Active filters display */}
           <div className="flex items-center gap-2 mt-4">
-            <span className="text-sm text-muted-foreground">
-              Filtros activos:
-            </span>
+            <span className="text-sm text-[#798283]/70">Filtros activos:</span>
             {searchTerm && (
               <Badge variant="secondary" className="bg-blue-50 text-blue-700">
                 Búsqueda: "{searchTerm}"
@@ -379,65 +404,128 @@ export const ClientsList: React.FC = () => {
                 Estado: Inactivos
               </Badge>
             )}
-            {(searchTerm || statusFilter !== undefined) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClearFilters}
-                className="h-6 text-xs text-muted-foreground hover:text-foreground"
-              >
-                Limpiar filtros
-              </Button>
-            )}
           </div>
         </div>
 
         {/* Clients Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-border">
+        <div className="bg-white rounded-xl shadow-sm border border-[#798283]/10">
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold text-foreground">
+              <h3 className="text-lg font-semibold text-[#798283]">
                 Lista de Clientes
               </h3>
-              <div className="text-sm text-muted-foreground">
-                {isLoading ? (
-                  "Cargando..."
-                ) : (
-                  <>
-                    {clients.length}{" "}
-                    {clients.length === 1 ? "cliente" : "clientes"} encontrados
-                    {clientsData?.total &&
-                      clientsData.total > clients.length &&
-                      ` de ${clientsData.total}`}
-                  </>
-                )}
+              <div className="flex items-center gap-4">
+                {/* Page Size Selector */}
+                <div className="flex items-center gap-2">
+                  <Label
+                    htmlFor="page-size"
+                    className="text-sm text-[#798283]/70"
+                  >
+                    Mostrar:
+                  </Label>
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={handlePageSizeChange}
+                  >
+                    <SelectTrigger className="w-20 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="text-sm text-[#798283]/70">
+                  {isFetching ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#D42B22]"></div>
+                      Actualizando...
+                    </div>
+                  ) : (
+                    <>
+                      Mostrando {clients.length} de {totalCount}{" "}
+                      {totalCount === 1 ? "cliente" : "clientes"}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
-            <ClientsTable
-              data={clients}
-              onEdit={handleEdit}
-              onView={handleView}
-              onDeactivate={openDeactivateDialog}
-              onActivate={handleActivate}
-              canView={canViewClients}
-              canEdit={canEditClients}
-              canDelete={canDeleteClients}
-              canActivate={canActivateClients}
-              isLoading={isLoading}
-            />
+            {/* Show loading overlay only on the table during filter changes */}
+            <div className="relative">
+              {isFetching && (
+                <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10 rounded-lg">
+                  <div className="flex items-center gap-2 text-[#798283]">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#D42B22]"></div>
+                    <span>Actualizando datos...</span>
+                  </div>
+                </div>
+              )}
+
+              <ClientsTable
+                data={clients}
+                onEdit={handleEdit}
+                onView={handleView}
+                onDeactivate={openDeactivateDialog}
+                onActivate={handleActivate}
+                canView={canViewClients}
+                canEdit={canEditClients}
+                canDelete={canDeleteClients}
+                canActivate={canActivateClients}
+                isLoading={isLoading}
+              />
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex justify-between items-center pt-6 border-t border-[#798283]/10 mt-6">
+                  <div className="text-sm text-[#798283]/70">
+                    Página {currentPage} de {totalPages}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage <= 1}
+                      className="px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#798283]/10 transition-all duration-200"
+                    >
+                      Anterior
+                    </Button>
+
+                    <div className="flex gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                        (page) => (
+                          <Button
+                            key={page}
+                            onClick={() => handlePageChange(page)}
+                            className={`px-3 py-2 rounded-lg transition-all duration-200 ${
+                              currentPage === page
+                                ? "bg-[#D42B22] text-white"
+                                : "border border-[#798283]/30 text-[#798283] hover:bg-[#798283]/10"
+                            }`}
+                          >
+                            {page}
+                          </Button>
+                        )
+                      )}
+                    </div>
+
+                    <Button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= totalPages}
+                      className="px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#798283]/10 transition-all duration-200"
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Loading state */}
-        {isLoading && clients.length === 0 && (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
-            <span className="ml-3 text-muted-foreground">
-              Cargando clientes...
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Modals */}

@@ -402,7 +402,6 @@ async function main() {
     'exportador',
     'importador',
     'nacional',
-    'internacional',
   ];
   const embarcadorSpecialties = [
     'alimentos',

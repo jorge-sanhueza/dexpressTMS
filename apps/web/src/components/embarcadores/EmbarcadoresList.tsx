@@ -3,6 +3,7 @@ import { WideLayout } from "../layout/WideLayout";
 import { EmbarcadoresTable } from "./EmbarcadoresTable";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
+import { Input } from "../ui/input";
 import {
   useEmbarcadores,
   useCreateEmbarcador,
@@ -10,7 +11,6 @@ import {
   useDeleteEmbarcador,
 } from "../../hooks/useEmbarcadores";
 import { useAuthStore } from "../../store/authStore";
-import { Input } from "../ui/input";
 import { EmbarcadorForm } from "./EmbarcadorForm";
 import { toast } from "sonner";
 import {
@@ -28,6 +28,14 @@ import type { CreateEmbarcadorDto, Embarcador } from "@/types/shipper";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { useCompositeError, useMutationError } from "@/hooks/useErrorHandling";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { Label } from "../ui/label";
 
 export const EmbarcadoresList: React.FC = () => {
   // ========== STATE HOOKS ==========
@@ -54,6 +62,10 @@ export const EmbarcadoresList: React.FC = () => {
     embarcadorName: "",
   });
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   // ========== DERIVED STATE & HOOKS ==========
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -73,11 +85,11 @@ export const EmbarcadoresList: React.FC = () => {
       filterObj.activo = activoFilter;
     }
 
-    filterObj.page = 1;
-    filterObj.limit = 50;
+    filterObj.page = currentPage;
+    filterObj.limit = pageSize;
 
     return filterObj;
-  }, [debouncedSearchTerm, tipoFilter, activoFilter]);
+  }, [debouncedSearchTerm, tipoFilter, activoFilter, currentPage, pageSize]);
 
   // ========== DATA FETCHING ==========
   const {
@@ -89,6 +101,7 @@ export const EmbarcadoresList: React.FC = () => {
 
   const embarcadores = embarcadoresData?.embarcadores || [];
   const totalCount = embarcadoresData?.total || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   const createEmbarcadorMutation = useCreateEmbarcador();
   const updateEmbarcadorMutation = useUpdateEmbarcador();
@@ -127,50 +140,33 @@ export const EmbarcadoresList: React.FC = () => {
     "activar"
   );
 
-  // ========== LOADING & AUTH STATES ==========
-  if (isLoading || !isInitialized) {
-    return (
-      <WideLayout>
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D42B22]"></div>
-          <span className="ml-3 text-[#798283]">Cargando...</span>
-        </div>
-      </WideLayout>
-    );
-  }
-
-  if (!canViewEmbarcadores) {
-    return (
-      <WideLayout>
-        <div className="flex justify-center items-center h-64">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-[#798283] mb-4">
-              Acceso No Autorizado
-            </div>
-            <p className="text-[#798283]/70">
-              No tienes permisos para ver embarcadores.
-            </p>
-            <p className="text-sm text-[#798283]/50 mt-2">
-              Contacta al administrador del sistema para solicitar acceso.
-            </p>
-          </div>
-        </div>
-      </WideLayout>
-    );
-  }
-
   // ========== EVENT HANDLERS ==========
-
   const handleSearch = (value: string) => {
     setSearchTerm(value);
+    setCurrentPage(1); // Reset to first page when searching
   };
 
-  const handleTipoFilter = (tipo: string | undefined) => {
-    setTipoFilter(tipo);
+  const handleTipoFilter = (tipo: string) => {
+    // Use "all" for "Todos" option
+    const filterValue = tipo === "all" ? undefined : tipo;
+    setTipoFilter(filterValue);
+    setCurrentPage(1);
   };
 
-  const handleActivoFilter = (activo: boolean | undefined) => {
-    setActivoFilter(activo);
+  const handleActivoFilter = (activo: string) => {
+    // Use "all" for "Todos" option
+    const filterValue = activo === "all" ? undefined : activo === "true";
+    setActivoFilter(filterValue);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: string) => {
+    setPageSize(Number(size));
+    setCurrentPage(1);
   };
 
   // Open delete confirmation dialog
@@ -281,7 +277,40 @@ export const EmbarcadoresList: React.FC = () => {
     setSearchTerm("");
     setTipoFilter(undefined);
     setActivoFilter(undefined);
+    setCurrentPage(1);
   };
+
+  // ========== LOADING & AUTH STATES ==========
+  if (isLoading || !isInitialized) {
+    return (
+      <WideLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D42B22]"></div>
+          <span className="ml-3 text-[#798283]">Cargando...</span>
+        </div>
+      </WideLayout>
+    );
+  }
+
+  if (!canViewEmbarcadores) {
+    return (
+      <WideLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-[#798283] mb-4">
+              Acceso No Autorizado
+            </div>
+            <p className="text-[#798283]/70">
+              No tienes permisos para ver embarcadores.
+            </p>
+            <p className="text-sm text-[#798283]/50 mt-2">
+              Contacta al administrador del sistema para solicitar acceso.
+            </p>
+          </div>
+        </div>
+      </WideLayout>
+    );
+  }
 
   // ========== RENDER ==========
   return (
@@ -318,13 +347,14 @@ export const EmbarcadoresList: React.FC = () => {
 
         {/* Enhanced Filters Section */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             {/* Search Input */}
             <div>
-              <label className="block text-sm font-medium text-[#798283] mb-2">
+              <Label htmlFor="search" className="text-[#798283]">
                 Buscar embarcadores
-              </label>
+              </Label>
               <Input
+                id="search"
                 type="text"
                 placeholder="Buscar por nombre, RUT, contacto o email..."
                 value={searchTerm}
@@ -335,104 +365,57 @@ export const EmbarcadoresList: React.FC = () => {
 
             {/* Tipo Filter */}
             <div>
-              <label className="block text-sm font-medium text-[#798283] mb-2">
+              <Label htmlFor="tipo-filter" className="text-[#798283]">
                 Tipo
-              </label>
-              <div className="flex gap-2">
-                <Button
-                  variant={tipoFilter === undefined ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleTipoFilter(undefined)}
-                  className={
-                    tipoFilter === undefined
-                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
-                      : ""
-                  }
-                >
-                  Todos
-                </Button>
-                <Button
-                  variant={tipoFilter === "exportador" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleTipoFilter("exportador")}
-                  className={
-                    tipoFilter === "exportador"
-                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
-                      : ""
-                  }
-                >
-                  Exportadores
-                </Button>
-                <Button
-                  variant={tipoFilter === "importador" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleTipoFilter("importador")}
-                  className={
-                    tipoFilter === "importador"
-                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
-                      : ""
-                  }
-                >
-                  Importadores
-                </Button>
-                <Button
-                  variant={tipoFilter === "nacional" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleTipoFilter("nacional")}
-                  className={
-                    tipoFilter === "nacional"
-                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
-                      : ""
-                  }
-                >
-                  Nacionales
-                </Button>
-              </div>
+              </Label>
+              <Select
+                value={tipoFilter || "all"}
+                onValueChange={handleTipoFilter}
+              >
+                <SelectTrigger id="tipo-filter">
+                  <SelectValue placeholder="Todos los tipos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los tipos</SelectItem>
+                  <SelectItem value="exportador">Exportadores</SelectItem>
+                  <SelectItem value="importador">Importadores</SelectItem>
+                  <SelectItem value="nacional">Nacionales</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Estado Filter */}
             <div>
-              <label className="block text-sm font-medium text-[#798283] mb-2">
+              <Label htmlFor="estado-filter" className="text-[#798283]">
                 Estado
-              </label>
-              <div className="flex gap-2">
-                <Button
-                  variant={activoFilter === undefined ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleActivoFilter(undefined)}
-                  className={
-                    activoFilter === undefined
-                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
-                      : ""
-                  }
-                >
-                  Todos
-                </Button>
-                <Button
-                  variant={activoFilter === true ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleActivoFilter(true)}
-                  className={
-                    activoFilter === true
-                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
-                      : ""
-                  }
-                >
-                  Activos
-                </Button>
-                <Button
-                  variant={activoFilter === false ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleActivoFilter(false)}
-                  className={
-                    activoFilter === false
-                      ? "bg-[#D42B22] hover:bg-[#B3251E] text-white"
-                      : ""
-                  }
-                >
-                  Inactivos
-                </Button>
-              </div>
+              </Label>
+              <Select
+                value={
+                  activoFilter === undefined ? "all" : activoFilter.toString()
+                }
+                onValueChange={handleActivoFilter}
+              >
+                <SelectTrigger id="estado-filter">
+                  <SelectValue placeholder="Todos los estados" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="true">Activos</SelectItem>
+                  <SelectItem value="false">Inactivos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Clear Filters */}
+            <div>
+              <Label className="text-[#798283] opacity-0">Acciones</Label>
+              <Button
+                variant="outline"
+                onClick={handleClearFilters}
+                className="w-full border-[#798283]/20 text-[#798283] hover:bg-[#798283]/10"
+              >
+                Limpiar Filtros
+              </Button>
             </div>
           </div>
 
@@ -444,7 +427,7 @@ export const EmbarcadoresList: React.FC = () => {
                 Búsqueda: "{searchTerm}"
               </Badge>
             )}
-            {tipoFilter && (
+            {tipoFilter && tipoFilter !== "all" && (
               <Badge variant="secondary" className="bg-green-50 text-green-700">
                 Tipo: {tipoFilter}
               </Badge>
@@ -457,18 +440,6 @@ export const EmbarcadoresList: React.FC = () => {
                 Estado: {activoFilter ? "Activos" : "Inactivos"}
               </Badge>
             )}
-            {(searchTerm ||
-              tipoFilter !== undefined ||
-              activoFilter !== undefined) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClearFilters}
-                className="h-6 text-xs text-[#798283]/70 hover:text-[#798283]"
-              >
-                Limpiar filtros
-              </Button>
-            )}
           </div>
         </div>
 
@@ -479,18 +450,44 @@ export const EmbarcadoresList: React.FC = () => {
               <h3 className="text-lg font-semibold text-[#798283]">
                 Lista de Embarcadores
               </h3>
-              <div className="text-sm text-[#798283]/70">
-                {isFetching ? (
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#D42B22]"></div>
-                    Actualizando...
-                  </div>
-                ) : (
-                  <>
-                    {embarcadores.length} de {totalCount}{" "}
-                    {totalCount === 1 ? "embarcador" : "embarcadores"}
-                  </>
-                )}
+              <div className="flex items-center gap-4">
+                {/* Page Size Selector */}
+                <div className="flex items-center gap-2">
+                  <Label
+                    htmlFor="page-size"
+                    className="text-sm text-[#798283]/70"
+                  >
+                    Mostrar:
+                  </Label>
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={handlePageSizeChange}
+                  >
+                    <SelectTrigger className="w-20 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="text-sm text-[#798283]/70">
+                  {isFetching ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#D42B22]"></div>
+                      Actualizando...
+                    </div>
+                  ) : (
+                    <>
+                      Mostrando {embarcadores.length} de {totalCount}{" "}
+                      {totalCount === 1 ? "embarcador" : "embarcadores"}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -517,6 +514,51 @@ export const EmbarcadoresList: React.FC = () => {
                 canActivate={canActivateEmbarcadores}
                 isLoading={isLoading}
               />
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex justify-between items-center pt-6 border-t border-[#798283]/10 mt-6">
+                  <div className="text-sm text-[#798283]/70">
+                    Página {currentPage} de {totalPages}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage <= 1}
+                      className="px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#798283]/10 transition-all duration-200"
+                    >
+                      Anterior
+                    </Button>
+
+                    <div className="flex gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                        (page) => (
+                          <Button
+                            key={page}
+                            onClick={() => handlePageChange(page)}
+                            className={`px-3 py-2 rounded-lg transition-all duration-200 ${
+                              currentPage === page
+                                ? "bg-[#D42B22] text-white"
+                                : "border border-[#798283]/30 text-[#798283] hover:bg-[#798283]/10"
+                            }`}
+                          >
+                            {page}
+                          </Button>
+                        )
+                      )}
+                    </div>
+
+                    <Button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= totalPages}
+                      className="px-4 py-2 border border-[#798283]/30 rounded-lg text-[#798283] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#798283]/10 transition-all duration-200"
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -268,7 +268,6 @@ export const UsersManager: React.FC = () => {
             canDeactivate={canDeactivateUsers}
             isLoading={isLoading}
             isDeleting={deactivateUserMutation.isPending}
-            // Server-side pagination
             totalCount={totalCount}
             currentPage={filter.page || 1}
             pageSize={filter.limit || 10}
