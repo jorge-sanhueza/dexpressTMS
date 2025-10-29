@@ -80,20 +80,39 @@ class UsersService {
     return await response.json();
   }
 
-  async getProfiles(): Promise<Profile[]> {
-    const response = await apiClient.get(`${API_BASE}/api/profiles`);
+  async getProfiles(filters?: {
+    search?: string;
+    activo?: boolean;
+    limit?: number;
+  }): Promise<Profile[]> {
+    const queryParams = new URLSearchParams();
+
+    if (filters?.search) queryParams.append("search", filters.search);
+    if (filters?.activo !== undefined)
+      queryParams.append("activo", filters.activo.toString());
+    if (filters?.limit) queryParams.append("limit", filters.limit.toString());
+
+    const response = await apiClient.get(
+      `${API_BASE}/api/profiles?${queryParams}`
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to fetch profiles: ${response.statusText}`);
     }
 
-    const profiles = await response.json();
+    const data = await response.json();
 
-    // Transform the profiles data
-    return profiles.map((profile: any) => ({
+    if (!data.profiles || !Array.isArray(data.profiles)) {
+      console.warn("Unexpected profiles API response structure:", data);
+      return [];
+    }
+
+    return data.profiles.map((profile: any) => ({
       id: profile.id,
       nombre: profile.nombre,
-      tipo: profile.tipo ? { tipoPerfil: profile.tipo } : undefined,
+      tipo: profile.tipo,
+      descripcion: profile.descripcion,
+      activo: profile.activo,
     }));
   }
 }

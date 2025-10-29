@@ -3,7 +3,7 @@ import { ProfilesManager } from "./admin/Profiles/ProfilesManager";
 import { RolesManager } from "./admin/Roles/RolesManager";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
-import { UsersManager } from "./admin/UsersManager";
+import { UsersManager } from "./admin/Users/UsersManager";
 import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 

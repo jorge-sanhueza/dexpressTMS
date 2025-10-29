@@ -94,11 +94,15 @@ export function useDeactivateUser() {
 }
 
 // Hook for fetching profiles
-export function useProfiles() {
+export function useProfiles(filters?: {
+  search?: string;
+  activo?: boolean;
+  limit?: number;
+}) {
   return useQuery({
-    queryKey: userKeys.profiles(),
-    queryFn: () => usersService.getProfiles(),
-    staleTime: 30 * 60 * 1000, // 30 minutes (profiles don't change often)
+    queryKey: [...userKeys.profiles(), filters],
+    queryFn: () => usersService.getProfiles(filters),
+    staleTime: 5 * 60 * 1000,
   });
 }
 

@@ -1,8 +1,8 @@
+import { Button } from "@/components/ui/button";
+import { useProfiles, useUpdateUser } from "@/hooks/useUsers";
+import type { Profile } from "@/types/profile";
+import type { User } from "@/types/user";
 import React, { useState, useEffect } from "react";
-import { useUpdateUser, useProfiles } from "../../hooks/useUsers";
-import type { User } from "../../types/user";
-import type { Profile } from "../../types/profile";
-import { Button } from "../ui/button";
 
 interface UserEditModalProps {
   user: User;

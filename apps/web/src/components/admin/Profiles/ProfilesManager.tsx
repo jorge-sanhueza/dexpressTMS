@@ -54,6 +54,8 @@ export const ProfilesManager: React.FC = () => {
     search: "",
     tipo: undefined,
     activo: undefined,
+    page: 1,
+    limit: 10,
   });
 
   const canViewProfiles = hasModulePermission("perfiles", "ver");
@@ -61,14 +63,6 @@ export const ProfilesManager: React.FC = () => {
   const canEditProfiles = hasModulePermission("perfiles", "editar");
   const canDeleteProfiles = hasModulePermission("perfiles", "activar");
   const canAssignRoles = hasModulePermission("perfiles", "editar");
-
-  console.log("Permissions:", {
-    canViewProfiles,
-    canCreateProfiles,
-    canEditProfiles,
-    canDeleteProfiles,
-    canAssignRoles,
-  });
 
   // unauthorized message
   if (!canViewProfiles) {
@@ -99,6 +93,10 @@ export const ProfilesManager: React.FC = () => {
   const profiles = profilesData?.profiles || [];
   const totalCount = profilesData?.total || 0;
 
+  console.log("Full profiles API response:", profilesData);
+  console.log("Profiles array:", profiles);
+  console.log("Total count:", totalCount);
+
   const { data: profileTypes = [], isLoading: profileTypesLoading } =
     useProfileTypes();
 
@@ -120,6 +118,10 @@ export const ProfilesManager: React.FC = () => {
       }));
     }
   }, [profileTypes, formData.tipo]);
+
+  const handlePageChange = (page: number) => {
+    setFilters((prev) => ({ ...prev, page }));
+  };
 
   const handleFilterChange = (key: string, value: any) => {
     setFilters((prev) => ({
@@ -419,6 +421,10 @@ export const ProfilesManager: React.FC = () => {
         <div className="p-6">
           <ProfilesTable
             data={profiles}
+            totalCount={totalCount}
+            currentPage={filters.page || 1}
+            pageSize={filters.limit || 10}
+            onPageChange={handlePageChange}
             onView={handleViewProfile}
             onEdit={handleEdit}
             onDelete={handleDeactivate}
