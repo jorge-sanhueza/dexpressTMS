@@ -5,7 +5,6 @@ export interface Auth0User {
   name?: string;
   picture?: string;
   tenant_id?: string;
-  app_metadata?: {
-    tenant_id: string;
-  };
+  tenantId?: string;
+  tenant?: { id: string };
 }

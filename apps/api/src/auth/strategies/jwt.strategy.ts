@@ -1,11 +1,11 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
+import { Injectable } from '@nestjs/common';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { InternalJwtPayload } from '../services/internal-jwt.service';
+import { PassportStrategy } from '@nestjs/passport';
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
+export class JwtStrategy extends PassportStrategy(Strategy, 'internal-jwt') {
   constructor(private configService: ConfigService) {
     const jwtSecret = configService.get<string>('JWT_SECRET');
 
@@ -16,14 +16,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: jwtSecret, // Now this is guaranteed to be a string
+      secretOrKey: jwtSecret,
     });
   }
 
   async validate(payload: InternalJwtPayload) {
-    console.log('JWT Strategy - Validated payload:', payload);
+    console.log('JWT Strategy - Validated internal token payload:', payload);
 
-    // Return the user object that will be attached to req.user
     return {
       sub: payload.sub,
       email: payload.email,

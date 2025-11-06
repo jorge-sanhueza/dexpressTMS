@@ -10,6 +10,7 @@ import { RoleResponseDto } from '../dto/role-response.dto';
 import { CreateRoleDto } from '../dto/create-role.dto';
 import { UpdateRoleDto } from '../dto/update-role.dto';
 import { RolesFilterDto } from '../dto/role-filter.dto';
+import { TipoAccion } from '@prisma/client';
 
 @Injectable()
 export class RolesService {
@@ -35,11 +36,10 @@ export class RolesService {
           activo: true,
           orden: true,
           tenantId: true,
-          tipoAccion: {
-            select: {
-              tipoAccion: true,
-            },
-          },
+          tipoAccion: true,
+          visible: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
       this.logger.debug(`Found ${roles.length} roles`);
@@ -65,11 +65,10 @@ export class RolesService {
           activo: true,
           orden: true,
           tenantId: true,
-          tipoAccion: {
-            select: {
-              tipoAccion: true,
-            },
-          },
+          tipoAccion: true, // This is an enum, not a relation
+          visible: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
 
@@ -112,11 +111,13 @@ export class RolesService {
       const where: any = {
         tenantId,
       };
+
       // Search filter (across multiple fields)
       if (search) {
         where.OR = [
           { codigo: { contains: search, mode: 'insensitive' } },
           { nombre: { contains: search, mode: 'insensitive' } },
+          { modulo: { contains: search, mode: 'insensitive' } },
         ];
       }
 
@@ -125,11 +126,15 @@ export class RolesService {
         where.modulo = { contains: modulo, mode: 'insensitive' };
       }
 
-      // TipoAccion filter
+      // TipoAccion filter (enum value)
       if (tipo_accion) {
-        where.tipoAccion = {
-          tipoAccion: { contains: tipo_accion, mode: 'insensitive' },
-        };
+        // Convert string to enum value if it matches
+        const tipoAccionValue = Object.values(TipoAccion).find(
+          (value) => value.toLowerCase() === tipo_accion.toLowerCase(),
+        );
+        if (tipoAccionValue) {
+          where.tipoAccion = tipoAccionValue;
+        }
       }
 
       // Active filter
@@ -148,11 +153,10 @@ export class RolesService {
             activo: true,
             orden: true,
             tenantId: true,
-            tipoAccion: {
-              select: {
-                tipoAccion: true,
-              },
-            },
+            tipoAccion: true,
+            visible: true,
+            createdAt: true,
+            updatedAt: true,
           },
           skip,
           take: limitNumber,
@@ -198,26 +202,26 @@ export class RolesService {
     }
   }
 
-  // Add this method to get available tipoAccion values for filtering
   async getAvailableTipoAcciones(tenantId: string): Promise<string[]> {
     try {
+      // Since tipoAccion is an enum, we can return all possible values
+      // or get distinct values from existing roles
       const tipoAcciones = await this.prisma.rol.findMany({
         where: {
           tenantId,
           activo: true,
         },
-        include: {
-          tipoAccion: {
-            select: {
-              tipoAccion: true,
-            },
-          },
+        distinct: ['tipoAccion'],
+        select: {
+          tipoAccion: true,
         },
-        distinct: ['tipoAccionId'],
+        orderBy: {
+          tipoAccion: 'asc',
+        },
       });
 
       return tipoAcciones
-        .map((role) => role.tipoAccion?.tipoAccion)
+        .map((role) => role.tipoAccion)
         .filter(Boolean)
         .sort();
     } catch (error) {
@@ -228,7 +232,7 @@ export class RolesService {
 
   async createRole(createRoleDto: CreateRoleDto): Promise<RoleResponseDto> {
     try {
-      // Validation is now handled by DTO and class-validator
+      // Check if role with same code exists in the same tenant
       const existingRole = await this.prisma.rol.findFirst({
         where: {
           codigo: createRoleDto.codigo,
@@ -238,20 +242,20 @@ export class RolesService {
 
       if (existingRole) {
         throw new ConflictException(
-          `Role with code '${createRoleDto.codigo}' already exists`,
+          `Role with code '${createRoleDto.codigo}' already exists in this tenant`,
         );
       }
 
-      const tipoAccion = await this.prisma.tipoAccion.findFirst({
-        where: {
-          tipoAccion: createRoleDto.tipo_accion,
-        },
-      });
-
-      if (!tipoAccion) {
-        throw new BadRequestException(
-          `TipoAccion '${createRoleDto.tipo_accion}' not found`,
+      // Validate tipoAccion enum value
+      if (createRoleDto.tipo_accion) {
+        const isValidTipoAccion = Object.values(TipoAccion).includes(
+          createRoleDto.tipo_accion as TipoAccion,
         );
+        if (!isValidTipoAccion) {
+          throw new BadRequestException(
+            `Invalid tipoAccion value. Must be one of: ${Object.values(TipoAccion).join(', ')}`,
+          );
+        }
       }
 
       const role = await this.prisma.rol.create({
@@ -259,11 +263,11 @@ export class RolesService {
           codigo: createRoleDto.codigo,
           nombre: createRoleDto.nombre,
           modulo: createRoleDto.modulo,
-          tipoAccionId: tipoAccion.id,
+          tipoAccion: createRoleDto.tipo_accion as TipoAccion, // Use enum directly
           activo: createRoleDto.activo ?? true,
-          tenantId: createRoleDto.tenantId || 'default-tenant',
+          tenantId: createRoleDto.tenantId,
           orden: createRoleDto.orden || 0,
-          estadoId: await this.getDefaultEstadoId(),
+          visible: createRoleDto.visible ?? true,
         },
         select: {
           id: true,
@@ -273,13 +277,13 @@ export class RolesService {
           activo: true,
           orden: true,
           tenantId: true,
-          tipoAccion: {
-            select: {
-              tipoAccion: true,
-            },
-          },
+          tipoAccion: true,
+          visible: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
+
       this.logger.log(`Role created successfully: ${role.codigo}`);
       return new RoleResponseDto(role);
     } catch (error) {
@@ -301,6 +305,7 @@ export class RolesService {
         throw new NotFoundException(`Role with ID ${id} not found`);
       }
 
+      // Check for duplicate code in the same tenant
       if (
         updateRoleDto.codigo &&
         updateRoleDto.codigo !== existingRole.codigo
@@ -315,25 +320,21 @@ export class RolesService {
 
         if (duplicateRole) {
           throw new ConflictException(
-            `Role with code '${updateRoleDto.codigo}' already exists`,
+            `Role with code '${updateRoleDto.codigo}' already exists in this tenant`,
           );
         }
       }
 
-      let tipoAccionId = existingRole.tipoAccionId;
+      // Validate tipoAccion enum value if provided
       if (updateRoleDto.tipo_accion) {
-        const tipoAccion = await this.prisma.tipoAccion.findFirst({
-          where: {
-            tipoAccion: updateRoleDto.tipo_accion,
-          },
-        });
-
-        if (!tipoAccion) {
+        const isValidTipoAccion = Object.values(TipoAccion).includes(
+          updateRoleDto.tipo_accion as TipoAccion,
+        );
+        if (!isValidTipoAccion) {
           throw new BadRequestException(
-            `TipoAccion '${updateRoleDto.tipo_accion}' not found`,
+            `Invalid tipoAccion value. Must be one of: ${Object.values(TipoAccion).join(', ')}`,
           );
         }
-        tipoAccionId = tipoAccion.id;
       }
 
       const role = await this.prisma.rol.update({
@@ -342,9 +343,10 @@ export class RolesService {
           codigo: updateRoleDto.codigo,
           nombre: updateRoleDto.nombre,
           modulo: updateRoleDto.modulo,
-          tipoAccionId: tipoAccionId,
+          tipoAccion: updateRoleDto.tipo_accion as TipoAccion,
           activo: updateRoleDto.activo,
           orden: updateRoleDto.orden,
+          visible: updateRoleDto.visible,
         },
         select: {
           id: true,
@@ -354,13 +356,13 @@ export class RolesService {
           activo: true,
           orden: true,
           tenantId: true,
-          tipoAccion: {
-            select: {
-              tipoAccion: true,
-            },
-          },
+          tipoAccion: true,
+          visible: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
+
       this.logger.log(`Role updated successfully: ${role.codigo}`);
       return new RoleResponseDto(role);
     } catch (error) {
@@ -371,6 +373,7 @@ export class RolesService {
 
   async deleteRole(id: string): Promise<void> {
     try {
+      // Soft delete by setting activo to false
       await this.prisma.rol.update({
         where: { id },
         data: { activo: false },
@@ -380,19 +383,5 @@ export class RolesService {
       this.logger.error(`Error deleting role ${id}:`, error);
       throw error;
     }
-  }
-
-  private async getDefaultEstadoId(): Promise<string> {
-    const defaultEstado = await this.prisma.estadoRegistro.findFirst({
-      where: {
-        estado: 'activo',
-      },
-    });
-
-    if (!defaultEstado) {
-      throw new Error('Default estado not found');
-    }
-
-    return defaultEstado.id;
   }
 }

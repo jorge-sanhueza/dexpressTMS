@@ -1,48 +1,54 @@
-import { TipoAccion } from '@prisma/client';
 import {
   IsString,
-  IsEnum,
   IsOptional,
   IsBoolean,
-  IsInt,
-  Min,
-  Max,
+  IsEmail,
   Length,
   Matches,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
-export class UpdateRoleDto {
+export class UpdateClientDto {
   @IsOptional()
   @IsString()
-  @Length(3, 50)
-  @Matches(/^[a-zA-Z0-9_-]+$/, {
-    message: 'Code can only contain letters, numbers, underscores and hyphens',
-  })
-  codigo?: string;
-
-  @IsOptional()
-  @IsString()
-  @Length(2, 100)
+  @Length(1, 255)
   nombre?: string;
 
   @IsOptional()
   @IsString()
-  @Length(2, 50)
-  modulo?: string;
+  @Length(1, 255)
+  razonSocial?: string;
 
   @IsOptional()
-  @IsEnum(TipoAccion, {
-    message: `tipo_accion must be one of: ${Object.values(TipoAccion).join(', ')}`,
+  @IsString()
+  @Length(8, 12)
+  @Matches(/^[0-9]{7,8}-[0-9Kk]$/, {
+    message: 'RUT must be in format 12345678-9',
   })
-  tipo_accion?: TipoAccion;
+  rut?: string;
 
   @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(1000)
-  @Transform(({ value }) => (value ? parseInt(value) : undefined))
-  orden?: number;
+  @IsString()
+  @Length(1, 255)
+  contacto?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 20)
+  telefono?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 500)
+  direccion?: string;
+
+  @IsOptional()
+  @IsString()
+  comunaId?: string;
 
   @IsOptional()
   @IsBoolean()
@@ -60,5 +66,5 @@ export class UpdateRoleDto {
     if (value === 'false') return false;
     return value;
   })
-  visible?: boolean;
+  esPersona?: boolean;
 }

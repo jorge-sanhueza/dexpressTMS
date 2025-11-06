@@ -12,7 +12,7 @@ import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
-    PassportModule,
+    PassportModule.register({ defaultStrategy: 'internal-jwt' }),
     PrismaModule,
     RolesModule,
     JwtModule.registerAsync({
@@ -24,7 +24,7 @@ import { PassportModule } from '@nestjs/passport';
         }
         return {
           secret: jwtSecret,
-          signOptions: { expiresIn: '120m' },
+          signOptions: { expiresIn: '24h' },
         };
       },
       inject: [ConfigService],

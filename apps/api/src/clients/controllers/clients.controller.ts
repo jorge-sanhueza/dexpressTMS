@@ -14,12 +14,10 @@ import {
 } from '@nestjs/common';
 import { ClientsService } from '../services/clients.service';
 import { Auth0Guard } from '../../auth/guards/auth0.guard';
-import type {
-  CreateClientDto,
-  UpdateClientDto,
-  Client,
-  ClientsFilterDto,
-} from '../interfaces/client.interface';
+import { CreateClientDto } from '../dto/create-client.dto';
+import { UpdateClientDto } from '../dto/update-client.dto';
+import { ClientsFilterDto } from '../dto/clients-filter.dto';
+import { ClientResponseDto } from '../dto/client-response.dto';
 
 @Controller('api/clients')
 @UseGuards(Auth0Guard)
@@ -46,7 +44,7 @@ export class ClientsController {
     @Query() filter: ClientsFilterDto,
     @Request() req,
   ): Promise<{
-    clients: Client[];
+    clients: ClientResponseDto[];
     total: number;
     page: number;
     limit: number;
@@ -68,17 +66,27 @@ export class ClientsController {
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @Request() req,
-  ): Promise<Client> {
+  ): Promise<ClientResponseDto> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Fetching client ${id} for tenant: ${tenantId}`);
     return this.clientsService.findOne(id, tenantId);
+  }
+
+  @Get('rut/:rut')
+  async findByRut(
+    @Param('rut') rut: string,
+    @Request() req,
+  ): Promise<ClientResponseDto | null> {
+    const tenantId = this.getTenantId(req);
+    this.logger.log(`Finding client by RUT: ${rut} for tenant: ${tenantId}`);
+    return this.clientsService.findByRut(rut, tenantId);
   }
 
   @Post()
   async create(
     @Body() createClientDto: CreateClientDto,
     @Request() req,
-  ): Promise<Client> {
+  ): Promise<ClientResponseDto> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Creating client for tenant: ${tenantId}`);
     return this.clientsService.create(createClientDto, tenantId);
@@ -89,7 +97,7 @@ export class ClientsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateClientDto: UpdateClientDto,
     @Request() req,
-  ): Promise<Client> {
+  ): Promise<ClientResponseDto> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Updating client ${id} for tenant: ${tenantId}`);
     return this.clientsService.update(id, updateClientDto, tenantId);

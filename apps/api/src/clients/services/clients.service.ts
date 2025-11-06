@@ -3,14 +3,14 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
-import {
-  Client,
-  CreateClientDto,
-  UpdateClientDto,
-  ClientsFilterDto,
-} from '../interfaces/client.interface';
+import { CreateClientDto } from '../dto/create-client.dto';
+import { UpdateClientDto } from '../dto/update-client.dto';
+import { ClientsFilterDto } from '../dto/clients-filter.dto';
+import { ClientResponseDto } from '../dto/client-response.dto';
+import { TipoEntidad } from '@prisma/client';
 
 @Injectable()
 export class ClientsService {
@@ -21,7 +21,7 @@ export class ClientsService {
   async findAll(
     filter: ClientsFilterDto,
     tenantId: string,
-  ): Promise<{ clients: Client[]; total: number }> {
+  ): Promise<{ clients: ClientResponseDto[]; total: number }> {
     try {
       const { search, activo, page = 1, limit = 10 } = filter;
 
@@ -38,6 +38,7 @@ export class ClientsService {
       if (search) {
         where.OR = [
           { nombre: { contains: search, mode: 'insensitive' } },
+          { razonSocial: { contains: search, mode: 'insensitive' } },
           { rut: { contains: search, mode: 'insensitive' } },
           { contacto: { contains: search, mode: 'insensitive' } },
           { email: { contains: search, mode: 'insensitive' } },
@@ -56,18 +57,19 @@ export class ClientsService {
             comuna: {
               include: {
                 region: true,
+                provincia: true,
               },
             },
           },
           skip,
           take: limitNumber,
-          orderBy: { nombre: 'asc' },
+          orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
         }),
         this.prisma.cliente.count({ where }),
       ]);
 
       return {
-        clients: clients as unknown as Client[],
+        clients: clients.map((client) => new ClientResponseDto(client)),
         total,
       };
     } catch (error) {
@@ -76,7 +78,7 @@ export class ClientsService {
     }
   }
 
-  async findOne(id: string, tenantId: string): Promise<Client> {
+  async findOne(id: string, tenantId: string): Promise<ClientResponseDto> {
     try {
       const client = await this.prisma.cliente.findFirst({
         where: {
@@ -87,6 +89,7 @@ export class ClientsService {
           comuna: {
             include: {
               region: true,
+              provincia: true,
             },
           },
         },
@@ -96,7 +99,7 @@ export class ClientsService {
         throw new NotFoundException('Client not found');
       }
 
-      return client as unknown as Client;
+      return new ClientResponseDto(client);
     } catch (error) {
       this.logger.error(`Error fetching client ${id}:`, error);
       throw error;
@@ -106,9 +109,9 @@ export class ClientsService {
   async create(
     createClientDto: CreateClientDto,
     tenantId: string,
-  ): Promise<Client> {
+  ): Promise<ClientResponseDto> {
     try {
-      // Check if RUT already exists
+      // Check if RUT already exists for this tenant
       const existingClient = await this.prisma.cliente.findFirst({
         where: {
           rut: createClientDto.rut,
@@ -117,27 +120,45 @@ export class ClientsService {
       });
 
       if (existingClient) {
-        throw new BadRequestException('Client with this RUT already exists');
+        throw new ConflictException('Client with this RUT already exists');
+      }
+
+      // Verify comuna exists
+      const comuna = await this.prisma.comuna.findUnique({
+        where: { id: createClientDto.comunaId },
+      });
+
+      if (!comuna) {
+        throw new BadRequestException('Invalid comunaId');
       }
 
       const client = await this.prisma.cliente.create({
         data: {
-          ...createClientDto,
+          nombre: createClientDto.nombre,
+          razonSocial: createClientDto.razonSocial,
+          rut: createClientDto.rut,
+          contacto: createClientDto.contacto,
+          email: createClientDto.email,
+          telefono: createClientDto.telefono,
+          direccion: createClientDto.direccion,
+          comunaId: createClientDto.comunaId,
+          esPersona: createClientDto.esPersona ?? false,
           activo: true,
-          estado: 'activo',
-          tipoEntidad: 'cliente',
+          tipoEntidad: TipoEntidad.CLIENTE,
           tenantId,
         },
         include: {
           comuna: {
             include: {
               region: true,
+              provincia: true,
             },
           },
         },
       });
 
-      return client as unknown as Client;
+      this.logger.log(`Client created successfully: ${client.rut}`);
+      return new ClientResponseDto(client);
     } catch (error) {
       this.logger.error('Error creating client:', error);
       throw error;
@@ -148,7 +169,7 @@ export class ClientsService {
     id: string,
     updateClientDto: UpdateClientDto,
     tenantId: string,
-  ): Promise<Client> {
+  ): Promise<ClientResponseDto> {
     try {
       // Verify client exists and belongs to tenant
       const existingClient = await this.prisma.cliente.findFirst({
@@ -159,6 +180,34 @@ export class ClientsService {
         throw new NotFoundException('Client not found');
       }
 
+      // Check for RUT conflict if RUT is being updated
+      if (updateClientDto.rut && updateClientDto.rut !== existingClient.rut) {
+        const duplicateClient = await this.prisma.cliente.findFirst({
+          where: {
+            rut: updateClientDto.rut,
+            tenantId,
+            id: { not: id },
+          },
+        });
+
+        if (duplicateClient) {
+          throw new ConflictException(
+            'Another client with this RUT already exists',
+          );
+        }
+      }
+
+      // Verify comuna exists if comunaId is being updated
+      if (updateClientDto.comunaId) {
+        const comuna = await this.prisma.comuna.findUnique({
+          where: { id: updateClientDto.comunaId },
+        });
+
+        if (!comuna) {
+          throw new BadRequestException('Invalid comunaId');
+        }
+      }
+
       const client = await this.prisma.cliente.update({
         where: { id },
         data: updateClientDto,
@@ -166,12 +215,14 @@ export class ClientsService {
           comuna: {
             include: {
               region: true,
+              provincia: true,
             },
           },
         },
       });
 
-      return client as unknown as Client;
+      this.logger.log(`Client updated successfully: ${client.rut}`);
+      return new ClientResponseDto(client);
     } catch (error) {
       this.logger.error(`Error updating client ${id}:`, error);
       throw error;
@@ -198,6 +249,33 @@ export class ClientsService {
       this.logger.log(`Client ${id} deactivated`);
     } catch (error) {
       this.logger.error(`Error deactivating client ${id}:`, error);
+      throw error;
+    }
+  }
+
+  async findByRut(
+    rut: string,
+    tenantId: string,
+  ): Promise<ClientResponseDto | null> {
+    try {
+      const client = await this.prisma.cliente.findFirst({
+        where: {
+          rut,
+          tenantId,
+        },
+        include: {
+          comuna: {
+            include: {
+              region: true,
+              provincia: true,
+            },
+          },
+        },
+      });
+
+      return client ? new ClientResponseDto(client) : null;
+    } catch (error) {
+      this.logger.error(`Error finding client by RUT ${rut}:`, error);
       throw error;
     }
   }

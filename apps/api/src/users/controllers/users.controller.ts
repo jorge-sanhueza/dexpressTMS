@@ -11,6 +11,7 @@ import {
   Request,
   Logger,
   ParseUUIDPipe,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { UsersService } from '../services/users.service';
 import { Auth0Guard } from '../../auth/guards/auth0.guard';
@@ -20,6 +21,15 @@ import type {
   User,
   UsersFilterDto,
 } from '../interfaces/user.interface';
+import { Auth0User } from '../../auth/interfaces/auth0-user.interface';
+
+interface AuthenticatedRequest extends Request {
+  user: Auth0User & {
+    tenant_id?: string;
+    tenantId?: string;
+    tenant?: { id: string };
+  };
+}
 
 @Controller('api/users')
 @UseGuards(Auth0Guard)
@@ -28,7 +38,7 @@ export class UsersController {
 
   constructor(private readonly usersService: UsersService) {}
 
-  private getTenantId(req: any): string {
+  private getTenantId(req: AuthenticatedRequest): string {
     // Try different possible locations for tenant_id
     const tenantId =
       req.user?.tenant_id || req.user?.tenantId || req.user?.tenant?.id;
@@ -37,7 +47,7 @@ export class UsersController {
     this.logger.debug(`Full user object: ${JSON.stringify(req.user)}`);
 
     if (!tenantId) {
-      throw new Error('Tenant ID not found in user object');
+      throw new UnauthorizedException('Tenant ID not found in user object');
     }
 
     return tenantId;
@@ -46,7 +56,7 @@ export class UsersController {
   @Get()
   async findAll(
     @Query() filter: UsersFilterDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<{
     users: User[];
     total: number;
@@ -67,15 +77,20 @@ export class UsersController {
   }
 
   @Get('me')
-  async getCurrentUser(@Request() req): Promise<User> {
-    this.logger.log(`Fetching current user: ${req.user?.sub}`);
-    return this.usersService.getCurrentUser(req.user?.sub);
+  async getCurrentUser(@Request() req: AuthenticatedRequest): Promise<User> {
+    const userId = req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('User ID not found in request');
+    }
+
+    this.logger.log(`Fetching current user: ${userId}`);
+    return this.usersService.getCurrentUser(userId);
   }
 
   @Get(':id')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<User> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Fetching user ${id} for tenant: ${tenantId}`);
@@ -85,13 +100,13 @@ export class UsersController {
   @Post()
   async create(
     @Body() createUserDto: CreateUserDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<User> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Creating user for tenant: ${tenantId}`);
 
     // Ensure the created user belongs to the same tenant
-    const userData = {
+    const userData: CreateUserDto = {
       ...createUserDto,
       tenantId: tenantId,
     };
@@ -102,17 +117,22 @@ export class UsersController {
   @Put('me')
   async updateCurrentUser(
     @Body() updateUserDto: UpdateUserDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<User> {
-    this.logger.log(`Updating current user: ${req.user?.sub}`);
-    return this.usersService.updateCurrentUser(req.user?.sub, updateUserDto);
+    const userId = req.user?.sub;
+    if (!userId) {
+      throw new UnauthorizedException('User ID not found in request');
+    }
+
+    this.logger.log(`Updating current user: ${userId}`);
+    return this.usersService.updateCurrentUser(userId, updateUserDto);
   }
 
   @Put(':id')
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<User> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Updating user ${id} for tenant: ${tenantId}`);
@@ -122,7 +142,7 @@ export class UsersController {
   @Delete(':id')
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<{ message: string }> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Deactivating user ${id} for tenant: ${tenantId}`);

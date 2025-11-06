@@ -6,8 +6,11 @@ import {
   Get,
   Body,
   Logger,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { Auth0Guard } from './guards/auth0.guard';
+import { JwtGuard } from './guards/jwt.guard';
 import { AuthService } from './services/auth.service';
 import { Auth0User } from './interfaces/auth0-user.interface';
 
@@ -19,10 +22,12 @@ export class AuthController {
     this.logger.log('AuthController initialized');
   }
 
+  // Use Auth0Guard for external Auth0 tokens
   @UseGuards(Auth0Guard)
   @Post('login')
   async login(@Request() req) {
     this.logger.log('Auth0 login endpoint called');
+    this.logger.debug('User from request:', req.user);
     return this.authService.handleAuth0Login(req.user);
   }
 
@@ -46,25 +51,46 @@ export class AuthController {
       return result;
     } catch (error) {
       this.logger.error('Test login failed with error:', error);
-      this.logger.error('Error stack:', error.stack);
-      // Return the actual error for debugging
-      return {
-        error: error.message,
-        stack: error.stack,
-        statusCode: 500,
-      };
+      throw new HttpException(
+        {
+          error: error.message,
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   @Post('refresh')
-  async refreshToken(@Request() req) {
-    return { message: 'Refresh token endpoint' };
+  async refreshToken(@Body() body: { refresh_token: string }) {
+    try {
+      this.logger.log('Refresh token endpoint called');
+      const result = await this.authService.refreshTokens(body.refresh_token);
+      return result;
+    } catch (error) {
+      this.logger.error('Refresh token failed:', error);
+      throw new HttpException(
+        {
+          error: error.message,
+          statusCode: HttpStatus.UNAUTHORIZED,
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
   }
 
-  @UseGuards(Auth0Guard)
+  // Use JwtGuard for internal tokens after login
+  @UseGuards(JwtGuard)
   @Get('profile')
   getProfile(@Request() req) {
-    return req.user;
+    return {
+      id: req.user.sub,
+      email: req.user.email,
+      name: req.user.name,
+      tenant_id: req.user.tenant_id,
+      profile_id: req.user.profile_id,
+      permissions: req.user.permissions,
+    };
   }
 
   @Get('health')
@@ -72,12 +98,23 @@ export class AuthController {
     return { status: 'OK', message: 'Auth endpoint is working' };
   }
 
+  // Use JwtGuard for internal token debugging
+  @UseGuards(JwtGuard)
   @Get('debug-payload')
   async debugPayload(@Request() req) {
     return {
-      message: 'JWT Payload Debug',
+      message: 'Internal JWT Payload Debug',
       user: req.user,
-      headers: req.headers,
+    };
+  }
+
+  // Add endpoint to debug Auth0 tokens
+  @UseGuards(Auth0Guard)
+  @Get('debug-auth0-payload')
+  async debugAuth0Payload(@Request() req) {
+    return {
+      message: 'Auth0 JWT Payload Debug',
+      user: req.user,
     };
   }
 }

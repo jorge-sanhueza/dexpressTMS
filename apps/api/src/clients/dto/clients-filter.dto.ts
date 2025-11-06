@@ -1,25 +1,17 @@
-import {
-  IsString,
-  IsOptional,
-  IsBoolean,
-  IsInt,
-  Min,
-  Max,
+import { 
+  IsString, 
+  IsOptional, 
+  IsBoolean, 
+  IsInt, 
+  Min, 
+  Max 
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
-export class RolesFilterDto {
+export class ClientsFilterDto {
   @IsOptional()
   @IsString()
   search?: string;
-
-  @IsOptional()
-  @IsString()
-  modulo?: string;
-
-  @IsOptional()
-  @IsString()
-  tipo_accion?: string;
 
   @IsOptional()
   @IsBoolean()

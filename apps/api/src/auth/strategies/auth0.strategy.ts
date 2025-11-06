@@ -6,7 +6,7 @@ import { passportJwtSecret } from 'jwks-rsa';
 import { Auth0User } from '../interfaces/auth0-user.interface';
 
 @Injectable()
-export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
+export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0-jwt') {
   constructor(private configService: ConfigService) {
     const auth0Domain = configService.get('AUTH0_DOMAIN');
     const auth0Audience = configService.get('AUTH0_AUDIENCE');
@@ -25,22 +25,7 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
         jwksUri: `https://${auth0Domain}/.well-known/jwks.json`,
       }),
 
-      jwtFromRequest: (req) => {
-        // Extract JWT from Authorization header
-        const authHeader = req.headers.authorization;
-        console.log('🔐 Auth0Strategy - Authorization header:', authHeader);
-
-        if (authHeader && authHeader.split(' ')[0] === 'Bearer') {
-          const token = authHeader.split(' ')[1];
-          console.log(
-            '🔐 Auth0Strategy - Token extracted, length:',
-            token?.length,
-          );
-          return token;
-        }
-        console.log('❌ Auth0Strategy - No Bearer token found');
-        return null;
-      },
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
 
       audience: auth0Audience,
       issuer: `https://${auth0Domain}/`,
@@ -55,7 +40,6 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
       email: payload.email,
       name: payload.name,
       tenant_id: payload['https://tms.com/tenant_id'] || payload.tenant_id,
-      fullPayload: payload,
     });
 
     return {
@@ -70,3 +54,6 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
     };
   }
 }
+
+// Add this import at the top
+import { ExtractJwt } from 'passport-jwt';

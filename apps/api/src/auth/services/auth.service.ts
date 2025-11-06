@@ -7,8 +7,8 @@ import {
 import { InternalJwtService, InternalJwtPayload } from './internal-jwt.service';
 import { Auth0User } from '../interfaces/auth0-user.interface';
 import { PrismaService } from 'prisma/prisma.service';
-import { RolesService } from 'src/roles/services/roles.service';
-import { EstadoUsuario, TipoTenant } from '@prisma/client';
+import { EstadoUsuario, TipoTenant, TipoAccion } from '@prisma/client';
+import { LoginResponse } from '../interfaces/login-response.interface';
 
 @Injectable()
 export class AuthService {
@@ -17,12 +17,11 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private internalJwtService: InternalJwtService,
-    private rolesService: RolesService,
   ) {
     this.logger.log('AuthService initialized');
   }
 
-  async handleAuth0Login(auth0User: Auth0User) {
+  async handleAuth0Login(auth0User: Auth0User): Promise<LoginResponse> {
     this.logger.log(`Auth0 login attempt for: ${auth0User.email}`);
 
     // 1. Simple user lookup - just find by email for now
@@ -59,20 +58,15 @@ export class AuthService {
       throw new UnauthorizedException('User account is disabled');
     }
 
-    // 2. Get basic permissions for testing
+    // 2. Get permissions using role codes instead of IDs
     const permissions = await this.getUserPermissions(user.id, user.tenantId);
 
     // Add logging here
     this.logger.debug('Permissions before JWT generation:');
     this.logger.debug(`Number of permissions: ${permissions.length}`);
-    this.logger.debug(`First permission: ${permissions[0]}`);
-    this.logger.debug(`All permissions: ${JSON.stringify(permissions)}`);
-
-    // Check if we have UUIDs or names
     if (permissions.length > 0) {
-      const firstPerm = permissions[0];
-      const isUuid = firstPerm.includes('-') && firstPerm.length > 30;
-      this.logger.debug(`First permission is UUID: ${isUuid}`);
+      this.logger.debug(`First permission: ${permissions[0]}`);
+      this.logger.debug(`All permissions: ${JSON.stringify(permissions)}`);
     }
 
     // 3. Generate internal JWT with permissions
@@ -92,7 +86,7 @@ export class AuthService {
 
     this.logger.log(`Login successful for user: ${user.correo}`);
 
-    const loginResponse = {
+    const loginResponse: LoginResponse = {
       access_token: accessToken,
       refresh_token: refreshToken,
       user: {
@@ -105,6 +99,7 @@ export class AuthService {
         permissions: permissions,
       },
     };
+
     this.logger.debug(
       'Login response:',
       JSON.stringify(loginResponse, null, 2),
@@ -128,8 +123,8 @@ export class AuthService {
         estado: EstadoUsuario.ACTIVO,
         tenantId: defaultTenant.id,
         perfilId: defaultProfile.id,
-        rut: '12345678-9',
-        telefono: '+1234567890',
+        rut: '12345678-9', // Required field
+        telefono: '+1234567890', // Optional but providing value
       },
     });
 
@@ -173,9 +168,8 @@ export class AuthService {
                 include: {
                   rol: {
                     select: {
-                      id: true, // UUID
-                      codigo: true, // role code
-                      nombre: true, // role name
+                      codigo: true, // Use role code instead of ID for permissions
+                      nombre: true,
                     },
                   },
                 },
@@ -197,29 +191,24 @@ export class AuthService {
           `Found ${userWithProfile.perfil.perfilesRoles.length} profile-role relationships`,
         );
 
-        // Log the first relationship to see what we're getting
-        if (userWithProfile.perfil.perfilesRoles.length > 0) {
-          const firstRelation = userWithProfile.perfil.perfilesRoles[0];
-          this.logger.debug(
-            `First relationship - Role ID: ${firstRelation.rol.id}, Name: ${firstRelation.rol.nombre}, Code: ${firstRelation.rol.codigo}`,
-          );
-        }
-
-        // Extract role IDs (UUIDs)
-        const roleIds = userWithProfile.perfil.perfilesRoles
+        // Extract role CODES instead of IDs for permissions
+        const roleCodes = userWithProfile.perfil.perfilesRoles
           .map((pr) => {
+            const roleCode = pr.rol.codigo;
             this.logger.debug(
-              `Mapping - Role ID: ${pr.rol.id}, Name: ${pr.rol.nombre}`,
+              `Mapping - Role Code: ${roleCode}, Name: ${pr.rol.nombre}`,
             );
-            return pr.rol.id; // This should return UUIDs
+            return roleCode;
           })
           .filter(Boolean);
 
-        this.logger.debug(`Returning ${roleIds.length} role IDs`);
-        this.logger.debug(`First returned ID: ${roleIds[0]}`);
-        this.logger.debug(`All returned IDs: ${JSON.stringify(roleIds)}`);
+        this.logger.debug(`Returning ${roleCodes.length} role codes`);
+        if (roleCodes.length > 0) {
+          this.logger.debug(`First returned code: ${roleCodes[0]}`);
+          this.logger.debug(`All returned codes: ${JSON.stringify(roleCodes)}`);
+        }
 
-        return roleIds;
+        return roleCodes;
       } else {
         this.logger.warn('No roles found for user profile');
       }
@@ -229,23 +218,6 @@ export class AuthService {
     } catch (error) {
       this.logger.error('Error getting permissions:', error);
       return [];
-    }
-  }
-
-  async getUserRolesWithDetails(roleIds: string[]): Promise<any[]> {
-    try {
-      return await this.rolesService.getRolesByIds(roleIds);
-    } catch (error) {
-      this.logger.warn(
-        'Error fetching role details, returning basic info:',
-        error,
-      );
-      // Fallback: return basic role info
-      return roleIds.map((id) => ({
-        id,
-        codigo: 'rol_defecto',
-        nombre: 'Rol básico',
-      }));
     }
   }
 
@@ -321,25 +293,28 @@ export class AuthService {
     return profile;
   }
 
-  private async createDefaultRoles(tenantId: string, profileId: string) {
+  private async createDefaultRoles(
+    tenantId: string,
+    profileId: string,
+  ): Promise<void> {
     const defaultRoles = [
       {
         codigo: 'ver_dashboard',
         nombre: 'Ver Dashboard',
-        modulo: 'usuarios',
-        tipoAccion: 'VER' as const,
+        modulo: 'dashboard',
+        tipoAccion: TipoAccion.VER,
       },
       {
         codigo: 'crear_ordenes',
         nombre: 'Crear Órdenes',
         modulo: 'ordenes',
-        tipoAccion: 'CREAR' as const,
+        tipoAccion: TipoAccion.CREAR,
       },
       {
         codigo: 'editar_perfil',
         nombre: 'Editar Perfil',
         modulo: 'usuarios',
-        tipoAccion: 'EDITAR' as const,
+        tipoAccion: TipoAccion.EDITAR,
       },
     ];
 
@@ -366,7 +341,7 @@ export class AuthService {
   }
 
   // Optional: Method to validate refresh token
-  async validateRefreshToken(refreshToken: string): Promise<any> {
+  async validateRefreshToken(refreshToken: string) {
     try {
       const payload = this.internalJwtService.verifyInternalToken(refreshToken);
       const user = await this.prisma.usuario.findUnique({
@@ -396,7 +371,7 @@ export class AuthService {
   }
 
   // Optional: Method to refresh tokens
-  async refreshTokens(refreshToken: string) {
+  async refreshTokens(refreshToken: string): Promise<LoginResponse> {
     const user = await this.validateRefreshToken(refreshToken);
 
     if (!user) {
