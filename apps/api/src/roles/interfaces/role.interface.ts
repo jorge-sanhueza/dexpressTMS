@@ -7,8 +7,7 @@ export interface Role {
   visible: boolean;
   orden: number;
   tenantId: string;
-  estadoId: string;
-  tipoAccionId: string;
+  tipoAccion: 'VER' | 'CREAR' | 'EDITAR' | 'ELIMINAR';
   createdAt: string;
   updatedAt: string;
 }

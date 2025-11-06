@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -28,6 +29,15 @@ async function bootstrap() {
     ],
     exposedHeaders: ['Authorization'],
   });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Remove properties not defined in DTO
+      forbidNonWhitelisted: true, // Throw error if non-whitelisted properties are present
+      transform: true, // Automatically transform payloads to DTO instances
+      disableErrorMessages: false, // Show detailed error messages (true in production)
+    }),
+  );
 
   // Register global error filter
   app.useGlobalFilters(new HttpExceptionFilter());

@@ -55,14 +55,6 @@ export class ProfilesController {
     };
   }
 
-  @Get('types')
-  async getProfileTypes(
-    @Request() req,
-  ): Promise<{ id: string; tipoPerfil: string }[]> {
-    this.logger.log(`Fetching profile types for tenant: ${req.user.tenant_id}`);
-    return this.profilesService.getProfileTypes(req.user.tenant_id);
-  }
-
   @Get(':id')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
@@ -132,9 +124,11 @@ export class ProfilesController {
     @Request() req,
   ): Promise<RoleResponseDto[]> {
     this.logger.log(`Fetching available roles for profile: ${id}`);
-    return this.profilesService.getAvailableRolesForProfile(
+    const roles = await this.profilesService.getAvailableRolesForProfile(
       id,
       req.user.tenant_id,
     );
+
+    return roles.map((role) => new RoleResponseDto(role));
   }
 }

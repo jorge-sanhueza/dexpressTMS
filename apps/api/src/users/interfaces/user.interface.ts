@@ -1,83 +1,78 @@
+import { EstadoUsuario } from '@prisma/client';
+
 export interface User {
   id: string;
   email: string;
   nombre: string;
   activo: boolean;
-  contacto?: string;
+  estado: EstadoUsuario;
   rut?: string;
   telefono?: string;
   tenantId: string;
   perfilId: string;
-  estadoId: string;
-  tipoId: string;
-  profile_type?: string;
+  perfilNombre?: string;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface ProfileType {
-  id: string;
-  tipoPerfil: string;
+  rolesCount?: number;
 }
 
 export interface Profile {
   id: string;
   nombre: string;
-  tipo?: ProfileType;
-}
-
-export interface UserType {
-  id: string;
-  tipoUsuario: string;
-}
-
-export interface Status {
-  id: string;
-  estado: string;
+  descripcion?: string;
+  activo: boolean;
+  perfilesRoles?: Array<{
+    id: string;
+    rol: {
+      id: string;
+      codigo: string;
+      nombre: string;
+      modulo: string;
+      tipoAccion: string;
+      activo: boolean;
+    };
+  }>;
 }
 
 export interface Tenant {
   id: string;
   nombre: string;
+  activo: boolean;
+  tipoTenant: string;
+  contacto: string;
+  rut: string;
 }
 
 export interface UserWithDetails extends User {
-  perfil?: Profile;
-  tipo?: UserType;
-  estado?: Status;
-}
-
-export interface UserWithFullDetails extends User {
-  perfil?: Profile;
-  tipo?: UserType;
-  estado?: Status;
-  tenant?: Tenant;
+  perfil: Profile;
+  tenant: Tenant;
 }
 
 export interface CreateUserDto {
   email: string;
   nombre: string;
-  contacto?: string;
   rut?: string;
   telefono?: string;
   perfilId: string;
   tenantId: string;
-  tipoId?: string;
+  activo?: boolean;
+  estado?: EstadoUsuario;
 }
 
 export interface UpdateUserDto {
+  email?: string;
   nombre?: string;
-  contacto?: string;
   rut?: string;
   telefono?: string;
   perfilId?: string;
   activo?: boolean;
-  tipoId?: string;
+  estado?: EstadoUsuario;
 }
 
 export interface UsersFilterDto {
   search?: string;
   activo?: boolean;
+  estado?: EstadoUsuario;
   perfilId?: string;
   page?: number;
   limit?: number;

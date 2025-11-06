@@ -1,516 +1,1281 @@
-import { PrismaClient, Perfil } from '@prisma/client';
+import {
+  PrismaClient,
+  Rol,
+  TipoTenant,
+  TipoAccion,
+  EstadoUsuario,
+  TipoEntidad,
+} from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { fakerES as faker } from '@faker-js/faker';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding database with additional data...');
-
-  // First, let's check what already exists
-  const existingTenant = await prisma.tenant.findFirst({
-    where: { nombre: 'Tenant Administrativo' },
-  });
-
-  if (!existingTenant) {
-    console.log(
-      '❌ Admin tenant not found. Please run your original seed first.',
-    );
-    process.exit(1);
-  }
-
-  const adminTenant = existingTenant;
-  const estadoActivo = await prisma.estadoRegistro.findFirst({
-    where: { estado: 'activo' },
-  });
-  const tipoPerfilBasico = await prisma.tipoPerfil.findFirst({
-    where: { tipoPerfil: 'básico' },
-  });
-  const tipoUsuarioStandard = await prisma.tipoUsuario.findFirst({
-    where: { tipoUsuario: 'standard' },
-  });
-
-  if (!estadoActivo || !tipoPerfilBasico || !tipoUsuarioStandard) {
-    console.log(
-      '❌ Required base types not found. Please run your original seed first.',
-    );
-    process.exit(1);
-  }
-
-  // Get existing roles to assign to new profiles
-  const existingRoles = await prisma.rol.findMany({
-    where: { tenantId: adminTenant.id },
-  });
-
-  // Create additional profiles (12 básico profiles)
-  console.log('👥 Creating additional profiles...');
-
-  const basicProfiles = [
+  const chileanRegions = [
     {
-      nombre: 'Asistente Comercial',
-      descripcion: 'Perfil para asistencia en actividades comerciales',
-      contacto: 'asistente@demo.cl',
-      rut: '55666778-8',
+      codigo: 'XV',
+      nombre: 'XV de Arica y Parinacota',
+      ordinal: 15,
+      provincias: [
+        {
+          nombre: 'Arica',
+          comunas: ['Arica', 'Camarones'],
+        },
+        {
+          nombre: 'Parinacota',
+          comunas: ['Putre', 'General Lagos'],
+        },
+      ],
     },
     {
-      nombre: 'Analista Junior',
-      descripcion: 'Perfil para análisis básicos y reportes',
-      contacto: 'analista@demo.cl',
-      rut: '55666779-8',
+      codigo: 'I',
+      nombre: 'I de Tarapacá',
+      ordinal: 1,
+      provincias: [
+        {
+          nombre: 'Iquique',
+          comunas: ['Alto Hospicio', 'Iquique'],
+        },
+        {
+          nombre: 'Del Tamarugal',
+          comunas: ['Huara', 'Camiña', 'Colchane', 'Pica', 'Pozo Almonte'],
+        },
+      ],
     },
     {
-      nombre: 'Ejecutivo de Ventas',
-      descripcion: 'Perfil para gestión comercial y ventas',
-      contacto: 'ventas@demo.cl',
-      rut: '55666780-8',
+      codigo: 'II',
+      nombre: 'II de Antofagasta',
+      ordinal: 2,
+      provincias: [
+        {
+          nombre: 'Tocopilla',
+          comunas: ['Tocopilla', 'María Elena'],
+        },
+        {
+          nombre: 'El Loa',
+          comunas: ['Calama', 'Ollagüe', 'San Pedro de Atacama'],
+        },
+        {
+          nombre: 'Antofagasta',
+          comunas: ['Antofagasta', 'Mejillones', 'Sierra Gorda', 'Taltal'],
+        },
+      ],
     },
     {
-      nombre: 'Asistente Administrativo',
-      descripcion: 'Perfil para apoyo administrativo general',
-      contacto: 'asistadmin@demo.cl',
-      rut: '55666781-8',
+      codigo: 'III',
+      nombre: 'III de Atacama',
+      ordinal: 3,
+      provincias: [
+        {
+          nombre: 'Chañaral',
+          comunas: ['Chañaral', 'Diego de Almagro'],
+        },
+        {
+          nombre: 'Copiapó',
+          comunas: ['Copiapó', 'Caldera', 'Tierra Amarilla'],
+        },
+        {
+          nombre: 'Huasco',
+          comunas: ['Vallenar', 'Freirina', 'Huasco', 'Alto del Carmen'],
+        },
+      ],
     },
     {
-      nombre: 'Operador Logístico',
-      descripcion: 'Perfil para operaciones logísticas básicas',
-      contacto: 'operador@demo.cl',
-      rut: '55666782-8',
+      codigo: 'IV',
+      nombre: 'IV de Coquimbo',
+      ordinal: 4,
+      provincias: [
+        {
+          nombre: 'Elqui',
+          comunas: [
+            'La Serena',
+            'La Higuera',
+            'Coquimbo',
+            'Andacollo',
+            'Vicuña',
+            'Paihuano',
+          ],
+        },
+        {
+          nombre: 'Limarí',
+          comunas: [
+            'Ovalle',
+            'Río Hurtado',
+            'Monte Patria',
+            'Combarbalá',
+            'Punitaqui',
+          ],
+        },
+        {
+          nombre: 'Choapa',
+          comunas: ['Illapel', 'Salamanca', 'Los Vilos', 'Canela'],
+        },
+      ],
     },
     {
-      nombre: 'Coordinador de Campo',
-      descripcion: 'Perfil para coordinación en terreno',
-      contacto: 'campo@demo.cl',
-      rut: '55666783-8',
+      codigo: 'V',
+      nombre: 'V de Valparaíso',
+      ordinal: 5,
+      provincias: [
+        {
+          nombre: 'Petorca',
+          comunas: ['La Ligua', 'Petorca', 'Cabildo', 'Zapallar', 'Papudo'],
+        },
+        {
+          nombre: 'Los Andes',
+          comunas: ['Los Andes', 'San Esteban', 'Calle Larga', 'Rinconada'],
+        },
+        {
+          nombre: 'San Felipe de Aconcagua',
+          comunas: [
+            'San Felipe',
+            'Putaendo',
+            'Santa María',
+            'Panquehue',
+            'Llaillay',
+            'Catemu',
+          ],
+        },
+        {
+          nombre: 'Quillota',
+          comunas: [
+            'Quillota',
+            'La Cruz',
+            'Calera',
+            'Nogales',
+            'Hijuelas',
+            'Limache',
+            'Olmué',
+          ],
+        },
+        {
+          nombre: 'Valparaíso',
+          comunas: [
+            'Valparaíso',
+            'Viña del Mar',
+            'Quintero',
+            'Puchuncaví',
+            'Quilpué',
+            'Villa Alemana',
+            'Casablanca',
+            'Concón',
+            'Juan Fernández',
+          ],
+        },
+        {
+          nombre: 'San Antonio',
+          comunas: [
+            'San Antonio',
+            'Cartagena',
+            'El Tabo',
+            'El Quisco',
+            'Algarrobo',
+            'Santo Domingo',
+          ],
+        },
+        {
+          nombre: 'Isla de Pascua',
+          comunas: ['Isla de Pascua'],
+        },
+      ],
     },
     {
-      nombre: 'Especialista en Clientes',
-      descripcion: 'Perfil para atención y gestión de clientes',
-      contacto: 'clientes@demo.cl',
-      rut: '55666784-8',
+      codigo: 'VI',
+      nombre: "VI del Libertador General Bernardo O'Higgins",
+      ordinal: 6,
+      provincias: [
+        {
+          nombre: 'Cachapoal',
+          comunas: [
+            'Rancagua',
+            'Graneros',
+            'Mostazal',
+            'Codegua',
+            'Machalí',
+            'Olivar',
+            'Requinoa',
+            'Rengo',
+            'Malloa',
+            'Quinta de Tilcoco',
+            'San Vicente',
+            'Pichidegua',
+            'Peumo',
+            'Coltauco',
+            'Coinco',
+            'Doñihue',
+            'Las Cabras',
+          ],
+        },
+        {
+          nombre: 'Colchagua',
+          comunas: [
+            'San Fernando',
+            'Chimbarongo',
+            'Placilla',
+            'Nancagua',
+            'Chépica',
+            'Santa Cruz',
+            'Lolol',
+            'Pumanque',
+            'Palmilla',
+            'Peralillo',
+          ],
+        },
+        {
+          nombre: 'Cardenal Caro',
+          comunas: [
+            'Pichilemu',
+            'Navidad',
+            'Litueche',
+            'La Estrella',
+            'Marchihue',
+            'Paredones',
+          ],
+        },
+      ],
     },
     {
-      nombre: 'Técnico Operativo',
-      descripcion: 'Perfil para soporte técnico operativo',
-      contacto: 'tecnico@demo.cl',
-      rut: '55666785-8',
+      codigo: 'VII',
+      nombre: 'VII del Maule',
+      ordinal: 7,
+      provincias: [
+        {
+          nombre: 'Curicó',
+          comunas: [
+            'Curicó',
+            'Teno',
+            'Romeral',
+            'Molina',
+            'Sagrada Familia',
+            'Hualañé',
+            'Licantén',
+            'Vichuquén',
+            'Rauco',
+          ],
+        },
+        {
+          nombre: 'Talca',
+          comunas: [
+            'Talca',
+            'Pelarco',
+            'Río Claro',
+            'San Clemente',
+            'Maule',
+            'San Rafael',
+            'Empedrado',
+            'Pencahue',
+            'Constitución',
+            'Curepto',
+          ],
+        },
+        {
+          nombre: 'Linares',
+          comunas: [
+            'Linares',
+            'Yerbas Buenas',
+            'Colbún',
+            'Longaví',
+            'Parral',
+            'Retiro',
+            'Villa Alegre',
+            'San Javier',
+          ],
+        },
+        {
+          nombre: 'Cauquenes',
+          comunas: ['Cauquenes', 'Pelluhue', 'Chanco'],
+        },
+      ],
     },
     {
-      nombre: 'Auditor Interno',
-      descripcion: 'Perfil para auditorías internas básicas',
-      contacto: 'auditor@demo.cl',
-      rut: '55666786-8',
+      codigo: 'VIII',
+      nombre: 'VIII del Biobío',
+      ordinal: 8,
+      provincias: [
+        {
+          nombre: 'Ñuble',
+          comunas: [
+            'Chillán',
+            'San Carlos',
+            'Ñiquén',
+            'San Fabián',
+            'Coihueco',
+            'Pinto',
+            'San Ignacio',
+            'El Carmen',
+            'Yungay',
+            'Pemuco',
+            'Bulnes',
+            'Quillón',
+            'Ránquil',
+            'Portezuelo',
+            'Coelemu',
+            'Treguaco',
+            'Cobquecura',
+            'Quirihue',
+            'Ninhue',
+            'San Nicolás',
+            'Chillán Viejo',
+          ],
+        },
+        {
+          nombre: 'Biobío',
+          comunas: [
+            'Alto Biobío',
+            'Los Angeles',
+            'Cabrero',
+            'Tucapel',
+            'Antuco',
+            'Quilleco',
+            'Santa Bárbara',
+            'Quilaco',
+            'Mulchén',
+            'Negrete',
+            'Nacimiento',
+            'Laja',
+            'San Rosendo',
+            'Yumbel',
+          ],
+        },
+        {
+          nombre: 'Concepción',
+          comunas: [
+            'Concepción',
+            'Talcahuano',
+            'Penco',
+            'Tomé',
+            'Florida',
+            'Hualpén',
+            'Hualqui',
+            'Santa Juana',
+            'Lota',
+            'Coronel',
+            'San Pedro de la Paz',
+            'Chiguayante',
+          ],
+        },
+        {
+          nombre: 'Arauco',
+          comunas: [
+            'Lebu',
+            'Arauco',
+            'Curanilahue',
+            'Los Alamos',
+            'Cañete',
+            'Contulmo',
+            'Tirua',
+          ],
+        },
+      ],
     },
     {
-      nombre: 'Planificador',
-      descripcion: 'Perfil para planificación operativa',
-      contacto: 'planificador@demo.cl',
-      rut: '55666787-8',
+      codigo: 'IX',
+      nombre: 'IX de la Araucanía',
+      ordinal: 9,
+      provincias: [
+        {
+          nombre: 'Malleco',
+          comunas: [
+            'Angol',
+            'Renaico',
+            'Collipulli',
+            'Lonquimay',
+            'Curacautín',
+            'Ercilla',
+            'Victoria',
+            'Traiguén',
+            'Lumaco',
+            'Purén',
+            'Los Sauces',
+          ],
+        },
+        {
+          nombre: 'Cautín',
+          comunas: [
+            'Temuco',
+            'Lautaro',
+            'Perquenco',
+            'Vilcún',
+            'Cholchol',
+            'Cunco',
+            'Melipeuco',
+            'Curarrehue',
+            'Pucón',
+            'Villarrica',
+            'Freire',
+            'Pitrufquén',
+            'Gorbea',
+            'Loncoche',
+            'Toltén',
+            'Teodoro Schmidt',
+            'Saavedra',
+            'Carahue',
+            'Nueva Imperial',
+            'Galvarino',
+            'Padre las Casas',
+          ],
+        },
+      ],
     },
     {
-      nombre: 'Digitador',
-      descripcion: 'Perfil para ingreso de datos y documentación',
-      contacto: 'digitador@demo.cl',
-      rut: '55666788-8',
+      codigo: 'XIV',
+      nombre: 'XIV de los Ríos',
+      ordinal: 14,
+      provincias: [
+        {
+          nombre: 'Valdivia',
+          comunas: [
+            'Valdivia',
+            'Mariquina',
+            'Lanco',
+            'Máfil',
+            'Corral',
+            'Los Lagos',
+            'Panguipulli',
+            'Paillaco',
+            'Ranco',
+            'La Unión',
+            'Futrono',
+            'Río Bueno',
+            'Lago Ranco',
+          ],
+        },
+      ],
     },
     {
-      nombre: 'Inspector de Calidad',
-      descripcion: 'Perfil para control de calidad operativo',
-      contacto: 'calidad@demo.cl',
-      rut: '55666789-8',
+      codigo: 'X',
+      nombre: 'X de los Lagos',
+      ordinal: 10,
+      provincias: [
+        {
+          nombre: 'Osorno',
+          comunas: [
+            'Osorno',
+            'San Pablo',
+            'Puyehue',
+            'Puerto Octay',
+            'Purranque',
+            'Río Negro',
+            'San Juan de la Costa',
+          ],
+        },
+        {
+          nombre: 'Llanquihue',
+          comunas: [
+            'Puerto Montt',
+            'Puerto Varas',
+            'Cochamó',
+            'Calbuco',
+            'Maullín',
+            'Los Muermos',
+            'Fresia',
+            'Llanquihue',
+            'Frutillar',
+          ],
+        },
+        {
+          nombre: 'Chiloé',
+          comunas: [
+            'Castro',
+            'Ancud',
+            'Quemchi',
+            'Dalcahue',
+            'Curaco de Vélez',
+            'Quinchao',
+            'Puqueldón',
+            'Chonchi',
+            'Queilén',
+            'Quellón',
+          ],
+        },
+        {
+          nombre: 'Palena',
+          comunas: ['Chaitén', 'Hualaihué', 'Futaleufú', 'Palena'],
+        },
+      ],
+    },
+    {
+      codigo: 'XI',
+      nombre: 'XI Aysén del General Carlos Ibáñez del Campo',
+      ordinal: 11,
+      provincias: [
+        {
+          nombre: 'Coihaique',
+          comunas: ['Coyhaique', 'Lago Verde'],
+        },
+        {
+          nombre: 'Aisén',
+          comunas: ['Aysén', 'Cisnes', 'Guaitecas'],
+        },
+        {
+          nombre: 'General Carrera',
+          comunas: ['Chile Chico', 'Río Ibánez'],
+        },
+        {
+          nombre: 'Capitán Prat',
+          comunas: ['Cochrane', "O'Higgins", 'Tortel'],
+        },
+      ],
+    },
+    {
+      codigo: 'XII',
+      nombre: 'XII de Magallanes y Antártica Chilena',
+      ordinal: 12,
+      provincias: [
+        {
+          nombre: 'Ultima Esperanza',
+          comunas: ['Natales', 'Torres del Paine'],
+        },
+        {
+          nombre: 'Magallanes',
+          comunas: [
+            'Punta Arenas',
+            'Río Verde',
+            'Laguna Blanca',
+            'San Gregorio',
+          ],
+        },
+        {
+          nombre: 'Tierra del Fuego',
+          comunas: ['Porvenir', 'Primavera', 'Timaukel'],
+        },
+        {
+          nombre: 'Antártica Chilena',
+          comunas: ['Cabo de Hornos', 'Antártica'],
+        },
+      ],
+    },
+    {
+      codigo: 'RM',
+      nombre: 'Metropolitana de Santiago',
+      ordinal: 13,
+      provincias: [
+        {
+          nombre: 'Santiago',
+          comunas: [
+            'Santiago',
+            'Independencia',
+            'Conchalí',
+            'Huechuraba',
+            'Recoleta',
+            'Providencia',
+            'Vitacura',
+            'Lo Barnechea',
+            'Las Condes',
+            'Ñuñoa',
+            'La Reina',
+            'Macul',
+            'Peñalolén',
+            'La Florida',
+            'San Joaquín',
+            'La Granja',
+            'La Pintana',
+            'San Ramón',
+            'San Miguel',
+            'La Cisterna',
+            'El Bosque',
+            'Pedro Aguirre Cerda',
+            'Lo Espejo',
+            'Estación Central',
+            'Cerrillos',
+            'Maipú',
+            'Quinta Normal',
+            'Lo Prado',
+            'Pudahuel',
+            'Cerro Navia',
+            'Renca',
+            'Quilicura',
+          ],
+        },
+        {
+          nombre: 'Chacabuco',
+          comunas: ['Colina', 'Lampa', 'Tiltil'],
+        },
+        {
+          nombre: 'Cordillera',
+          comunas: ['Puente Alto', 'San José de Maipo', 'Pirque'],
+        },
+        {
+          nombre: 'Maipo',
+          comunas: ['San Bernardo', 'Buin', 'Paine', 'Calera de Tango'],
+        },
+        {
+          nombre: 'Melipilla',
+          comunas: [
+            'Melipilla',
+            'María Pinto',
+            'Curacaví',
+            'Alhué',
+            'San Pedro',
+          ],
+        },
+        {
+          nombre: 'Talagante',
+          comunas: [
+            'Talagante',
+            'Peñaflor',
+            'Isla de Maipo',
+            'El Monte',
+            'Padre Hurtado',
+          ],
+        },
+      ],
     },
   ];
 
-  // FIX: Explicitly type the array
-  const createdProfiles: Perfil[] = [];
+  console.log('Seeding database...');
 
-  for (const profileData of basicProfiles) {
+  // Create admin tenant first
+  let adminTenant;
+
+  try {
+    adminTenant = await prisma.tenant.upsert({
+      where: { nombre: 'Tenant Administrativo' },
+      update: {},
+      create: {
+        nombre: 'Tenant Administrativo',
+        contacto: 'admin@demo.cl',
+        rut: '12345678-9',
+        activo: true,
+        tipoTenant: TipoTenant.ADMIN,
+      },
+    });
+    console.log('✅ Admin tenant created:', adminTenant.id);
+  } catch (error) {
+    console.error('❌ Failed to create admin tenant:', error);
+    throw error;
+  }
+
+  if (!adminTenant) {
+    throw new Error('Admin tenant creation failed');
+  }
+
+  // Create roles for the admin tenant
+  const adminRoles = [
+    {
+      codigo: 'admin_access',
+      nombre: 'Acceso Administrativo',
+      modulo: 'sistema',
+      tipoAccion: TipoAccion.EDITAR,
+    },
+    {
+      codigo: 'ver_usuarios',
+      nombre: 'Ver Usuarios',
+      modulo: 'usuarios',
+      tipoAccion: TipoAccion.VER,
+    },
+    {
+      codigo: 'crear_usuarios',
+      nombre: 'Crear Usuarios',
+      modulo: 'usuarios',
+      tipoAccion: TipoAccion.CREAR,
+    },
+    {
+      codigo: 'editar_usuarios',
+      nombre: 'Editar Usuarios',
+      modulo: 'usuarios',
+      tipoAccion: TipoAccion.EDITAR,
+    },
+    {
+      codigo: 'eliminar_usuarios',
+      nombre: 'Eliminar Usuarios',
+      modulo: 'usuarios',
+      tipoAccion: TipoAccion.ELIMINAR,
+    },
+    {
+      codigo: 'ver_perfiles',
+      nombre: 'Ver Perfiles',
+      modulo: 'perfiles',
+      tipoAccion: TipoAccion.VER,
+    },
+    {
+      codigo: 'crear_perfiles',
+      nombre: 'Crear Perfiles',
+      modulo: 'perfiles',
+      tipoAccion: TipoAccion.CREAR,
+    },
+    {
+      codigo: 'editar_perfiles',
+      nombre: 'Editar Perfiles',
+      modulo: 'perfiles',
+      tipoAccion: TipoAccion.EDITAR,
+    },
+    {
+      codigo: 'asignar_roles',
+      nombre: 'Asignar Roles',
+      modulo: 'perfiles',
+      tipoAccion: TipoAccion.EDITAR,
+    },
+    {
+      codigo: 'ver_roles',
+      nombre: 'Ver Roles',
+      modulo: 'roles',
+      tipoAccion: TipoAccion.VER,
+    },
+    {
+      codigo: 'crear_roles',
+      nombre: 'Crear Roles',
+      modulo: 'roles',
+      tipoAccion: TipoAccion.CREAR,
+    },
+    {
+      codigo: 'editar_roles',
+      nombre: 'Editar Roles',
+      modulo: 'roles',
+      tipoAccion: TipoAccion.EDITAR,
+    },
+    {
+      codigo: 'eliminar_roles',
+      nombre: 'Eliminar Roles',
+      modulo: 'roles',
+      tipoAccion: TipoAccion.ELIMINAR,
+    },
+    {
+      codigo: 'ver_ordenes',
+      nombre: 'Ver Órdenes',
+      modulo: 'ordenes',
+      tipoAccion: TipoAccion.VER,
+    },
+    {
+      codigo: 'crear_ordenes',
+      nombre: 'Crear Órdenes',
+      modulo: 'ordenes',
+      tipoAccion: TipoAccion.CREAR,
+    },
+    {
+      codigo: 'editar_ordenes',
+      nombre: 'Editar Órdenes',
+      modulo: 'ordenes',
+      tipoAccion: TipoAccion.EDITAR,
+    },
+    {
+      codigo: 'eliminar_ordenes',
+      nombre: 'Eliminar Órdenes',
+      modulo: 'ordenes',
+      tipoAccion: TipoAccion.ELIMINAR,
+    },
+    {
+      codigo: 'ver_clientes',
+      nombre: 'Ver Clientes',
+      modulo: 'clientes',
+      tipoAccion: TipoAccion.VER,
+    },
+    {
+      codigo: 'crear_clientes',
+      nombre: 'Crear Clientes',
+      modulo: 'clientes',
+      tipoAccion: TipoAccion.CREAR,
+    },
+    {
+      codigo: 'editar_clientes',
+      nombre: 'Editar Clientes',
+      modulo: 'clientes',
+      tipoAccion: TipoAccion.EDITAR,
+    },
+    {
+      codigo: 'eliminar_clientes',
+      nombre: 'Eliminar Clientes',
+      modulo: 'clientes',
+      tipoAccion: TipoAccion.ELIMINAR,
+    },
+    {
+      codigo: 'ver_carriers',
+      nombre: 'Ver Carriers',
+      modulo: 'carriers',
+      tipoAccion: TipoAccion.VER,
+    },
+    {
+      codigo: 'crear_carriers',
+      nombre: 'Crear Carriers',
+      modulo: 'carriers',
+      tipoAccion: TipoAccion.CREAR,
+    },
+    {
+      codigo: 'editar_carriers',
+      nombre: 'Editar Carriers',
+      modulo: 'carriers',
+      tipoAccion: TipoAccion.EDITAR,
+    },
+    {
+      codigo: 'eliminar_carriers',
+      nombre: 'Eliminar Carriers',
+      modulo: 'carriers',
+      tipoAccion: TipoAccion.ELIMINAR,
+    },
+    {
+      codigo: 'ver_embarcadores',
+      nombre: 'Ver Embarcadores',
+      modulo: 'embarcadores',
+      tipoAccion: TipoAccion.VER,
+    },
+    {
+      codigo: 'crear_embarcadores',
+      nombre: 'Crear Embarcadores',
+      modulo: 'embarcadores',
+      tipoAccion: TipoAccion.CREAR,
+    },
+    {
+      codigo: 'editar_embarcadores',
+      nombre: 'Editar Embarcadores',
+      modulo: 'embarcadores',
+      tipoAccion: TipoAccion.EDITAR,
+    },
+    {
+      codigo: 'eliminar_embarcadores',
+      nombre: 'Eliminar Embarcadores',
+      modulo: 'embarcadores',
+      tipoAccion: TipoAccion.ELIMINAR,
+    },
+  ];
+  const createdRoles: Rol[] = [];
+
+  for (const roleData of adminRoles) {
     try {
-      const profile = await prisma.perfil.create({
-        data: {
-          nombre: profileData.nombre,
-          descripcion: profileData.descripcion,
+      const role = await prisma.rol.upsert({
+        where: { codigo: roleData.codigo },
+        update: {},
+        create: {
+          codigo: roleData.codigo,
+          nombre: roleData.nombre,
+          modulo: roleData.modulo,
+          tipoAccion: roleData.tipoAccion,
           activo: true,
-          estadoId: estadoActivo.id,
           tenantId: adminTenant.id,
-          tipoId: tipoPerfilBasico.id,
-          contacto: profileData.contacto,
-          rut: profileData.rut,
+          visible: true,
+          orden: 1,
         },
       });
-      createdProfiles.push(profile);
+      createdRoles.push(role);
+    } catch (error) {
+      console.log(`Role ${roleData.codigo} already exists, skipping...`);
+    }
+  }
 
-      // Assign view-only roles to basic profiles
-      const viewOnlyRoles = existingRoles.filter(
-        (role) =>
-          role.codigo.includes('ver_') &&
-          !role.codigo.includes('eliminar_') &&
-          !role.codigo.includes('activar_'),
-      );
+  // Create admin profile
+  const adminProfile = await prisma.perfil.upsert({
+    where: {
+      nombre_tenantId: {
+        nombre: 'Administrador del Sistema',
+        tenantId: adminTenant.id,
+      },
+    },
+    update: {},
+    create: {
+      nombre: 'Administrador del Sistema',
+      descripcion:
+        'Perfil con acceso completo a todas las funcionalidades del sistema',
+      activo: true,
+      tenantId: adminTenant.id,
+    },
+  });
 
-      for (const role of viewOnlyRoles) {
-        await prisma.perfilRol.create({
-          data: {
-            perfilId: profile.id,
+  // Assign all roles to admin profile
+  for (const role of createdRoles) {
+    await prisma.perfilRol.upsert({
+      where: {
+        perfilId_rolId_tenantId: {
+          perfilId: adminProfile.id,
+          rolId: role.id,
+          tenantId: adminTenant.id,
+        },
+      },
+      update: {},
+      create: {
+        perfilId: adminProfile.id,
+        rolId: role.id,
+        tenantId: adminTenant.id,
+      },
+    });
+  }
+
+  // Create admin user
+  const adminUser = await prisma.usuario.upsert({
+    where: { correo: 'admin@demo.cl' },
+    update: {},
+    create: {
+      correo: 'admin@demo.cl',
+      nombre: 'Administrador del Sistema',
+      activo: true,
+      estado: EstadoUsuario.ACTIVO,
+      rut: '11222333-4',
+      telefono: '+56912345678',
+      tenantId: adminTenant.id,
+      perfilId: adminProfile.id,
+    },
+  });
+
+  // Create credentials for admin user
+  const passwordHash = await bcrypt.hash('12345678', 12);
+  await prisma.usuarioCredencial.upsert({
+    where: { usuarioId: adminUser.id },
+    update: { passwordHash },
+    create: {
+      usuarioId: adminUser.id,
+      passwordHash,
+      activo: true,
+      tenantId: adminTenant.id,
+    },
+  });
+
+  // Create regular user profile
+  const regularProfile = await prisma.perfil.upsert({
+    where: {
+      nombre_tenantId: {
+        nombre: 'Usuario Operacional',
+        tenantId: adminTenant.id,
+      },
+    },
+    update: {},
+    create: {
+      nombre: 'Usuario Operacional',
+      descripcion: 'Perfil para usuarios con permisos básicos de operación',
+      activo: true,
+      tenantId: adminTenant.id,
+    },
+  });
+
+  // Assign view-only roles to regular profile
+  const viewOnlyRoles = [
+    'ver_usuarios',
+    'ver_perfiles',
+    'ver_roles',
+    'ver_ordenes',
+    'ver_clientes',
+    'ver_carriers',
+    'ver_embarcadores',
+  ];
+
+  for (const roleCode of viewOnlyRoles) {
+    const role = createdRoles.find((r) => r.codigo === roleCode);
+    if (role) {
+      await prisma.perfilRol.upsert({
+        where: {
+          perfilId_rolId_tenantId: {
+            perfilId: regularProfile.id,
             rolId: role.id,
             tenantId: adminTenant.id,
           },
-        });
-      }
-      console.log(`✅ Created profile: ${profileData.nombre}`);
-    } catch (error: any) {
-      if (error.code === 'P2002') {
-        console.log(
-          `⚠️ Profile "${profileData.nombre}" already exists, skipping...`,
-        );
-        // Try to find the existing profile
-        const existingProfile = await prisma.perfil.findFirst({
-          where: {
-            nombre: profileData.nombre,
+        },
+        update: {},
+        create: {
+          perfilId: regularProfile.id,
+          rolId: role.id,
+          tenantId: adminTenant.id,
+        },
+      });
+    }
+  }
+
+  const regularUser = await prisma.usuario.upsert({
+    where: { correo: 'usuario@demo.cl' },
+    update: {},
+    create: {
+      correo: 'usuario@demo.cl',
+      nombre: 'Usuario de Prueba',
+      activo: true,
+      estado: EstadoUsuario.ACTIVO,
+      rut: '99888777-6',
+      telefono: '+56987654321',
+      tenantId: adminTenant.id,
+      perfilId: regularProfile.id,
+    },
+  });
+
+  const regularPasswordHash = await bcrypt.hash('12345678', 12);
+  await prisma.usuarioCredencial.upsert({
+    where: { usuarioId: regularUser.id },
+    update: { passwordHash: regularPasswordHash },
+    create: {
+      usuarioId: regularUser.id,
+      passwordHash: regularPasswordHash,
+      activo: true,
+      tenantId: adminTenant.id,
+    },
+  });
+
+  // Create Chilean regions, provinces, and communes with tenant
+  console.log('🌎 Creating Chilean regions, provinces, and communes...');
+
+  for (const regionData of chileanRegions) {
+    const region = await prisma.region.create({
+      data: {
+        codigo: regionData.codigo,
+        nombre: regionData.nombre,
+        ordinal: regionData.ordinal,
+        activo: true,
+        visible: true,
+        orden: regionData.ordinal,
+        tenantId: adminTenant.id,
+      },
+    });
+
+    let provinciaOrder = 1;
+    for (const provinciaData of regionData.provincias) {
+      const provincia = await prisma.provincia.create({
+        data: {
+          codigo: provinciaData.nombre.toLowerCase().replace(/ /g, '_'),
+          nombre: provinciaData.nombre,
+          regionId: region.id,
+          activo: true,
+          visible: true,
+          orden: provinciaOrder++,
+          tenantId: adminTenant.id,
+        },
+      });
+
+      let comunaOrder = 1;
+      for (const comunaNombre of provinciaData.comunas) {
+        await prisma.comuna.create({
+          data: {
+            nombre: comunaNombre,
+            regionId: region.id,
+            provinciaId: provincia.id,
+            visible: true,
+            orden: comunaOrder++,
+            activo: true,
             tenantId: adminTenant.id,
           },
         });
-        if (existingProfile) {
-          createdProfiles.push(existingProfile);
-        }
-      } else {
-        console.log(
-          `❌ Error creating profile ${profileData.nombre}:`,
-          error.message,
-        );
       }
     }
   }
 
-  // Create additional users (20 total)
-  console.log('👤 Creating additional users...');
+  // Create order-related types
+  console.log('📦 Creating order-related types...');
 
-  const additionalUsers = [
+  // tipo_carga
+  const tipoCargasData = [
     {
-      correo: 'asistente1@demo.cl',
-      nombre: 'Ana Martínez',
-      perfilNombre: 'Asistente Comercial',
+      nombre: 'Carga Seca',
+      observaciones: 'Carga general sin requerimientos especiales',
+      requiereEquipoEspecial: false,
+      requiereTempControlada: false,
+      visible: true,
+      orden: 1,
+      activo: true,
+      tenantId: adminTenant.id,
     },
     {
-      correo: 'analista1@demo.cl',
-      nombre: 'Pedro Rodríguez',
-      perfilNombre: 'Analista Junior',
+      nombre: 'Carga Refrigerada',
+      observaciones: 'Carga que requiere control de temperatura',
+      requiereEquipoEspecial: true,
+      requiereTempControlada: true,
+      visible: true,
+      orden: 2,
+      activo: true,
+      tenantId: adminTenant.id,
     },
     {
-      correo: 'ventas1@demo.cl',
-      nombre: 'Laura Fernández',
-      perfilNombre: 'Ejecutivo de Ventas',
-    },
-    {
-      correo: 'asistadmin1@demo.cl',
-      nombre: 'Diego Silva',
-      perfilNombre: 'Asistente Administrativo',
-    },
-    {
-      correo: 'operador1@demo.cl',
-      nombre: 'Camila Rojas',
-      perfilNombre: 'Operador Logístico',
-    },
-    {
-      correo: 'campo1@demo.cl',
-      nombre: 'Jorge Mendoza',
-      perfilNombre: 'Coordinador de Campo',
-    },
-    {
-      correo: 'clientes1@demo.cl',
-      nombre: 'Sofía Vargas',
-      perfilNombre: 'Especialista en Clientes',
-    },
-    {
-      correo: 'tecnico1@demo.cl',
-      nombre: 'Ricardo Castro',
-      perfilNombre: 'Técnico Operativo',
-    },
-    {
-      correo: 'auditor1@demo.cl',
-      nombre: 'Elena Torres',
-      perfilNombre: 'Auditor Interno',
-    },
-    {
-      correo: 'planificador1@demo.cl',
-      nombre: 'Miguel Ángel Soto',
-      perfilNombre: 'Planificador',
-    },
-    {
-      correo: 'digitador1@demo.cl',
-      nombre: 'Patricia Núñez',
-      perfilNombre: 'Digitador',
-    },
-    {
-      correo: 'asistente2@demo.cl',
-      nombre: 'Fernando García',
-      perfilNombre: 'Asistente Comercial',
-    },
-    {
-      correo: 'analista2@demo.cl',
-      nombre: 'Gabriela Muñoz',
-      perfilNombre: 'Analista Junior',
-    },
-    {
-      correo: 'ventas2@demo.cl',
-      nombre: 'Roberto Díaz',
-      perfilNombre: 'Ejecutivo de Ventas',
-    },
-    {
-      correo: 'asistadmin2@demo.cl',
-      nombre: 'Claudia Pérez',
-      perfilNombre: 'Asistente Administrativo',
-    },
-    {
-      correo: 'operador2@demo.cl',
-      nombre: 'Héctor Ruiz',
-      perfilNombre: 'Operador Logístico',
-    },
-    {
-      correo: 'campo2@demo.cl',
-      nombre: 'Mónica Herrera',
-      perfilNombre: 'Coordinador de Campo',
-    },
-    {
-      correo: 'clientes2@demo.cl',
-      nombre: 'Oscar Jiménez',
-      perfilNombre: 'Especialista en Clientes',
-    },
-    {
-      correo: 'tecnico2@demo.cl',
-      nombre: 'Natalia Romero',
-      perfilNombre: 'Técnico Operativo',
-    },
-    {
-      correo: 'auditor2@demo.cl',
-      nombre: 'Pablo Navarro',
-      perfilNombre: 'Auditor Interno',
+      nombre: 'Carga Peligrosa',
+      observaciones:
+        'Materiales peligrosos que requieren certificación especial',
+      requiereEquipoEspecial: true,
+      requiereTempControlada: false,
+      visible: true,
+      orden: 3,
+      activo: true,
+      tenantId: adminTenant.id,
     },
   ];
 
-  // FIX: Explicitly type the users array too
-  const createdUsers: any[] = [];
-
-  for (const userData of additionalUsers) {
+  // Create all tipos carga
+  for (const data of tipoCargasData) {
     try {
-      const profile = createdProfiles.find(
-        (p) => p.nombre === userData.perfilNombre,
-      );
-      if (!profile) {
-        console.log(
-          `❌ Profile "${userData.perfilNombre}" not found for user ${userData.correo}`,
-        );
-        continue;
-      }
-
-      const user = await prisma.usuario.create({
-        data: {
-          correo: userData.correo,
-          nombre: userData.nombre,
-          activo: true,
-          contacto: userData.nombre,
-          rut: faker.string.numeric(8) + '-' + faker.string.numeric(1),
-          telefono: '+569' + faker.string.numeric(8),
-          tenantId: adminTenant.id,
-          perfilId: profile.id,
-          estadoId: estadoActivo.id,
-          tipoId: tipoUsuarioStandard.id,
-        },
+      await prisma.tipoCarga.create({
+        data,
       });
-      createdUsers.push(user);
-
-      const passwordHash = await bcrypt.hash('12345678', 12);
-      await prisma.usuarioCredencial.create({
-        data: {
-          usuarioId: user.id,
-          passwordHash,
-          activo: true,
-          tenantId: adminTenant.id,
-        },
-      });
-      console.log(`✅ Created user: ${userData.correo}`);
+      console.log(`✅ Created TipoCarga: ${data.nombre}`);
     } catch (error: any) {
       if (error.code === 'P2002') {
-        console.log(`⚠️ User "${userData.correo}" already exists, skipping...`);
-      } else {
         console.log(
-          `❌ Error creating user ${userData.correo}:`,
-          error.message,
+          `⏩ TipoCarga "${data.nombre}" already exists, skipping...`,
         );
+      } else {
+        throw error;
       }
     }
   }
 
-  // Get comunas for creating entities
-  const comunas = await prisma.comuna.findMany({
-    take: 10,
+  // tipo_servicio
+  const tipoServicioExpress = await prisma.tipoServicio.upsert({
+    where: { codigo: 'express' },
+    update: {},
+    create: {
+      codigo: 'express',
+      nombre: 'Servicio Express',
+      descripcion: 'Entrega urgente en 24 horas',
+      activo: true,
+      visible: true,
+      orden: 1,
+      tenantId: adminTenant.id,
+    },
   });
 
-  // Create additional clients (12 total)
-  console.log('🏢 Creating additional clients...');
+  const tipoServicioEstandar = await prisma.tipoServicio.upsert({
+    where: { codigo: 'estandar' },
+    update: {},
+    create: {
+      codigo: 'estandar',
+      nombre: 'Servicio Estándar',
+      descripcion: 'Entrega en 2-3 días hábiles',
+      activo: true,
+      visible: true,
+      orden: 2,
+      tenantId: adminTenant.id,
+    },
+  });
 
-  const clientTypes = ['corporativo', 'pyme', 'individual', 'gubernamental'];
-  const clientSectors = [
-    'retail',
-    'manufactura',
-    'tecnología',
-    'salud',
-    'educación',
-    'construcción',
-    'agroindustria',
-  ];
+  const tipoServicioEconomico = await prisma.tipoServicio.upsert({
+    where: { codigo: 'economico' },
+    update: {},
+    create: {
+      codigo: 'economico',
+      nombre: 'Servicio Económico',
+      descripcion: 'Entrega en 4-5 días hábiles',
+      activo: true,
+      visible: true,
+      orden: 3,
+      tenantId: adminTenant.id,
+    },
+  });
 
-  let clientsCreated = 0;
-  for (let i = 0; i < 20 && clientsCreated < 12; i++) {
-    // Try up to 20 times to get 12 unique
-    try {
-      const clientType =
-        clientTypes[Math.floor(Math.random() * clientTypes.length)];
-      const clientSector =
-        clientSectors[Math.floor(Math.random() * clientSectors.length)];
-      const comuna = comunas[Math.floor(Math.random() * comunas.length)];
+  // Get a comuna for creating entities
+  const santiagoComuna = await prisma.comuna.findFirst({
+    where: {
+      nombre: 'Santiago',
+      tenantId: adminTenant.id,
+    },
+  });
 
-      await prisma.cliente.create({
-        data: {
-          nombre: faker.company.name(),
-          razonSocial: faker.company.name() + ' SpA',
-          rut: faker.string.numeric(8) + '-' + faker.string.numeric(1),
-          contacto: faker.person.fullName(),
-          email: faker.internet.email(),
-          telefono: '+569' + faker.string.numeric(8),
-          direccion: faker.location.streetAddress(),
-          comunaId: comuna.id,
-          activo: faker.datatype.boolean(0.8),
-          estado: 'activo',
-          tipo: clientType,
-          tenantId: adminTenant.id,
-        },
-      });
-      clientsCreated++;
-      console.log(`✅ Created client ${clientsCreated}/12`);
-    } catch (error: any) {
-      if (error.code !== 'P2002') {
-        console.log('❌ Error creating client:', error.message);
-      }
-      // Continue on duplicate RUT error
-    }
+  // Create sample clients, carriers, and embarcadores
+  console.log('🏢 Creating sample business entities...');
+
+  // Sample carrier - FIXED with null check
+  if (!santiagoComuna) {
+    throw new Error('Santiago comuna not found, cannot create carrier');
   }
 
-  // Create additional embarcadores (12 total)
-  console.log('🚢 Creating additional embarcadores...');
+  // Sample client
+  const sampleClient = await prisma.cliente.upsert({
+    where: { rut: '76000000-0' },
+    update: {},
+    create: {
+      nombre: 'Cliente Demo S.A.',
+      razonSocial: 'Cliente Demo Sociedad Anónima',
+      rut: '76000000-0',
+      contacto: 'Juan Pérez',
+      email: 'cliente@demo.cl',
+      telefono: '+56912345678',
+      direccion: 'Av. Principal 123',
+      comunaId: santiagoComuna.id,
+      activo: true,
+      tipoEntidad: TipoEntidad.CLIENTE,
+      tenantId: adminTenant.id,
+    },
+  });
 
-  const embarcadorTypes = [
-    'exportador',
-    'importador',
-    'nacional',
-  ];
-  const embarcadorSpecialties = [
-    'alimentos',
-    'electrónicos',
-    'textil',
-    'químicos',
-    'maquinaria',
-    'materias primas',
-  ];
+  // Sample carrier
+  const sampleCarrier = await prisma.carrier.upsert({
+    where: { rut: '77000000-0' },
+    update: {},
+    create: {
+      nombre: 'Transportes Express S.A.',
+      razonSocial: 'Transportes Express Sociedad Anónima',
+      rut: '77000000-0',
+      contacto: 'María González',
+      email: 'transportes@demo.cl',
+      telefono: '+56987654321',
+      direccion: 'Av. Logística 456',
+      comunaId: santiagoComuna?.id,
+      activo: true,
+      tipoEntidad: TipoEntidad.CARRIER,
+      tenantId: adminTenant.id,
+    },
+  });
 
-  let embarcadoresCreated = 0;
-  for (let i = 0; i < 20 && embarcadoresCreated < 12; i++) {
-    try {
-      const embarcadorType =
-        embarcadorTypes[Math.floor(Math.random() * embarcadorTypes.length)];
-      const specialty =
-        embarcadorSpecialties[
-          Math.floor(Math.random() * embarcadorSpecialties.length)
-        ];
-      const comuna = comunas[Math.floor(Math.random() * comunas.length)];
+  // Sample embarcador
+  const sampleEmbarcador = await prisma.embarcador.upsert({
+    where: { rut: '78000000-0' },
+    update: {},
+    create: {
+      nombre: 'Embarcadores Unidos S.A.',
+      razonSocial: 'Embarcadores Unidos Sociedad Anónima',
+      rut: '78000000-0',
+      contacto: 'Carlos López',
+      email: 'embarcadores@demo.cl',
+      telefono: '+56911223344',
+      direccion: 'Av. Comercial 789',
+      comunaId: santiagoComuna?.id,
+      activo: true,
+      tipoEntidad: TipoEntidad.EMBARCADOR,
+      tenantId: adminTenant.id,
+    },
+  });
 
-      await prisma.embarcador.create({
-        data: {
-          nombre: `Embarcadores ${faker.company.name()}`,
-          razonSocial: faker.company.name() + ' Logística SpA',
-          rut: faker.string.numeric(8) + '-' + faker.string.numeric(1),
-          contacto: faker.person.fullName(),
-          email: faker.internet.email(),
-          telefono: '+569' + faker.string.numeric(8),
-          direccion: faker.location.streetAddress(),
-          comunaId: comuna.id,
-          activo: faker.datatype.boolean(0.8),
-          estado: 'activo',
-          tipo: embarcadorType,
-          tenantId: adminTenant.id,
-        },
-      });
-      embarcadoresCreated++;
-      console.log(`✅ Created embarcador ${embarcadoresCreated}/12`);
-    } catch (error: any) {
-      if (error.code !== 'P2002') {
-        console.log('❌ Error creating embarcador:', error.message);
-      }
-    }
-  }
+  // Create sample equipment types and models
+  console.log('🚚 Creating sample equipment types...');
 
-  // Create additional carriers (10 total)
-  console.log('🚛 Creating additional carriers...');
+  const tipoCamion = await prisma.tipoEquipo.upsert({
+    where: { codigo: 'camion' },
+    update: {},
+    create: {
+      codigo: 'camion',
+      nombre: 'Camión',
+      descripcion: 'Vehículo de carga pesada',
+      activo: true,
+      visible: true,
+      orden: 1,
+      tenantId: adminTenant.id,
+    },
+  });
 
-  const carrierTypes = [
-    'nacional',
-    'internacional',
-    'especializado',
-    'multimodal',
-  ];
-  const vehicleTypes = [
-    'camión',
-    'furgón',
-    'plataforma',
-    'refrigerado',
-    'tanque',
-  ];
+  const tipoFurgon = await prisma.tipoEquipo.upsert({
+    where: { codigo: 'furgon' },
+    update: {},
+    create: {
+      codigo: 'furgon',
+      nombre: 'Furgón',
+      descripcion: 'Vehículo de carga mediana',
+      activo: true,
+      visible: true,
+      orden: 2,
+      tenantId: adminTenant.id,
+    },
+  });
 
-  let carriersCreated = 0;
-  for (let i = 0; i < 20 && carriersCreated < 10; i++) {
-    try {
-      const carrierType =
-        carrierTypes[Math.floor(Math.random() * carrierTypes.length)];
-      const vehicleType =
-        vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)];
-      const comuna = comunas[Math.floor(Math.random() * comunas.length)];
+  // Create sample transport models
+  const modeloCamionPesado = await prisma.modeloTransporte.create({
+    data: {
+      codigo: 'camion_pesado_2023',
+      nombre: 'Camión Pesado 2023',
+      tipoEquipoId: tipoCamion.id,
+      tipoModelo: 'RAMPLA',
+      tonelaje: 15000,
+      volumenM3: 80,
+      largoMts: 12,
+      anchoMts: 2.4,
+      altoMts: 2.6,
+      activo: true,
+      visible: true,
+      orden: 1,
+      tenantId: adminTenant.id,
+    },
+  });
 
-      await prisma.carrier.create({
-        data: {
-          nombre: `Transportes ${faker.company.name()}`,
-          razonSocial: faker.company.name() + ' Transportes SpA',
-          rut: faker.string.numeric(8) + '-' + faker.string.numeric(1),
-          contacto: faker.person.fullName(),
-          email: faker.internet.email(),
-          telefono: '+569' + faker.string.numeric(8),
-          direccion: faker.location.streetAddress(),
-          comunaId: comuna.id,
-          activo: faker.datatype.boolean(0.8),
-          estado: 'activo',
-          tipo: carrierType,
-          tenantId: adminTenant.id,
-        },
-      });
-      carriersCreated++;
-      console.log(`✅ Created carrier ${carriersCreated}/10`);
-    } catch (error: any) {
-      if (error.code !== 'P2002') {
-        console.log('❌ Error creating carrier:', error.message);
-      }
-    }
-  }
-
-  console.log('🎉 Additional data seeded successfully!');
+  console.log('🎉 Database seeded successfully!');
   console.log('================================');
-  console.log('📊 Summary of additional data:');
-  console.log(`👥 Basic Profiles: ${createdProfiles.length}`);
-  console.log(`👤 Users: ${createdUsers.length}`);
-  console.log(`🏢 Clients: ${clientsCreated}`);
-  console.log(`🚢 Embarcadores: ${embarcadoresCreated}`);
-  console.log(`🚛 Carriers: ${carriersCreated}`);
-  console.log('');
-  console.log('🔑 All new users can login with:');
-  console.log('   Email: [assigned-email]');
+  console.log('🌎 Created all Chilean regions, provinces, and communes');
+  console.log('📦 Created order types and sample business entities');
+  console.log('🚚 Created equipment types and models');
+  console.log('👑 Admin User: admin@demo.cl');
   console.log('   Password: 12345678');
+  console.log('   Permissions: Full admin access');
+  console.log('');
+  console.log('👤 Regular User: usuario@demo.cl');
+  console.log('   Password: 12345678');
+  console.log('   Permissions: Basic operational access');
+  console.log('');
+  console.log('🔑 Both passwords work with the test-login endpoint');
   console.log('================================');
 }
 

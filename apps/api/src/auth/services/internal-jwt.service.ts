@@ -1,12 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 
 export interface InternalJwtPayload {
-  sub: string; // user id from your database
+  sub: string;
   email: string;
   tenant_id: string;
-  permissions: string[]; // role codes from your RBAC system
+  permissions: string[];
   profile_id: string;
 }
 
@@ -35,8 +35,17 @@ export class InternalJwtService {
   }
 
   verifyInternalToken(token: string): InternalJwtPayload {
-    return this.jwtService.verify<InternalJwtPayload>(token, {
-      secret: this.configService.get<string>('JWT_SECRET'),
-    });
+    try {
+      return this.jwtService.verify<InternalJwtPayload>(token, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
+    } catch (error) {
+      throw new UnauthorizedException('Invalid token');
+    }
+  }
+
+  // Optional: Decode token without verification (for debugging)
+  decodeToken(token: string): any {
+    return this.jwtService.decode(token);
   }
 }

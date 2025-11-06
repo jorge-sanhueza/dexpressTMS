@@ -1,8 +1,14 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InternalJwtService, InternalJwtPayload } from './internal-jwt.service';
 import { Auth0User } from '../interfaces/auth0-user.interface';
 import { PrismaService } from 'prisma/prisma.service';
 import { RolesService } from 'src/roles/services/roles.service';
+import { EstadoUsuario, TipoTenant } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -27,48 +33,26 @@ export class AuthService {
       include: {
         perfil: {
           include: {
-            tipo: true,
+            perfilesRoles: {
+              include: {
+                rol: true,
+              },
+            },
           },
         },
+        tenant: true,
       },
     });
 
     // If user doesn't exist, create a basic one for testing
     if (!user) {
       this.logger.log(`Creating new user for: ${auth0User.email}`);
+      user = await this.createNewUser(auth0User);
+    }
 
-      // Get or create basic data for testing
-      const activeStatus = await this.getOrCreateActiveStatus();
-      const defaultUserType = await this.getOrCreateDefaultUserType();
-      const defaultTenant = await this.getOrCreateDefaultTenant(
-        activeStatus.id,
-      );
-      const defaultProfile = await this.getOrCreateDefaultProfile(
-        defaultTenant.id,
-        activeStatus.id,
-      );
-
-      user = await this.prisma.usuario.create({
-        data: {
-          correo: auth0User.email,
-          nombre: auth0User.name || auth0User.email.split('@')[0],
-          activo: true,
-          tenantId: defaultTenant.id,
-          perfilId: defaultProfile.id,
-          estadoId: activeStatus.id,
-          tipoId: defaultUserType.id,
-          contacto: 'Test Contact',
-          rut: '12345678-9',
-          telefono: '+1234567890',
-        },
-        include: {
-          perfil: {
-            include: {
-              tipo: true,
-            },
-          },
-        },
-      });
+    // Now user should not be null, but let's double-check
+    if (!user) {
+      throw new UnauthorizedException('Failed to create or find user');
     }
 
     if (!user.activo) {
@@ -97,7 +81,7 @@ export class AuthService {
       email: user.correo,
       tenant_id: user.tenantId,
       profile_id: user.perfilId,
-      permissions: permissions, // This should be UUIDs
+      permissions: permissions,
     };
 
     const accessToken =
@@ -117,7 +101,7 @@ export class AuthService {
         name: user.nombre,
         tenant_id: user.tenantId,
         profile_id: user.perfilId,
-        profile_type: user.perfil?.tipo?.tipoPerfil || 'usuario',
+        profile_name: user.perfil?.nombre || 'Usuario',
         permissions: permissions,
       },
     };
@@ -126,6 +110,51 @@ export class AuthService {
       JSON.stringify(loginResponse, null, 2),
     );
     return loginResponse;
+  }
+
+  private async createNewUser(auth0User: Auth0User) {
+    // Get or create basic data for testing
+    const defaultTenant = await this.getOrCreateDefaultTenant();
+    const defaultProfile = await this.getOrCreateDefaultProfile(
+      defaultTenant.id,
+    );
+
+    // Create the user - using only fields that exist in the schema
+    const newUser = await this.prisma.usuario.create({
+      data: {
+        correo: auth0User.email,
+        nombre: auth0User.name || auth0User.email.split('@')[0],
+        activo: true,
+        estado: EstadoUsuario.ACTIVO,
+        tenantId: defaultTenant.id,
+        perfilId: defaultProfile.id,
+        rut: '12345678-9',
+        telefono: '+1234567890',
+      },
+    });
+
+    // Now fetch the user with the required relations
+    const userWithRelations = await this.prisma.usuario.findUnique({
+      where: { id: newUser.id },
+      include: {
+        perfil: {
+          include: {
+            perfilesRoles: {
+              include: {
+                rol: true,
+              },
+            },
+          },
+        },
+        tenant: true,
+      },
+    });
+
+    if (!userWithRelations) {
+      throw new NotFoundException('Failed to create user with relations');
+    }
+
+    return userWithRelations;
   }
 
   private async getUserPermissions(
@@ -156,9 +185,14 @@ export class AuthService {
         },
       });
 
+      if (!userWithProfile) {
+        this.logger.warn(`User ${userId} not found`);
+        return [];
+      }
+
       this.logger.debug(`User found: ${!!userWithProfile}`);
 
-      if (userWithProfile?.perfil?.perfilesRoles) {
+      if (userWithProfile.perfil?.perfilesRoles) {
         this.logger.debug(
           `Found ${userWithProfile.perfil.perfilesRoles.length} profile-role relationships`,
         );
@@ -215,142 +249,98 @@ export class AuthService {
     }
   }
 
-  private async getOrCreateActiveStatus() {
-    let status = await this.prisma.estadoRegistro.findFirst({
-      where: { estado: 'activo' },
-    });
-
-    if (!status) {
-      status = await this.prisma.estadoRegistro.create({
-        data: {
-          estado: 'activo',
-          tenantId: null, // System-wide status
-        },
-      });
-    }
-
-    return status;
-  }
-
-  private async getOrCreateDefaultUserType() {
-    let userType = await this.prisma.tipoUsuario.findFirst({
-      where: { tipoUsuario: 'standard' },
-    });
-
-    if (!userType) {
-      userType = await this.prisma.tipoUsuario.create({
-        data: {
-          tipoUsuario: 'standard',
-          tenantId: null, // System-wide type
-        },
-      });
-    }
-
-    return userType;
-  }
-
-  private async getOrCreateDefaultTenant(activeStatusId: string) {
+  private async getOrCreateDefaultTenant() {
     let tenant = await this.prisma.tenant.findFirst({
       where: { nombre: 'Tenant Administrativo' },
     });
 
     if (!tenant) {
-      const tenantType = await this.getOrCreateDefaultTenantType();
-
       tenant = await this.prisma.tenant.create({
         data: {
           nombre: 'Tenant Administrativo',
           contacto: 'admin@demo.cl',
           rut: '12345678-9',
           activo: true,
-          estadoId: activeStatusId,
-          tipoTenantId: tenantType.id,
+          tipoTenant: TipoTenant.ADMIN,
         },
       });
+    }
+
+    if (!tenant) {
+      throw new Error('Failed to create or find default tenant');
     }
 
     return tenant;
   }
 
-  private async getOrCreateDefaultTenantType() {
-    let tenantType = await this.prisma.tipoTenant.findFirst({
-      where: { tipoTenant: 'admin' },
-    });
-
-    if (!tenantType) {
-      tenantType = await this.prisma.tipoTenant.create({
-        data: {
-          tipoTenant: 'admin',
-          tenantId: null, // System-wide type
-        },
-      });
-    }
-
-    return tenantType;
-  }
-
-  private async getOrCreateDefaultProfile(
-    tenantId: string,
-    activeStatusId: string,
-  ) {
+  private async getOrCreateDefaultProfile(tenantId: string) {
     let profile = await this.prisma.perfil.findFirst({
       where: {
         nombre: 'Administrador',
         tenantId: tenantId,
       },
+      include: {
+        perfilesRoles: {
+          include: {
+            rol: true,
+          },
+        },
+      },
     });
 
     if (!profile) {
-      const profileType = await this.getOrCreateDefaultProfileType();
-
-      profile = await this.prisma.perfil.create({
+      const newProfile = await this.prisma.perfil.create({
         data: {
           nombre: 'Administrador',
           descripcion: 'Perfil administrativo con acceso completo',
           activo: true,
-          estadoId: activeStatusId,
           tenantId: tenantId,
-          tipoId: profileType.id,
-          contacto: 'admin@tenant.com',
-          rut: '98765432-1',
         },
       });
 
       // Create some basic roles for this profile
-      await this.createDefaultRoles(tenantId, activeStatusId, profile.id);
+      await this.createDefaultRoles(tenantId, newProfile.id);
+
+      // Refetch the profile with relations
+      profile = await this.prisma.perfil.findUnique({
+        where: { id: newProfile.id },
+        include: {
+          perfilesRoles: {
+            include: {
+              rol: true,
+            },
+          },
+        },
+      });
+    }
+
+    if (!profile) {
+      throw new Error('Failed to create or find default profile');
     }
 
     return profile;
   }
 
-  private async getOrCreateDefaultProfileType() {
-    let profileType = await this.prisma.tipoPerfil.findFirst({
-      where: { tipoPerfil: 'administrativo' },
-    });
-
-    if (!profileType) {
-      profileType = await this.prisma.tipoPerfil.create({
-        data: {
-          tipoPerfil: 'administrativo',
-          tenantId: null, // System-wide type
-        },
-      });
-    }
-
-    return profileType;
-  }
-
-  private async createDefaultRoles(
-    tenantId: string,
-    activeStatusId: string,
-    profileId: string,
-  ) {
-    const actionType = await this.getOrCreateActionType();
-
+  private async createDefaultRoles(tenantId: string, profileId: string) {
     const defaultRoles = [
-      { codigo: 'ver_dashboard', nombre: 'Ver Dashboard', modulo: 'usuarios' },
-      { codigo: 'crear_ordenes', nombre: 'Crear Órdenes', modulo: 'ordenes' },
-      { codigo: 'editar_perfil', nombre: 'Editar Perfil', modulo: 'usuarios' },
+      {
+        codigo: 'ver_dashboard',
+        nombre: 'Ver Dashboard',
+        modulo: 'usuarios',
+        tipoAccion: 'VER' as const,
+      },
+      {
+        codigo: 'crear_ordenes',
+        nombre: 'Crear Órdenes',
+        modulo: 'ordenes',
+        tipoAccion: 'CREAR' as const,
+      },
+      {
+        codigo: 'editar_perfil',
+        nombre: 'Editar Perfil',
+        modulo: 'usuarios',
+        tipoAccion: 'EDITAR' as const,
+      },
     ];
 
     for (const roleData of defaultRoles) {
@@ -358,9 +348,7 @@ export class AuthService {
         data: {
           ...roleData,
           activo: true,
-          estadoId: activeStatusId,
           tenantId: tenantId,
-          tipoAccionId: actionType.id,
           visible: true,
           orden: 1,
         },
@@ -377,20 +365,72 @@ export class AuthService {
     }
   }
 
-  private async getOrCreateActionType() {
-    let actionType = await this.prisma.tipoAccion.findFirst({
-      where: { tipoAccion: 'ver' },
-    });
-
-    if (!actionType) {
-      actionType = await this.prisma.tipoAccion.create({
-        data: {
-          tipoAccion: 'ver',
-          tenantId: null, // System-wide type
+  // Optional: Method to validate refresh token
+  async validateRefreshToken(refreshToken: string): Promise<any> {
+    try {
+      const payload = this.internalJwtService.verifyInternalToken(refreshToken);
+      const user = await this.prisma.usuario.findUnique({
+        where: { id: payload.sub },
+        include: {
+          perfil: {
+            include: {
+              perfilesRoles: {
+                include: {
+                  rol: true,
+                },
+              },
+            },
+          },
+          tenant: true,
         },
       });
+
+      if (!user || !user.activo) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      return user;
+    } catch (error) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  // Optional: Method to refresh tokens
+  async refreshTokens(refreshToken: string) {
+    const user = await this.validateRefreshToken(refreshToken);
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
     }
 
-    return actionType;
+    const permissions = await this.getUserPermissions(user.id, user.tenantId);
+
+    const internalPayload: InternalJwtPayload = {
+      sub: user.id,
+      email: user.correo,
+      tenant_id: user.tenantId,
+      profile_id: user.perfilId,
+      permissions: permissions,
+    };
+
+    const accessToken =
+      await this.internalJwtService.generateInternalToken(internalPayload);
+    const newRefreshToken = await this.internalJwtService.generateRefreshToken(
+      user.id,
+    );
+
+    return {
+      access_token: accessToken,
+      refresh_token: newRefreshToken,
+      user: {
+        id: user.id,
+        email: user.correo,
+        name: user.nombre,
+        tenant_id: user.tenantId,
+        profile_id: user.perfilId,
+        profile_name: user.perfil?.nombre || 'Usuario',
+        permissions: permissions,
+      },
+    };
   }
 }

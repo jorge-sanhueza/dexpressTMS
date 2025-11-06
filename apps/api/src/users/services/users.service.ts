@@ -11,9 +11,8 @@ import {
   UpdateUserDto,
   User,
   UsersFilterDto,
-  UserWithDetails,
-  UserWithFullDetails,
 } from '../interfaces/user.interface';
+import { EstadoUsuario } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
@@ -42,7 +41,6 @@ export class UsersService {
         where.OR = [
           { nombre: { contains: search, mode: 'insensitive' } },
           { correo: { contains: search, mode: 'insensitive' } },
-          { contacto: { contains: search, mode: 'insensitive' } },
         ];
       }
 
@@ -62,11 +60,14 @@ export class UsersService {
           include: {
             perfil: {
               include: {
-                tipo: true,
+                perfilesRoles: {
+                  include: {
+                    rol: true,
+                  },
+                },
               },
             },
-            tipo: true,
-            estado: true,
+            tenant: true,
           },
           skip,
           take: limitNumber,
@@ -77,8 +78,7 @@ export class UsersService {
 
       return {
         users: users.map((user) => {
-          const profileType = user.perfil?.tipo?.tipoPerfil;
-          return new UserResponseDto(user, profileType);
+          return new UserResponseDto(user);
         }),
         total,
       };
@@ -90,7 +90,7 @@ export class UsersService {
 
   async findOne(id: string, tenantId: string): Promise<User> {
     try {
-      const user = (await this.prisma.usuario.findFirst({
+      const user = await this.prisma.usuario.findFirst({
         where: {
           id,
           tenantId,
@@ -98,20 +98,22 @@ export class UsersService {
         include: {
           perfil: {
             include: {
-              tipo: true,
+              perfilesRoles: {
+                include: {
+                  rol: true,
+                },
+              },
             },
           },
-          tipo: true,
-          estado: true,
+          tenant: true,
         },
-      })) as unknown as UserWithDetails;
+      });
 
       if (!user) {
         throw new NotFoundException('User not found');
       }
 
-      const profileType = user.perfil?.tipo?.tipoPerfil;
-      return new UserResponseDto(user, profileType);
+      return new UserResponseDto(user);
     } catch (error) {
       this.logger.error(`Error fetching user ${id}:`, error);
       throw error;
@@ -129,55 +131,50 @@ export class UsersService {
         throw new BadRequestException('Email already exists');
       }
 
-      // Get active status
-      const activeStatus = await this.prisma.estadoRegistro.findFirst({
-        where: { estado: 'activo' },
+      // Verify profile exists and belongs to the same tenant
+      const profile = await this.prisma.perfil.findFirst({
+        where: {
+          id: createUserDto.perfilId,
+          tenantId: createUserDto.tenantId,
+          activo: true,
+        },
       });
 
-      if (!activeStatus) {
-        throw new NotFoundException('Active status not found');
+      if (!profile) {
+        throw new BadRequestException('Invalid profile or profile not found');
       }
 
-      // Get default user type if not provided
-      let tipoId = createUserDto.tipoId;
-      if (!tipoId) {
-        const defaultType = await this.prisma.tipoUsuario.findFirst({
-          where: { tipoUsuario: 'standard' },
-        });
-        if (!defaultType) {
-          throw new NotFoundException('Default user type not found');
-        }
-        tipoId = defaultType.id;
-      }
-
-      const user = (await this.prisma.usuario.create({
+      const user = await this.prisma.usuario.create({
         data: {
           correo: createUserDto.email,
           nombre: createUserDto.nombre,
-          contacto: createUserDto.contacto || null,
           rut: createUserDto.rut || null,
           telefono: createUserDto.telefono || null,
           tenantId: createUserDto.tenantId,
           perfilId: createUserDto.perfilId,
-          estadoId: activeStatus.id,
-          tipoId: tipoId,
+          estado: EstadoUsuario.ACTIVO, // Using enum directly
           activo: true,
         },
         include: {
           perfil: {
             include: {
-              tipo: true,
+              perfilesRoles: {
+                include: {
+                  rol: true,
+                },
+              },
             },
           },
-          tipo: true,
-          estado: true,
+          tenant: true,
         },
-      })) as unknown as UserWithDetails;
+      });
 
-      const profileType = user.perfil?.tipo?.tipoPerfil;
-      return new UserResponseDto(user, profileType);
+      return new UserResponseDto(user);
     } catch (error) {
       this.logger.error('Error creating user:', error);
+      if (error.code === 'P2002') {
+        throw new BadRequestException('Email already exists');
+      }
       throw error;
     }
   }
@@ -197,30 +194,64 @@ export class UsersService {
         throw new NotFoundException('User not found');
       }
 
-      const user = (await this.prisma.usuario.update({
+      // If updating profile, verify it exists and belongs to same tenant
+      if (
+        updateUserDto.perfilId &&
+        updateUserDto.perfilId !== existingUser.perfilId
+      ) {
+        const profile = await this.prisma.perfil.findFirst({
+          where: {
+            id: updateUserDto.perfilId,
+            tenantId: tenantId,
+            activo: true,
+          },
+        });
+
+        if (!profile) {
+          throw new BadRequestException('Invalid profile or profile not found');
+        }
+      }
+
+      // If updating email, check for duplicates
+      if (updateUserDto.email && updateUserDto.email !== existingUser.correo) {
+        const emailExists = await this.prisma.usuario.findFirst({
+          where: {
+            correo: updateUserDto.email,
+            id: { not: id },
+          },
+        });
+
+        if (emailExists) {
+          throw new BadRequestException('Email already exists');
+        }
+      }
+
+      const user = await this.prisma.usuario.update({
         where: { id },
         data: {
+          correo: updateUserDto.email,
           nombre: updateUserDto.nombre,
-          contacto: updateUserDto.contacto,
           rut: updateUserDto.rut,
           telefono: updateUserDto.telefono,
           perfilId: updateUserDto.perfilId,
           activo: updateUserDto.activo,
-          tipoId: updateUserDto.tipoId,
+          estado: updateUserDto.estado,
         },
         include: {
           perfil: {
             include: {
-              tipo: true,
+              perfilesRoles: {
+                include: {
+                  rol: true,
+                },
+              },
             },
           },
-          tipo: true,
-          estado: true,
+          tenant: true,
         },
-      })) as unknown as UserWithDetails;
+      });
 
-      const profileType = user.perfil?.tipo?.tipoPerfil;
-      return new UserResponseDto(user, profileType);
+      return new UserResponseDto(user);
     } catch (error) {
       this.logger.error(`Error updating user ${id}:`, error);
       throw error;
@@ -241,7 +272,10 @@ export class UsersService {
       // Soft delete by setting activo to false
       await this.prisma.usuario.update({
         where: { id },
-        data: { activo: false },
+        data: {
+          activo: false,
+          estado: EstadoUsuario.INACTIVO,
+        },
       });
 
       this.logger.log(`User ${id} deactivated`);
@@ -253,26 +287,27 @@ export class UsersService {
 
   async getCurrentUser(userId: string): Promise<User> {
     try {
-      const user = (await this.prisma.usuario.findUnique({
+      const user = await this.prisma.usuario.findUnique({
         where: { id: userId },
         include: {
           perfil: {
             include: {
-              tipo: true,
+              perfilesRoles: {
+                include: {
+                  rol: true,
+                },
+              },
             },
           },
-          tipo: true,
-          estado: true,
           tenant: true,
         },
-      })) as unknown as UserWithFullDetails;
+      });
 
       if (!user) {
         throw new NotFoundException('User not found');
       }
 
-      const profileType = user.perfil?.tipo?.tipoPerfil;
-      return new UserResponseDto(user, profileType);
+      return new UserResponseDto(user);
     } catch (error) {
       this.logger.error(`Error fetching current user ${userId}:`, error);
       throw error;
@@ -284,30 +319,91 @@ export class UsersService {
     updateUserDto: UpdateUserDto,
   ): Promise<User> {
     try {
-      const user = (await this.prisma.usuario.update({
+      const user = await this.prisma.usuario.update({
         where: { id: userId },
         data: {
           nombre: updateUserDto.nombre,
-          contacto: updateUserDto.contacto,
           rut: updateUserDto.rut,
           telefono: updateUserDto.telefono,
         },
         include: {
           perfil: {
             include: {
-              tipo: true,
+              perfilesRoles: {
+                include: {
+                  rol: true,
+                },
+              },
             },
           },
-          tipo: true,
-          estado: true,
           tenant: true,
         },
-      })) as unknown as UserWithFullDetails;
+      });
 
-      const profileType = user.perfil?.tipo?.tipoPerfil;
-      return new UserResponseDto(user, profileType);
+      return new UserResponseDto(user);
     } catch (error) {
       this.logger.error(`Error updating current user ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  // New method to get user statistics
+  async getUserStats(tenantId: string): Promise<{
+    total: number;
+    active: number;
+    inactive: number;
+    byProfile: Array<{ perfil: string; count: number }>;
+  }> {
+    try {
+      const total = await this.prisma.usuario.count({
+        where: { tenantId },
+      });
+
+      const active = await this.prisma.usuario.count({
+        where: {
+          tenantId,
+          activo: true,
+          estado: EstadoUsuario.ACTIVO,
+        },
+      });
+
+      const inactive = await this.prisma.usuario.count({
+        where: {
+          tenantId,
+          OR: [{ activo: false }, { estado: EstadoUsuario.INACTIVO }],
+        },
+      });
+
+      const usersByProfile = await this.prisma.usuario.groupBy({
+        by: ['perfilId'],
+        where: { tenantId },
+        _count: {
+          id: true,
+        },
+      });
+
+      // Get profile names
+      const profileCounts = await Promise.all(
+        usersByProfile.map(async (group) => {
+          const profile = await this.prisma.perfil.findUnique({
+            where: { id: group.perfilId },
+            select: { nombre: true },
+          });
+          return {
+            perfil: profile?.nombre || 'Unknown',
+            count: group._count.id,
+          };
+        }),
+      );
+
+      return {
+        total,
+        active,
+        inactive,
+        byProfile: profileCounts,
+      };
+    } catch (error) {
+      this.logger.error('Error fetching user stats:', error);
       throw error;
     }
   }

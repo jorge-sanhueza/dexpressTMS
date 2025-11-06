@@ -20,7 +20,7 @@ export class ProfilesService {
     filter: ProfilesFilterDto = {},
   ): Promise<{ profiles: any[]; total: number }> {
     try {
-      const { search, tipo, activo, page = 1, limit = 10 } = filter;
+      const { search, activo, page = 1, limit = 10 } = filter;
 
       const pageNumber = typeof page === 'string' ? parseInt(page, 10) : page;
       const limitNumber =
@@ -39,13 +39,6 @@ export class ProfilesService {
         ];
       }
 
-      // Type filter
-      if (tipo) {
-        where.tipo = {
-          tipoPerfil: tipo,
-        };
-      }
-
       // Active filter
       if (activo !== undefined) {
         where.activo = typeof activo === 'string' ? activo === 'true' : activo;
@@ -55,7 +48,11 @@ export class ProfilesService {
         this.prisma.perfil.findMany({
           where,
           include: {
-            tipo: true,
+            perfilesRoles: {
+              include: {
+                rol: true,
+              },
+            },
           },
           skip,
           take: limitNumber,
@@ -69,9 +66,9 @@ export class ProfilesService {
       const formattedProfiles = profiles.map((profile) => ({
         id: profile.id,
         nombre: profile.nombre,
-        tipo: profile.tipo?.tipoPerfil,
         descripcion: profile.descripcion,
         activo: profile.activo,
+        rolesCount: profile.perfilesRoles.length,
       }));
 
       this.logger.log(
@@ -108,37 +105,20 @@ export class ProfilesService {
         );
       }
 
-      // Get active status
-      const activeStatus = await this.prisma.estadoRegistro.findFirst({
-        where: { estado: 'activo' },
-      });
-
-      if (!activeStatus) {
-        throw new NotFoundException('Estado activo no encontrado');
-      }
-
-      // Get profile type
-      const profileType = await this.prisma.tipoPerfil.findFirst({
-        where: { tipoPerfil: createProfileDto.tipo || 'básico' },
-      });
-
-      if (!profileType) {
-        throw new NotFoundException('Tipo de perfil no encontrado');
-      }
-
       const profile = await this.prisma.perfil.create({
         data: {
           nombre: createProfileDto.nombre,
           descripcion: createProfileDto.descripcion,
-          contacto: createProfileDto.contacto || null,
-          rut: createProfileDto.rut || null,
+          // Note: 'contacto' and 'rut' fields were removed in simplified schema
           tenantId: tenantId,
-          tipoId: profileType.id,
-          estadoId: activeStatus.id,
           activo: true,
         },
         include: {
-          tipo: true,
+          perfilesRoles: {
+            include: {
+              rol: true,
+            },
+          },
         },
       });
 
@@ -190,34 +170,23 @@ export class ProfilesService {
         }
       }
 
-      // Get profile type if provided
-      let tipoId = existingProfile.tipoId;
-      if (updateProfileDto.tipo) {
-        const profileType = await this.prisma.tipoPerfil.findFirst({
-          where: { tipoPerfil: updateProfileDto.tipo },
-        });
-
-        if (!profileType) {
-          throw new NotFoundException('Tipo de perfil no encontrado');
-        }
-        tipoId = profileType.id;
-      }
-
       const profile = await this.prisma.perfil.update({
         where: { id },
         data: {
           nombre: updateProfileDto.nombre,
           descripcion: updateProfileDto.descripcion,
-          contacto: updateProfileDto.contacto,
-          rut: updateProfileDto.rut,
-          tipoId: tipoId,
+          // Note: 'contacto' and 'rut' fields were removed in simplified schema
           activo:
             updateProfileDto.activo !== undefined
               ? updateProfileDto.activo
               : existingProfile.activo,
         },
         include: {
-          tipo: true,
+          perfilesRoles: {
+            include: {
+              rol: true,
+            },
+          },
         },
       });
 
@@ -245,6 +214,21 @@ export class ProfilesService {
         throw new NotFoundException('Perfil no encontrado');
       }
 
+      // Check if profile is being used by any users
+      const usersWithProfile = await this.prisma.usuario.count({
+        where: {
+          perfilId: id,
+          tenantId,
+          activo: true,
+        },
+      });
+
+      if (usersWithProfile > 0) {
+        throw new BadRequestException(
+          'No se puede desactivar el perfil porque está siendo utilizado por usuarios activos',
+        );
+      }
+
       // Soft delete by setting activo to false
       await this.prisma.perfil.update({
         where: { id },
@@ -267,7 +251,6 @@ export class ProfilesService {
           tenantId,
         },
         include: {
-          tipo: true,
           perfilesRoles: {
             include: {
               rol: {
@@ -276,13 +259,19 @@ export class ProfilesService {
                   codigo: true,
                   nombre: true,
                   modulo: true,
-                  tipoAccion: {
-                    select: {
-                      tipoAccion: true,
-                    },
-                  },
+                  tipoAccion: true, // Now directly on rol, not a relation
                 },
               },
+            },
+          },
+          usuarios: {
+            where: {
+              activo: true,
+            },
+            select: {
+              id: true,
+              nombre: true,
+              correo: true,
             },
           },
         },
@@ -293,21 +282,24 @@ export class ProfilesService {
       }
 
       this.logger.log(
-        `Profile ${profile.nombre} has ${profile.perfilesRoles.length} roles`,
+        `Profile ${profile.nombre} has ${profile.perfilesRoles.length} roles and ${profile.usuarios.length} users`,
       );
-
-      const roleCodes = profile.perfilesRoles.map((pr) => pr.rol.codigo);
-      this.logger.debug(`Role codes: ${JSON.stringify(roleCodes)}`);
 
       const response = {
         id: profile.id,
         nombre: profile.nombre,
-        tipo: profile.tipo?.tipoPerfil,
         descripcion: profile.descripcion,
-        contacto: profile.contacto,
-        rut: profile.rut,
         activo: profile.activo,
-        roles: roleCodes,
+        roles: profile.perfilesRoles.map(pr => ({
+          id: pr.rol.id,
+          codigo: pr.rol.codigo,
+          nombre: pr.rol.nombre,
+          modulo: pr.rol.modulo,
+          tipoAccion: pr.rol.tipoAccion,
+        })),
+        usuarios: profile.usuarios,
+        rolesCount: profile.perfilesRoles.length,
+        usuariosCount: profile.usuarios.length,
       };
 
       this.logger.debug(`Sending response: ${JSON.stringify(response)}`);
@@ -315,29 +307,6 @@ export class ProfilesService {
       return response;
     } catch (error) {
       this.logger.error(`Error fetching profile ${id}:`, error);
-      throw error;
-    }
-  }
-
-  async getProfileTypes(
-    tenantId: string,
-  ): Promise<{ id: string; tipoPerfil: string }[]> {
-    try {
-      this.logger.log(`Fetching profile types for tenant: ${tenantId}`);
-      const profileTypes = await this.prisma.tipoPerfil.findMany({
-        select: {
-          id: true,
-          tipoPerfil: true,
-        },
-        orderBy: {
-          tipoPerfil: 'asc',
-        },
-      });
-
-      this.logger.log(`Found ${profileTypes.length} profile types`);
-      return profileTypes;
-    } catch (error) {
-      this.logger.error('Error fetching profile types:', error);
       throw error;
     }
   }
@@ -438,13 +407,6 @@ export class ProfilesService {
           tenantId,
           activo: true,
         },
-        include: {
-          tipoAccion: {
-            select: {
-              tipoAccion: true,
-            },
-          },
-        },
         orderBy: [{ modulo: 'asc' }, { orden: 'asc' }],
       });
 
@@ -471,7 +433,7 @@ export class ProfilesService {
         codigo: role.codigo,
         nombre: role.nombre,
         modulo: role.modulo,
-        tipo_accion: role.tipoAccion?.tipoAccion,
+        tipoAccion: role.tipoAccion,
         asignado: assignedRoleIds.includes(role.id),
       }));
 
