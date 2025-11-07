@@ -14,12 +14,10 @@ import {
 } from '@nestjs/common';
 import { EmbarcadoresService } from '../services/embarcadores.service';
 import { Auth0Guard } from '../../auth/guards/auth0.guard';
-import type {
-  CreateEmbarcadorDto,
-  UpdateEmbarcadorDto,
-  Embarcador,
-  EmbarcadoresFilterDto,
-} from '../interfaces/embarcador.interface';
+import { CreateEmbarcadorDto } from '../dto/create-embarcador.dto';
+import { UpdateEmbarcadorDto } from '../dto/update-embarcador.dto';
+import { EmbarcadoresFilterDto } from '../dto/embarcadores-filter.dto';
+import { EmbarcadorResponseDto } from '../dto/embarcador-response.dto';
 
 @Controller('api/embarcadores')
 @UseGuards(Auth0Guard)
@@ -29,12 +27,10 @@ export class EmbarcadoresController {
   constructor(private readonly embarcadoresService: EmbarcadoresService) {}
 
   private getTenantId(req: any): string {
-    // Try different possible locations for tenant_id
     const tenantId =
       req.user?.tenant_id || req.user?.tenantId || req.user?.tenant?.id;
 
     this.logger.debug(`Extracted tenantId: ${tenantId}`);
-    this.logger.debug(`Full user object: ${JSON.stringify(req.user)}`);
 
     if (!tenantId) {
       throw new Error('Tenant ID not found in user object');
@@ -48,7 +44,7 @@ export class EmbarcadoresController {
     @Query() filter: EmbarcadoresFilterDto,
     @Request() req,
   ): Promise<{
-    embarcadores: Embarcador[];
+    embarcadores: EmbarcadorResponseDto[];
     total: number;
     page: number;
     limit: number;
@@ -70,20 +66,31 @@ export class EmbarcadoresController {
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @Request() req,
-  ): Promise<Embarcador> {
+  ): Promise<EmbarcadorResponseDto> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Fetching embarcador ${id} for tenant: ${tenantId}`);
     return this.embarcadoresService.findOne(id, tenantId);
+  }
+
+  @Get('rut/:rut')
+  async findByRut(
+    @Param('rut') rut: string,
+    @Request() req,
+  ): Promise<EmbarcadorResponseDto | null> {
+    const tenantId = this.getTenantId(req);
+    this.logger.log(
+      `Finding embarcador by RUT: ${rut} for tenant: ${tenantId}`,
+    );
+    return this.embarcadoresService.findByRut(rut, tenantId);
   }
 
   @Post()
   async create(
     @Body() createEmbarcadorDto: CreateEmbarcadorDto,
     @Request() req,
-  ): Promise<Embarcador> {
+  ): Promise<EmbarcadorResponseDto> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Creating embarcador for tenant: ${tenantId}`);
-
     return this.embarcadoresService.create(createEmbarcadorDto, tenantId);
   }
 
@@ -92,7 +99,7 @@ export class EmbarcadoresController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateEmbarcadorDto: UpdateEmbarcadorDto,
     @Request() req,
-  ): Promise<Embarcador> {
+  ): Promise<EmbarcadorResponseDto> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Updating embarcador ${id} for tenant: ${tenantId}`);
     return this.embarcadoresService.update(id, updateEmbarcadorDto, tenantId);

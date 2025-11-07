@@ -3,16 +3,14 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
+import { CreateOrderDto } from '../dto/create-order.dto';
+import { UpdateOrderDto } from '../dto/update-order.dto';
+import { OrdersFilterDto } from '../dto/orders-filter.dto';
 import { OrderResponseDto } from '../dto/order-response.dto';
-import {
-  CreateOrderDto,
-  UpdateOrderDto,
-  Order,
-  OrdersFilterDto,
-  OrderWithDetails,
-} from '../interfaces/order.interface';
+import { OrdenEstado, TipoTarifa } from '@prisma/client';
 
 @Injectable()
 export class OrdersService {
@@ -23,7 +21,7 @@ export class OrdersService {
   async findAll(
     filter: OrdersFilterDto,
     tenantId: string,
-  ): Promise<{ orders: Order[]; total: number }> {
+  ): Promise<{ orders: OrderResponseDto[]; total: number }> {
     try {
       const {
         search,
@@ -48,7 +46,6 @@ export class OrdersService {
       if (search) {
         where.OR = [
           { codigo: { contains: search, mode: 'insensitive' } },
-          { numero: { contains: search, mode: 'insensitive' } },
           { numeroOt: { contains: search, mode: 'insensitive' } },
           { observaciones: { contains: search, mode: 'insensitive' } },
         ];
@@ -68,10 +65,10 @@ export class OrdersService {
       if (fechaDesde || fechaHasta) {
         where.fecha = {};
         if (fechaDesde) {
-          where.fecha.gte = new Date(fechaDesde);
+          where.fecha.gte = fechaDesde;
         }
         if (fechaHasta) {
-          where.fecha.lte = new Date(fechaHasta);
+          where.fecha.lte = fechaHasta;
         }
       }
 
@@ -120,6 +117,13 @@ export class OrdersService {
             },
             tipoCarga: true,
             tipoServicio: true,
+            equipo: {
+              select: {
+                id: true,
+                patente: true,
+                nombre: true,
+              },
+            },
           },
           skip,
           take: limitNumber,
@@ -128,13 +132,8 @@ export class OrdersService {
         this.prisma.orden.count({ where }),
       ]);
 
-      // Convert to OrderResponseDto which implements Order interface
-      const orderDtos: Order[] = orders.map(
-        (order) => new OrderResponseDto(order),
-      );
-
       return {
-        orders: orderDtos,
+        orders: orders.map((order) => new OrderResponseDto(order)),
         total,
       };
     } catch (error) {
@@ -143,9 +142,9 @@ export class OrdersService {
     }
   }
 
-  async findOne(id: string, tenantId: string): Promise<Order> {
+  async findOne(id: string, tenantId: string): Promise<OrderResponseDto> {
     try {
-      const order = (await this.prisma.orden.findFirst({
+      const order = await this.prisma.orden.findFirst({
         where: {
           id,
           tenantId,
@@ -192,8 +191,15 @@ export class OrdersService {
           },
           tipoCarga: true,
           tipoServicio: true,
+          equipo: {
+            select: {
+              id: true,
+              patente: true,
+              nombre: true,
+            },
+          },
         },
-      })) as unknown as OrderWithDetails;
+      });
 
       if (!order) {
         throw new NotFoundException('Order not found');
@@ -207,85 +213,53 @@ export class OrdersService {
   }
 
   async create(
-    createOrderDto: CreateOrderDto,
-    tenantId: string,
-  ): Promise<Order> {
-    try {
-      // First, verify the tenant exists or get a fallback tenant
-      let validTenantId = tenantId;
+  createOrderDto: CreateOrderDto,
+  tenantId: string,
+): Promise<OrderResponseDto> {
+  try {
+    // Verify that all related entities exist and belong to the tenant
+    await this.verifyRelatedEntities(createOrderDto, tenantId);
 
-      const tenant = await this.prisma.tenant.findFirst({
-        where: { id: tenantId },
-      });
+    // Generate order code if not provided
+    const codigo = createOrderDto.codigo || await this.generateOrderCode();
 
-      if (!tenant) {
-        this.logger.warn(
-          `Tenant ${tenantId} not found, looking for fallback tenant`,
-        );
+    // Check if order number (numeroOt) already exists for this tenant
+    const existingOrder = await this.prisma.orden.findFirst({
+      where: {
+        numeroOt: createOrderDto.numeroOt,
+        tenantId,
+      },
+    });
 
-        // Try to find the admin tenant as fallback
-        const adminTenant = await this.prisma.tenant.findFirst({
-          where: { nombre: 'Tenant Administrativo' },
-        });
+    if (existingOrder) {
+      throw new ConflictException('Order with this OT number already exists');
+    }
 
-        if (!adminTenant) {
-          // If no admin tenant, try to get any active tenant
-          const anyTenant = await this.prisma.tenant.findFirst({
-            where: { activo: true },
-          });
-
-          if (!anyTenant) {
-            throw new BadRequestException(
-              'No valid tenant found for order creation',
-            );
-          }
-
-          validTenantId = anyTenant.id;
-          this.logger.log(
-            `Using fallback tenant: ${anyTenant.nombre} (${anyTenant.id})`,
-          );
-        } else {
-          validTenantId = adminTenant.id;
-          this.logger.log(
-            `Using admin tenant: ${adminTenant.nombre} (${adminTenant.id})`,
-          );
-        }
-      }
-
-      // Verify that all related entities exist and belong to the tenant
-      await this.verifyRelatedEntities(createOrderDto, validTenantId);
-
-      // Generate order code if not provided
-      const codigo = createOrderDto.codigo || (await this.generateOrderCode());
-
-      const order = (await this.prisma.orden.create({
-        data: {
-          codigo,
-          numero: createOrderDto.numero,
-          numeroOt: createOrderDto.numeroOt,
-          fecha: new Date(createOrderDto.fecha),
-          fechaEntregaEstimada: createOrderDto.fechaEntregaEstimada
-            ? new Date(createOrderDto.fechaEntregaEstimada)
-            : null,
-          estado: createOrderDto.estado || 'pendiente',
-          tipoTarifa: createOrderDto.tipoTarifa || 'peso_volumen',
-          clienteId: createOrderDto.clienteId,
-          remitenteId: createOrderDto.remitenteId,
-          destinatarioId: createOrderDto.destinatarioId,
-          direccionOrigenId: createOrderDto.direccionOrigenId,
-          direccionDestinoId: createOrderDto.direccionDestinoId,
-          tipoCargaId: createOrderDto.tipoCargaId,
-          tipoServicioId: createOrderDto.tipoServicioId,
-          equipoId: createOrderDto.equipoId,
-          pesoTotalKg: createOrderDto.pesoTotalKg,
-          volumenTotalM3: createOrderDto.volumenTotalM3,
-          altoCm: createOrderDto.altoCm,
-          largoCm: createOrderDto.largoCm,
-          anchoCm: createOrderDto.anchoCm,
-          observaciones: createOrderDto.observaciones,
-          tenantId: validTenantId,
-        },
-        include: {
+    const order = await this.prisma.orden.create({
+      data: {
+        codigo,
+        numeroOt: createOrderDto.numeroOt, // Fixed: removed 'numero' field
+        fecha: createOrderDto.fecha,
+        fechaEntregaEstimada: createOrderDto.fechaEntregaEstimada,
+        estado: createOrderDto.estado,
+        tipoTarifa: createOrderDto.tipoTarifa,
+        clienteId: createOrderDto.clienteId,
+        remitenteId: createOrderDto.remitenteId,
+        destinatarioId: createOrderDto.destinatarioId,
+        direccionOrigenId: createOrderDto.direccionOrigenId,
+        direccionDestinoId: createOrderDto.direccionDestinoId,
+        tipoCargaId: createOrderDto.tipoCargaId,
+        tipoServicioId: createOrderDto.tipoServicioId,
+        equipoId: createOrderDto.equipoId,
+        pesoTotalKg: createOrderDto.pesoTotalKg,
+        volumenTotalM3: createOrderDto.volumenTotalM3,
+        altoCm: createOrderDto.altoCm,
+        largoCm: createOrderDto.largoCm,
+        anchoCm: createOrderDto.anchoCm,
+        observaciones: createOrderDto.observaciones,
+        tenantId,
+      },
+      include: {
           cliente: {
             select: {
               id: true,
@@ -327,9 +301,17 @@ export class OrdersService {
           },
           tipoCarga: true,
           tipoServicio: true,
+          equipo: {
+            select: {
+              id: true,
+              patente: true,
+              nombre: true,
+            },
+          },
         },
-      })) as unknown as OrderWithDetails;
+      });
 
+      this.logger.log(`Order created successfully: ${order.codigo}`);
       return new OrderResponseDto(order);
     } catch (error) {
       this.logger.error('Error creating order:', error);
@@ -341,7 +323,7 @@ export class OrdersService {
     id: string,
     updateOrderDto: UpdateOrderDto,
     tenantId: string,
-  ): Promise<Order> {
+  ): Promise<OrderResponseDto> {
     try {
       // Verify order exists and belongs to tenant
       const existingOrder = await this.prisma.orden.findFirst({
@@ -358,21 +340,29 @@ export class OrdersService {
         tenantId,
       );
 
-      const updateData: any = { ...updateOrderDto };
+      // Check if OT number is being updated and if it conflicts
+      if (
+        updateOrderDto.numeroOt &&
+        updateOrderDto.numeroOt !== existingOrder.numeroOt
+      ) {
+        const duplicateOrder = await this.prisma.orden.findFirst({
+          where: {
+            numeroOt: updateOrderDto.numeroOt,
+            tenantId,
+            id: { not: id },
+          },
+        });
 
-      // Convert dates if provided
-      if (updateOrderDto.fecha) {
-        updateData.fecha = new Date(updateOrderDto.fecha);
-      }
-      if (updateOrderDto.fechaEntregaEstimada) {
-        updateData.fechaEntregaEstimada = new Date(
-          updateOrderDto.fechaEntregaEstimada,
-        );
+        if (duplicateOrder) {
+          throw new ConflictException(
+            'Another order with this OT number already exists',
+          );
+        }
       }
 
-      const order = (await this.prisma.orden.update({
+      const order = await this.prisma.orden.update({
         where: { id },
-        data: updateData,
+        data: updateOrderDto,
         include: {
           cliente: {
             select: {
@@ -415,9 +405,17 @@ export class OrdersService {
           },
           tipoCarga: true,
           tipoServicio: true,
+          equipo: {
+            select: {
+              id: true,
+              patente: true,
+              nombre: true,
+            },
+          },
         },
-      })) as unknown as OrderWithDetails;
+      });
 
+      this.logger.log(`Order updated successfully: ${order.codigo}`);
       return new OrderResponseDto(order);
     } catch (error) {
       this.logger.error(`Error updating order ${id}:`, error);
@@ -436,10 +434,10 @@ export class OrdersService {
         throw new NotFoundException('Order not found');
       }
 
-      // Soft delete by setting estado to 'cancelada'
+      // Soft delete by setting estado to 'CANCELADA'
       await this.prisma.orden.update({
         where: { id },
-        data: { estado: 'cancelada' },
+        data: { estado: OrdenEstado.CANCELADA },
       });
 
       this.logger.log(`Order ${id} cancelled`);
@@ -450,13 +448,13 @@ export class OrdersService {
   }
 
   private async verifyRelatedEntities(
-    createOrderDto: CreateOrderDto,
+    orderDto: CreateOrderDto,
     tenantId: string,
   ): Promise<void> {
     // Verify client exists
-    if (createOrderDto.clienteId) {
+    if (orderDto.clienteId) {
       const client = await this.prisma.cliente.findFirst({
-        where: { id: createOrderDto.clienteId, tenantId },
+        where: { id: orderDto.clienteId, tenantId },
       });
       if (!client) {
         throw new BadRequestException('Client not found');
@@ -464,9 +462,9 @@ export class OrdersService {
     }
 
     // Verify sender exists
-    if (createOrderDto.remitenteId) {
+    if (orderDto.remitenteId) {
       const sender = await this.prisma.entidad.findFirst({
-        where: { id: createOrderDto.remitenteId, tenantId },
+        where: { id: orderDto.remitenteId, tenantId },
       });
       if (!sender) {
         throw new BadRequestException('Sender not found');
@@ -474,9 +472,9 @@ export class OrdersService {
     }
 
     // Verify receiver exists
-    if (createOrderDto.destinatarioId) {
+    if (orderDto.destinatarioId) {
       const receiver = await this.prisma.entidad.findFirst({
-        where: { id: createOrderDto.destinatarioId, tenantId },
+        where: { id: orderDto.destinatarioId, tenantId },
       });
       if (!receiver) {
         throw new BadRequestException('Receiver not found');
@@ -484,18 +482,18 @@ export class OrdersService {
     }
 
     // Verify addresses exist
-    if (createOrderDto.direccionOrigenId) {
+    if (orderDto.direccionOrigenId) {
       const originAddress = await this.prisma.direccion.findFirst({
-        where: { id: createOrderDto.direccionOrigenId, tenantId },
+        where: { id: orderDto.direccionOrigenId, tenantId },
       });
       if (!originAddress) {
         throw new BadRequestException('Origin address not found');
       }
     }
 
-    if (createOrderDto.direccionDestinoId) {
+    if (orderDto.direccionDestinoId) {
       const destinationAddress = await this.prisma.direccion.findFirst({
-        where: { id: createOrderDto.direccionDestinoId, tenantId },
+        where: { id: orderDto.direccionDestinoId, tenantId },
       });
       if (!destinationAddress) {
         throw new BadRequestException('Destination address not found');
@@ -503,21 +501,31 @@ export class OrdersService {
     }
 
     // Verify service types exist
-    if (createOrderDto.tipoCargaId) {
+    if (orderDto.tipoCargaId) {
       const cargaType = await this.prisma.tipoCarga.findFirst({
-        where: { id: createOrderDto.tipoCargaId },
+        where: { id: orderDto.tipoCargaId, tenantId },
       });
       if (!cargaType) {
         throw new BadRequestException('Carga type not found');
       }
     }
 
-    if (createOrderDto.tipoServicioId) {
+    if (orderDto.tipoServicioId) {
       const serviceType = await this.prisma.tipoServicio.findFirst({
-        where: { id: createOrderDto.tipoServicioId },
+        where: { id: orderDto.tipoServicioId, tenantId },
       });
       if (!serviceType) {
         throw new BadRequestException('Service type not found');
+      }
+    }
+
+    // Verify equipment exists if provided
+    if (orderDto.equipoId) {
+      const equipment = await this.prisma.equipo.findFirst({
+        where: { id: orderDto.equipoId, tenantId },
+      });
+      if (!equipment) {
+        throw new BadRequestException('Equipment not found');
       }
     }
   }

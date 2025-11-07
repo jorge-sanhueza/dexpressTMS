@@ -1,15 +1,13 @@
-import { Order } from '../interfaces/order.interface';
+import { OrdenEstado, TipoTarifa } from '@prisma/client';
 
-export class OrderResponseDto implements Order {
+export class OrderResponseDto {
   id: string;
   codigo: string;
-  numero: string;
-  numeroOt?: string;
+  numeroOt: string; // Changed from 'numero' to 'numeroOt'
   fecha: Date;
-  fechaCreacion: Date;
   fechaEntregaEstimada?: Date;
-  estado: string;
-  tipoTarifa: string;
+  estado: OrdenEstado;
+  tipoTarifa: TipoTarifa;
   pesoTotalKg?: number;
   volumenTotalM3?: number;
   altoCm?: number;
@@ -21,53 +19,60 @@ export class OrderResponseDto implements Order {
   updatedAt: Date;
 
   // Foreign keys
-  clienteId?: string;
-  remitenteId?: string;
-  destinatarioId?: string;
-  direccionOrigenId?: string;
-  direccionDestinoId?: string;
-  tipoCargaId?: string;
-  tipoServicioId?: string;
+  clienteId: string;
+  remitenteId: string;
+  destinatarioId: string;
+  direccionOrigenId: string;
+  direccionDestinoId: string;
+  tipoCargaId: string;
+  tipoServicioId: string;
   equipoId?: string;
 
-  // Client information
+  // Relations (same as before)
   cliente?: {
     id: string;
-    nombre: string;
+    nombre?: string;
     rut: string;
   };
 
-  // Sender information
   remitente?: {
     id: string;
     nombre: string;
     rut: string;
   };
 
-  // Receiver information
   destinatario?: {
     id: string;
     nombre: string;
     rut: string;
   };
 
-  // Origin address
   direccionOrigen?: {
     id: string;
-    direccion: string;
-    comuna?: string;
-    region?: string;
+    direccionTexto: string;
+    comuna?: {
+      id: string;
+      nombre: string;
+      region?: {
+        id: string;
+        nombre: string;
+      };
+    };
   };
 
-  // Destination address
   direccionDestino?: {
     id: string;
-    direccion: string;
-    comuna?: string;
-    region?: string;
+    direccionTexto: string;
+    comuna?: {
+      id: string;
+      nombre: string;
+      region?: {
+        id: string;
+        nombre: string;
+      };
+    };
   };
 
-  // Service details
   tipoCarga?: {
     id: string;
     nombre: string;
@@ -78,14 +83,18 @@ export class OrderResponseDto implements Order {
     nombre: string;
   };
 
+  equipo?: {
+    id: string;
+    patente: string;
+    nombre: string;
+  };
+
   constructor(order: any) {
     // Basic order properties
     this.id = order.id;
     this.codigo = order.codigo;
-    this.numero = order.numero;
-    this.numeroOt = order.numeroOt;
+    this.numeroOt = order.numeroOt; // Changed from 'numero' to 'numeroOt'
     this.fecha = order.fecha;
-    this.fechaCreacion = order.fechaCreacion;
     this.fechaEntregaEstimada = order.fechaEntregaEstimada;
     this.estado = order.estado;
     this.tipoTarifa = order.tipoTarifa;
@@ -109,7 +118,7 @@ export class OrderResponseDto implements Order {
     this.tipoServicioId = order.tipoServicioId;
     this.equipoId = order.equipoId;
 
-    // Client
+    // Relations (same as before)
     if (order.cliente) {
       this.cliente = {
         id: order.cliente.id,
@@ -118,7 +127,6 @@ export class OrderResponseDto implements Order {
       };
     }
 
-    // Sender
     if (order.remitente) {
       this.remitente = {
         id: order.remitente.id,
@@ -127,7 +135,6 @@ export class OrderResponseDto implements Order {
       };
     }
 
-    // Receiver
     if (order.destinatario) {
       this.destinatario = {
         id: order.destinatario.id,
@@ -136,27 +143,44 @@ export class OrderResponseDto implements Order {
       };
     }
 
-    // Origin address
     if (order.direccionOrigen) {
       this.direccionOrigen = {
         id: order.direccionOrigen.id,
-        direccion: order.direccionOrigen.direccion,
-        comuna: order.direccionOrigen.comuna?.nombre,
-        region: order.direccionOrigen.comuna?.region?.nombre,
+        direccionTexto: order.direccionOrigen.direccionTexto,
+        ...(order.direccionOrigen.comuna && {
+          comuna: {
+            id: order.direccionOrigen.comuna.id,
+            nombre: order.direccionOrigen.comuna.nombre,
+            ...(order.direccionOrigen.comuna.region && {
+              region: {
+                id: order.direccionOrigen.comuna.region.id,
+                nombre: order.direccionOrigen.comuna.region.nombre,
+              },
+            }),
+          },
+        }),
       };
     }
 
-    // Destination address
     if (order.direccionDestino) {
       this.direccionDestino = {
         id: order.direccionDestino.id,
-        direccion: order.direccionDestino.direccion,
-        comuna: order.direccionDestino.comuna?.nombre,
-        region: order.direccionDestino.comuna?.region?.nombre,
+        direccionTexto: order.direccionDestino.direccionTexto,
+        ...(order.direccionDestino.comuna && {
+          comuna: {
+            id: order.direccionDestino.comuna.id,
+            nombre: order.direccionDestino.comuna.nombre,
+            ...(order.direccionDestino.comuna.region && {
+              region: {
+                id: order.direccionDestino.comuna.region.id,
+                nombre: order.direccionDestino.comuna.region.nombre,
+              },
+            }),
+          },
+        }),
       };
     }
 
-    // Service types
     if (order.tipoCarga) {
       this.tipoCarga = {
         id: order.tipoCarga.id,
@@ -168,6 +192,14 @@ export class OrderResponseDto implements Order {
       this.tipoServicio = {
         id: order.tipoServicio.id,
         nombre: order.tipoServicio.nombre,
+      };
+    }
+
+    if (order.equipo) {
+      this.equipo = {
+        id: order.equipo.id,
+        patente: order.equipo.patente,
+        nombre: order.equipo.nombre,
       };
     }
   }

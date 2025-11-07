@@ -14,12 +14,10 @@ import {
 } from '@nestjs/common';
 import { OrdersService } from '../services/orders.service';
 import { Auth0Guard } from '../../auth/guards/auth0.guard';
-import type {
-  CreateOrderDto,
-  UpdateOrderDto,
-  Order,
-  OrdersFilterDto,
-} from '../interfaces/order.interface';
+import { CreateOrderDto } from '../dto/create-order.dto';
+import { UpdateOrderDto } from '../dto/update-order.dto';
+import { OrdersFilterDto } from '../dto/orders-filter.dto';
+import { OrderResponseDto } from '../dto/order-response.dto';
 
 @Controller('api/orders')
 @UseGuards(Auth0Guard)
@@ -29,12 +27,10 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   private getTenantId(req: any): string {
-    // Try different possible locations for tenant_id
     const tenantId =
       req.user?.tenant_id || req.user?.tenantId || req.user?.tenant?.id;
 
     this.logger.debug(`Extracted tenantId: ${tenantId}`);
-    this.logger.debug(`Full user object: ${JSON.stringify(req.user)}`);
 
     if (!tenantId) {
       throw new Error('Tenant ID not found in user object');
@@ -48,7 +44,7 @@ export class OrdersController {
     @Query() filter: OrdersFilterDto,
     @Request() req,
   ): Promise<{
-    orders: Order[];
+    orders: OrderResponseDto[];
     total: number;
     page: number;
     limit: number;
@@ -70,7 +66,7 @@ export class OrdersController {
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @Request() req,
-  ): Promise<Order> {
+  ): Promise<OrderResponseDto> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Fetching order ${id} for tenant: ${tenantId}`);
     return this.ordersService.findOne(id, tenantId);
@@ -80,11 +76,9 @@ export class OrdersController {
   async create(
     @Body() createOrderDto: CreateOrderDto,
     @Request() req,
-  ): Promise<Order> {
+  ): Promise<OrderResponseDto> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Creating order for tenant: ${tenantId}`);
-
-    // Pass both the DTO and tenantId to the service
     return this.ordersService.create(createOrderDto, tenantId);
   }
 
@@ -93,7 +87,7 @@ export class OrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateOrderDto: UpdateOrderDto,
     @Request() req,
-  ): Promise<Order> {
+  ): Promise<OrderResponseDto> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Updating order ${id} for tenant: ${tenantId}`);
     return this.ordersService.update(id, updateOrderDto, tenantId);

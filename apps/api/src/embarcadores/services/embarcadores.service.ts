@@ -3,15 +3,14 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
+import { CreateEmbarcadorDto } from '../dto/create-embarcador.dto';
+import { UpdateEmbarcadorDto } from '../dto/update-embarcador.dto';
+import { EmbarcadoresFilterDto } from '../dto/embarcadores-filter.dto';
 import { EmbarcadorResponseDto } from '../dto/embarcador-response.dto';
-import {
-  CreateEmbarcadorDto,
-  UpdateEmbarcadorDto,
-  Embarcador,
-  EmbarcadoresFilterDto,
-} from '../interfaces/embarcador.interface';
+import { TipoEntidad } from '@prisma/client';
 
 @Injectable()
 export class EmbarcadoresService {
@@ -22,9 +21,9 @@ export class EmbarcadoresService {
   async findAll(
     filter: EmbarcadoresFilterDto,
     tenantId: string,
-  ): Promise<{ embarcadores: Embarcador[]; total: number }> {
+  ): Promise<{ embarcadores: EmbarcadorResponseDto[]; total: number }> {
     try {
-      const { search, activo, tipo, page = 1, limit = 10 } = filter;
+      const { search, activo, esPersona, page = 1, limit = 10 } = filter;
 
       const pageNumber = typeof page === 'string' ? parseInt(page, 10) : page;
       const limitNumber =
@@ -51,20 +50,29 @@ export class EmbarcadoresService {
         where.activo = typeof activo === 'string' ? activo === 'true' : activo;
       }
 
-      // Type filter
-      if (tipo) {
-        where.tipo = tipo;
+      // Person type filter
+      if (esPersona !== undefined) {
+        where.esPersona =
+          typeof esPersona === 'string' ? esPersona === 'true' : esPersona;
       }
 
       const [embarcadores, total] = await this.prisma.$transaction([
         this.prisma.embarcador.findMany({
           where,
           include: {
-            comuna: true,
+            comuna: {
+              include: {
+                provincia: {
+                  include: {
+                    region: true,
+                  },
+                },
+              },
+            },
           },
           skip,
           take: limitNumber,
-          orderBy: { nombre: 'asc' },
+          orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
         }),
         this.prisma.embarcador.count({ where }),
       ]);
@@ -81,7 +89,7 @@ export class EmbarcadoresService {
     }
   }
 
-  async findOne(id: string, tenantId: string): Promise<Embarcador> {
+  async findOne(id: string, tenantId: string): Promise<EmbarcadorResponseDto> {
     try {
       const embarcador = await this.prisma.embarcador.findFirst({
         where: {
@@ -115,9 +123,9 @@ export class EmbarcadoresService {
   async create(
     createEmbarcadorDto: CreateEmbarcadorDto,
     tenantId: string,
-  ): Promise<Embarcador> {
+  ): Promise<EmbarcadorResponseDto> {
     try {
-      // Check if RUT already exists
+      // Check if RUT already exists for this tenant
       const existingEmbarcador = await this.prisma.embarcador.findFirst({
         where: {
           rut: createEmbarcadorDto.rut,
@@ -126,16 +134,16 @@ export class EmbarcadoresService {
       });
 
       if (existingEmbarcador) {
-        throw new BadRequestException('RUT already exists');
+        throw new ConflictException('Embarcador with this RUT already exists');
       }
 
-      // Get active status
-      const activeStatus = await this.prisma.estadoRegistro.findFirst({
-        where: { estado: 'activo' },
+      // Verify comuna exists
+      const comuna = await this.prisma.comuna.findUnique({
+        where: { id: createEmbarcadorDto.comunaId },
       });
 
-      if (!activeStatus) {
-        throw new NotFoundException('Active status not found');
+      if (!comuna) {
+        throw new BadRequestException('Invalid comunaId');
       }
 
       const embarcador = await this.prisma.embarcador.create({
@@ -148,10 +156,10 @@ export class EmbarcadoresService {
           telefono: createEmbarcadorDto.telefono,
           direccion: createEmbarcadorDto.direccion,
           comunaId: createEmbarcadorDto.comunaId,
-          tipo: createEmbarcadorDto.tipo,
+          esPersona: createEmbarcadorDto.esPersona ?? false,
           activo: true,
-          estado: 'activo',
-          tenantId: tenantId,
+          tipoEntidad: TipoEntidad.EMBARCADOR,
+          tenantId,
         },
         include: {
           comuna: {
@@ -166,6 +174,7 @@ export class EmbarcadoresService {
         },
       });
 
+      this.logger.log(`Embarcador created successfully: ${embarcador.rut}`);
       return new EmbarcadorResponseDto(embarcador);
     } catch (error) {
       this.logger.error('Error creating embarcador:', error);
@@ -177,7 +186,7 @@ export class EmbarcadoresService {
     id: string,
     updateEmbarcadorDto: UpdateEmbarcadorDto,
     tenantId: string,
-  ): Promise<Embarcador> {
+  ): Promise<EmbarcadorResponseDto> {
     try {
       // Verify embarcador exists and belongs to tenant
       const existingEmbarcador = await this.prisma.embarcador.findFirst({
@@ -188,38 +197,40 @@ export class EmbarcadoresService {
         throw new NotFoundException('Embarcador not found');
       }
 
-      // Check if RUT is being updated and if it already exists
+      // Check for RUT conflict if RUT is being updated
       if (
         updateEmbarcadorDto.rut &&
         updateEmbarcadorDto.rut !== existingEmbarcador.rut
       ) {
-        const rutExists = await this.prisma.embarcador.findFirst({
+        const duplicateEmbarcador = await this.prisma.embarcador.findFirst({
           where: {
             rut: updateEmbarcadorDto.rut,
             tenantId,
-            NOT: { id },
+            id: { not: id },
           },
         });
 
-        if (rutExists) {
-          throw new BadRequestException('RUT already exists');
+        if (duplicateEmbarcador) {
+          throw new ConflictException(
+            'Another embarcador with this RUT already exists',
+          );
+        }
+      }
+
+      // Verify comuna exists if comunaId is being updated
+      if (updateEmbarcadorDto.comunaId) {
+        const comuna = await this.prisma.comuna.findUnique({
+          where: { id: updateEmbarcadorDto.comunaId },
+        });
+
+        if (!comuna) {
+          throw new BadRequestException('Invalid comunaId');
         }
       }
 
       const embarcador = await this.prisma.embarcador.update({
         where: { id },
-        data: {
-          nombre: updateEmbarcadorDto.nombre,
-          razonSocial: updateEmbarcadorDto.razonSocial,
-          rut: updateEmbarcadorDto.rut,
-          contacto: updateEmbarcadorDto.contacto,
-          email: updateEmbarcadorDto.email,
-          telefono: updateEmbarcadorDto.telefono,
-          direccion: updateEmbarcadorDto.direccion,
-          comunaId: updateEmbarcadorDto.comunaId,
-          tipo: updateEmbarcadorDto.tipo,
-          activo: updateEmbarcadorDto.activo,
-        },
+        data: updateEmbarcadorDto,
         include: {
           comuna: {
             include: {
@@ -233,6 +244,7 @@ export class EmbarcadoresService {
         },
       });
 
+      this.logger.log(`Embarcador updated successfully: ${embarcador.rut}`);
       return new EmbarcadorResponseDto(embarcador);
     } catch (error) {
       this.logger.error(`Error updating embarcador ${id}:`, error);
@@ -261,6 +273,36 @@ export class EmbarcadoresService {
       return { message: 'Embarcador deactivated successfully' };
     } catch (error) {
       this.logger.error(`Error deactivating embarcador ${id}:`, error);
+      throw error;
+    }
+  }
+
+  async findByRut(
+    rut: string,
+    tenantId: string,
+  ): Promise<EmbarcadorResponseDto | null> {
+    try {
+      const embarcador = await this.prisma.embarcador.findFirst({
+        where: {
+          rut,
+          tenantId,
+        },
+        include: {
+          comuna: {
+            include: {
+              provincia: {
+                include: {
+                  region: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return embarcador ? new EmbarcadorResponseDto(embarcador) : null;
+    } catch (error) {
+      this.logger.error(`Error finding embarcador by RUT ${rut}:`, error);
       throw error;
     }
   }
