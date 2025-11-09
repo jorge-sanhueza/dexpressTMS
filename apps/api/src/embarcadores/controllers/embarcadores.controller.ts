@@ -13,14 +13,14 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { EmbarcadoresService } from '../services/embarcadores.service';
-import { Auth0Guard } from '../../auth/guards/auth0.guard';
 import { CreateEmbarcadorDto } from '../dto/create-embarcador.dto';
 import { UpdateEmbarcadorDto } from '../dto/update-embarcador.dto';
 import { EmbarcadoresFilterDto } from '../dto/embarcadores-filter.dto';
 import { EmbarcadorResponseDto } from '../dto/embarcador-response.dto';
+import { JwtGuard } from 'src/auth/guards/jwt.guard';
 
 @Controller('api/embarcadores')
-@UseGuards(Auth0Guard)
+@UseGuards(JwtGuard)
 export class EmbarcadoresController {
   private readonly logger = new Logger(EmbarcadoresController.name);
 

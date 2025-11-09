@@ -13,14 +13,14 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { OrdersService } from '../services/orders.service';
-import { Auth0Guard } from '../../auth/guards/auth0.guard';
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { UpdateOrderDto } from '../dto/update-order.dto';
 import { OrdersFilterDto } from '../dto/orders-filter.dto';
 import { OrderResponseDto } from '../dto/order-response.dto';
+import { JwtGuard } from 'src/auth/guards/jwt.guard';
 
 @Controller('api/orders')
-@UseGuards(Auth0Guard)
+@UseGuards(JwtGuard)
 export class OrdersController {
   private readonly logger = new Logger(OrdersController.name);
 

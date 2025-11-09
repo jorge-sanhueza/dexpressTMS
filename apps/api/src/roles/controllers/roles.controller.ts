@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { RolesService } from '../services/roles.service';
 import { RoleResponseDto } from '../dto/role-response.dto';
-import { Auth0Guard } from 'src/auth/guards/auth0.guard';
+import { JwtGuard } from 'src/auth/guards/jwt.guard';
 import { CreateRoleDto } from '../dto/create-role.dto';
 import { UpdateRoleDto } from '../dto/update-role.dto';
 import { RolesByIdsDto } from '../dto/roles-by-ids.dto';
@@ -27,7 +27,7 @@ export class RolesController {
 
   constructor(private readonly rolesService: RolesService) {}
 
-  @UseGuards(Auth0Guard)
+  @UseGuards(JwtGuard) // Changed to JwtGuard
   @Get()
   async getAllRoles(
     @Query() filter: RolesFilterDto,
@@ -54,8 +54,7 @@ export class RolesController {
     };
   }
 
-  @UseGuards(Auth0Guard)
-  @Post()
+  @UseGuards(JwtGuard) // Changed to JwtGuard
   @Post()
   async createRole(
     @Body() createRoleDto: CreateRoleDto,
@@ -69,7 +68,7 @@ export class RolesController {
     });
   }
 
-  @UseGuards(Auth0Guard)
+  @UseGuards(JwtGuard) // Changed to JwtGuard
   @Put(':id')
   async updateRole(
     @Param('id', ParseUUIDPipe) id: string,
@@ -79,7 +78,7 @@ export class RolesController {
     return this.rolesService.updateRole(id, updateRoleDto);
   }
 
-  @UseGuards(Auth0Guard)
+  @UseGuards(JwtGuard) // Changed to JwtGuard
   @Delete(':id')
   async deleteRole(
     @Param('id', ParseUUIDPipe) id: string,
@@ -89,7 +88,7 @@ export class RolesController {
     return { message: 'Role deleted successfully' };
   }
 
-  @UseGuards(Auth0Guard)
+  @UseGuards(JwtGuard) // Changed to JwtGuard
   @Get(':id')
   async getRoleById(
     @Param('id', ParseUUIDPipe) id: string,
@@ -102,7 +101,7 @@ export class RolesController {
     return roles[0];
   }
 
-  @UseGuards(Auth0Guard)
+  @UseGuards(JwtGuard) // Changed to JwtGuard
   @Post('by-ids')
   async getRolesByIds(
     @Body() rolesByIdsDto: RolesByIdsDto,
@@ -113,7 +112,7 @@ export class RolesController {
     return this.rolesService.getRolesByIds(rolesByIdsDto.roleIds);
   }
 
-  @UseGuards(Auth0Guard)
+  @UseGuards(JwtGuard) // Changed to JwtGuard
   @Get('by-tenant/:tenantId')
   async getRolesByTenant(
     @Param('tenantId') tenantId: string,
@@ -122,7 +121,7 @@ export class RolesController {
     return this.rolesService.getRolesByTenant(tenantId);
   }
 
-  @UseGuards(Auth0Guard)
+  @UseGuards(JwtGuard) // Changed to JwtGuard
   @Get('by-code/:codigo')
   async getRoleByCode(
     @Param('codigo') codigo: string,
@@ -131,7 +130,7 @@ export class RolesController {
     return this.rolesService.getRoleByCode(codigo);
   }
 
-  @UseGuards(Auth0Guard)
+  @UseGuards(JwtGuard) // Changed to JwtGuard
   @Get('health')
   healthCheck() {
     return { status: 'OK', message: 'Roles endpoint is working' };
@@ -147,7 +146,7 @@ export class RolesController {
     return 'default-tenant';
   }
 
-  @UseGuards(Auth0Guard)
+  @UseGuards(JwtGuard) // Changed to JwtGuard
   @Get('filters/modules')
   async getAvailableModules(@Request() req): Promise<string[]> {
     this.logger.log('Fetching available modules for filtering');
@@ -155,7 +154,7 @@ export class RolesController {
     return this.rolesService.getAvailableModules(tenantId);
   }
 
-  @UseGuards(Auth0Guard)
+  @UseGuards(JwtGuard) // Changed to JwtGuard
   @Get('filters/tipo-acciones')
   async getAvailableTipoAcciones(@Request() req): Promise<string[]> {
     this.logger.log('Fetching available tipo acciones for filtering');

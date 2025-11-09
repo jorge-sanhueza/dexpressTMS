@@ -7,10 +7,10 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
-import { Auth0Guard } from '../../auth/guards/auth0.guard';
+import { JwtGuard } from 'src/auth/guards/jwt.guard';
 
 @Controller('api/comunas')
-@UseGuards(Auth0Guard)
+@UseGuards(JwtGuard)
 export class ComunasController {
   private readonly logger = new Logger(ComunasController.name);
 

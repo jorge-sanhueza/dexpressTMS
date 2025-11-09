@@ -13,16 +13,16 @@ import {
   Query,
 } from '@nestjs/common';
 import { ProfilesService } from '../services/profiles.service';
-import { Auth0Guard } from '../../auth/guards/auth0.guard';
 import { ProfileResponseDto } from '../dto/profile-response.dto';
 import { CreateProfileDto } from '../dto/create-profile.dto';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { AssignRolesDto } from '../dto/assign-roles.dto';
 import { RoleResponseDto } from 'src/roles/dto/role-response.dto';
 import { ProfilesFilterDto } from '../dto/profile-filter.dto';
+import { JwtGuard } from 'src/auth/guards/jwt.guard';
 
 @Controller('api/profiles')
-@UseGuards(Auth0Guard)
+@UseGuards(JwtGuard)
 export class ProfilesController {
   private readonly logger = new Logger(ProfilesController.name);
 

@@ -14,7 +14,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { UsersService } from '../services/users.service';
-import { Auth0Guard } from '../../auth/guards/auth0.guard';
 import type {
   CreateUserDto,
   UpdateUserDto,
@@ -22,6 +21,7 @@ import type {
   UsersFilterDto,
 } from '../interfaces/user.interface';
 import { Auth0User } from '../../auth/interfaces/auth0-user.interface';
+import { JwtGuard } from 'src/auth/guards/jwt.guard';
 
 interface AuthenticatedRequest extends Request {
   user: Auth0User & {
@@ -32,7 +32,7 @@ interface AuthenticatedRequest extends Request {
 }
 
 @Controller('api/users')
-@UseGuards(Auth0Guard)
+@UseGuards(JwtGuard)
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
 

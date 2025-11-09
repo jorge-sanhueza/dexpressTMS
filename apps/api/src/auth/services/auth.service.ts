@@ -319,24 +319,64 @@ export class AuthService {
     ];
 
     for (const roleData of defaultRoles) {
-      const role = await this.prisma.rol.create({
-        data: {
-          ...roleData,
-          activo: true,
-          tenantId: tenantId,
-          visible: true,
-          orden: 1,
-        },
-      });
+      try {
+        // Check if role already exists
+        const existingRole = await this.prisma.rol.findFirst({
+          where: {
+            codigo: roleData.codigo,
+            tenantId: tenantId,
+          },
+        });
 
-      // Link role to profile
-      await this.prisma.perfilRol.create({
-        data: {
-          perfilId: profileId,
-          rolId: role.id,
-          tenantId: tenantId,
-        },
-      });
+        let role;
+
+        if (existingRole) {
+          // Role already exists, use it
+          role = existingRole;
+          this.logger.log(
+            `Role ${roleData.codigo} already exists, using existing role`,
+          );
+        } else {
+          // Create new role
+          role = await this.prisma.rol.create({
+            data: {
+              ...roleData,
+              activo: true,
+              tenantId: tenantId,
+              visible: true,
+              orden: 1,
+            },
+          });
+          this.logger.log(`Created role: ${role.codigo}`);
+        }
+
+        // Check if profile-role relationship already exists
+        const existingProfileRole = await this.prisma.perfilRol.findFirst({
+          where: {
+            perfilId: profileId,
+            rolId: role.id,
+            tenantId: tenantId,
+          },
+        });
+
+        if (!existingProfileRole) {
+          // Link role to profile
+          await this.prisma.perfilRol.create({
+            data: {
+              perfilId: profileId,
+              rolId: role.id,
+              tenantId: tenantId,
+            },
+          });
+          this.logger.log(`Linked role ${role.codigo} to profile`);
+        } else {
+          this.logger.log(`Role ${role.codigo} already linked to profile`);
+        }
+      } catch (error) {
+        this.logger.error(`Error processing role ${roleData.codigo}:`, error);
+        // Continue with next role even if one fails
+        continue;
+      }
     }
   }
 
