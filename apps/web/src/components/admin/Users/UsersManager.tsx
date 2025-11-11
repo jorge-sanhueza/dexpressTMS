@@ -39,13 +39,6 @@ export const UsersManager: React.FC = () => {
   const canEditUsers = hasModulePermission("usuarios", "editar");
   const canDeactivateUsers = hasModulePermission("usuarios", "activar");
 
-  console.log("Users Permissions:", {
-    canViewUsers,
-    canCreateUsers,
-    canEditUsers,
-    canDeactivateUsers,
-  });
-
   // unauthorized message
   if (!canViewUsers) {
     return (

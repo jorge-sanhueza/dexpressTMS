@@ -1,19 +1,12 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { Layout } from "./layout/Layout";
 import { Button } from "./ui/button";
 
 export const Dashboard: React.FC = () => {
-  const { user, tenant, hasPermission } = useAuthStore();
+  const { user, tenant } = useAuthStore();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    console.log("🔍 Dashboard Ready:");
-    console.log("User:", user);
-    console.log("Tenant:", tenant);
-    console.log("Has admin_access:", hasPermission("admin_access"));
-  }, [user, tenant, hasPermission]);
 
   const handleNavigateToProfile = () => {
     navigate("/perfil");
@@ -78,9 +71,7 @@ export const Dashboard: React.FC = () => {
             <div className="space-y-4 mb-6">
               <div className="flex justify-between items-center pb-3 border-b border-[#798283]/10">
                 <span className="text-sm text-[#798283]/70">Nombre</span>
-                <span className="font-medium text-[#798283]">
-                  {user?.name}
-                </span>
+                <span className="font-medium text-[#798283]">{user?.name}</span>
               </div>
               <div className="flex justify-between items-center pb-3 border-b border-[#798283]/10">
                 <span className="text-sm text-[#798283]/70">Email</span>

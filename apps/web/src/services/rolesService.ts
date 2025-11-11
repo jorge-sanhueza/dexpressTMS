@@ -45,6 +45,49 @@ class RolesService {
     return response.roles;
   }
 
+  async getRolesByCodes(roleCodes: string[]): Promise<Rol[]> {
+    try {
+      console.log("🔧 [getRolesByCodes] Fetching roles by codes:", roleCodes);
+
+      // Since we don't have a bulk by-codes endpoint, we'll fetch one by one
+      const rolesPromises = roleCodes.map((code) => this.getRoleByCode(code));
+
+      const rolesResults = await Promise.all(rolesPromises);
+
+      // Filter out null results (roles not found)
+      const roles = rolesResults.filter((role) => role !== null) as Rol[];
+
+      console.log("🔧 [getRolesByCodes] Fetched roles:", roles);
+      return roles;
+    } catch (error) {
+      console.error("🔧 [getRolesByCodes] Error:", error);
+      throw error;
+    }
+  }
+
+  // And update the existing getRoleByCode to use the correct endpoint
+  async getRoleByCode(codigo: string): Promise<Rol | null> {
+    try {
+      const response = await apiClient.get(`${this.baseUrl}/by-code/${codigo}`);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`Role with code '${codigo}' not found`);
+          return null;
+        }
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to fetch role by code: ${response.statusText} - ${errorText}`
+        );
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error(`🔧 Error fetching role by code ${codigo}:`, error);
+      return null;
+    }
+  }
+
   async getAllRoles(filters?: RolesFilterDto): Promise<PaginatedRolesResponse> {
     const queryParams = new URLSearchParams();
 

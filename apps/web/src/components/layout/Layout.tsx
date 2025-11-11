@@ -13,7 +13,7 @@ export const Layout: React.FC<LayoutProps> = ({
   showBackButton = false,
   onBackClick,
 }) => {
-  const { user, tenant, logout, hasPermission } = useAuthStore();
+  const { user, tenant, logout, hasPermission, rolesLoaded } = useAuthStore();
   const navigate = useNavigate();
 
   const handleNavigateToAdmin = () => {
@@ -35,6 +35,11 @@ export const Layout: React.FC<LayoutProps> = ({
       navigate(-1);
     }
   };
+
+  console.log("User:", user);
+  console.log("Roles:", useAuthStore.getState().roles);
+  console.log("Roles loaded:", useAuthStore.getState().rolesLoaded);
+  console.log("Has admin_access:", hasPermission("admin_access"));
 
   return (
     <div className="min-h-screen bg-[#EFF4F9]">
@@ -98,7 +103,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 </p>
                 <p className="text-sm text-[#798283]/70">{user!.email}</p>
               </div>
-              {hasPermission("admin_access") && (
+              {rolesLoaded && hasPermission("admin_access") && (
                 <button
                   onClick={handleNavigateToAdmin}
                   className="text-[#798283] hover:text-[#D42B22] transition-colors duration-200 font-medium"

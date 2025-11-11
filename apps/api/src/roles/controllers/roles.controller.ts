@@ -27,7 +27,7 @@ export class RolesController {
 
   constructor(private readonly rolesService: RolesService) {}
 
-  @UseGuards(JwtGuard) // Changed to JwtGuard
+  @UseGuards(JwtGuard)
   @Get()
   async getAllRoles(
     @Query() filter: RolesFilterDto,
@@ -54,7 +54,7 @@ export class RolesController {
     };
   }
 
-  @UseGuards(JwtGuard) // Changed to JwtGuard
+  @UseGuards(JwtGuard)
   @Post()
   async createRole(
     @Body() createRoleDto: CreateRoleDto,
@@ -68,7 +68,7 @@ export class RolesController {
     });
   }
 
-  @UseGuards(JwtGuard) // Changed to JwtGuard
+  @UseGuards(JwtGuard)
   @Put(':id')
   async updateRole(
     @Param('id', ParseUUIDPipe) id: string,
@@ -78,7 +78,7 @@ export class RolesController {
     return this.rolesService.updateRole(id, updateRoleDto);
   }
 
-  @UseGuards(JwtGuard) // Changed to JwtGuard
+  @UseGuards(JwtGuard)
   @Delete(':id')
   async deleteRole(
     @Param('id', ParseUUIDPipe) id: string,
@@ -88,7 +88,7 @@ export class RolesController {
     return { message: 'Role deleted successfully' };
   }
 
-  @UseGuards(JwtGuard) // Changed to JwtGuard
+  @UseGuards(JwtGuard)
   @Get(':id')
   async getRoleById(
     @Param('id', ParseUUIDPipe) id: string,
@@ -101,7 +101,7 @@ export class RolesController {
     return roles[0];
   }
 
-  @UseGuards(JwtGuard) // Changed to JwtGuard
+  @UseGuards(JwtGuard)
   @Post('by-ids')
   async getRolesByIds(
     @Body() rolesByIdsDto: RolesByIdsDto,
@@ -112,7 +112,7 @@ export class RolesController {
     return this.rolesService.getRolesByIds(rolesByIdsDto.roleIds);
   }
 
-  @UseGuards(JwtGuard) // Changed to JwtGuard
+  @UseGuards(JwtGuard)
   @Get('by-tenant/:tenantId')
   async getRolesByTenant(
     @Param('tenantId') tenantId: string,
@@ -121,7 +121,7 @@ export class RolesController {
     return this.rolesService.getRolesByTenant(tenantId);
   }
 
-  @UseGuards(JwtGuard) // Changed to JwtGuard
+  @UseGuards(JwtGuard)
   @Get('by-code/:codigo')
   async getRoleByCode(
     @Param('codigo') codigo: string,
@@ -130,7 +130,7 @@ export class RolesController {
     return this.rolesService.getRoleByCode(codigo);
   }
 
-  @UseGuards(JwtGuard) // Changed to JwtGuard
+  @UseGuards(JwtGuard)
   @Get('health')
   healthCheck() {
     return { status: 'OK', message: 'Roles endpoint is working' };
@@ -146,7 +146,7 @@ export class RolesController {
     return 'default-tenant';
   }
 
-  @UseGuards(JwtGuard) // Changed to JwtGuard
+  @UseGuards(JwtGuard)
   @Get('filters/modules')
   async getAvailableModules(@Request() req): Promise<string[]> {
     this.logger.log('Fetching available modules for filtering');

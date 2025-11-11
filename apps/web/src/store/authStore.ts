@@ -90,6 +90,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   },
 
   login: async (response: LoginResponse) => {
+    console.log("=== LOGIN DEBUG ===");
+    console.log("Login response user:", response.user);
+
     localStorage.setItem("access_token", response.access_token);
     localStorage.setItem("user", JSON.stringify(response.user));
 
@@ -102,11 +105,14 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       await get().fetchTenantData(response.user.tenant_id);
 
       if (response.user.permissions && response.user.permissions.length > 0) {
+        console.log("Fetching roles with IDs:", response.user.permissions);
         await get().fetchUserRoles(response.user.permissions);
       } else {
+        console.log("No permissions found in user object");
         set({ rolesLoaded: true });
       }
     } else {
+      console.log("No tenant_id found");
       set({ isLoading: false, rolesLoaded: true });
     }
   },
@@ -135,9 +141,11 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     }
   },
 
-  fetchUserRoles: async (rolesIds: string[]) => {
+  fetchUserRoles: async (roleCodes: string[]) => {
     try {
-      const roles = await rolesService.getRolesByIds(rolesIds);
+      console.log("Fetching roles by codes:", roleCodes);
+      const roles = await rolesService.getRolesByCodes(roleCodes);
+      console.log("Fetched roles:", roles);
       set({ roles, rolesLoaded: true });
     } catch (error) {
       console.error("Failed to fetch roles:", error);
@@ -153,7 +161,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   hasModulePermission: (module: string, action: string): boolean => {
     const { roles } = get();
     return roles.some(
-      (role) => role.modulo === module && role.tipo_accion === action
+      (role) =>
+        role.modulo.toLowerCase() === module.toLowerCase() &&
+        role.tipo_accion.toLowerCase() === action.toLowerCase()
     );
   },
 
