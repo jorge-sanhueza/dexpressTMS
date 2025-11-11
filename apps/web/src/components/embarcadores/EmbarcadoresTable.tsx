@@ -61,29 +61,6 @@ export const EmbarcadoresTable: React.FC<EmbarcadoresTableProps> = ({
     );
   }
 
-  const getTipoBadge = (tipo: string) => {
-    const variants = {
-      exportador: "bg-blue-100 text-blue-800 hover:bg-blue-100",
-      importador: "bg-purple-100 text-purple-800 hover:bg-purple-100",
-      nacional: "bg-green-100 text-green-800 hover:bg-green-100",
-    };
-
-    const labels = {
-      exportador: "Exportador",
-      importador: "Importador",
-      nacional: "Nacional",
-    };
-
-    return (
-      <Badge
-        variant="secondary"
-        className={variants[tipo as keyof typeof variants]}
-      >
-        {labels[tipo as keyof typeof labels]}
-      </Badge>
-    );
-  };
-
   const getEstadoBadge = (activo: boolean) => {
     return (
       <Badge
@@ -113,7 +90,6 @@ export const EmbarcadoresTable: React.FC<EmbarcadoresTableProps> = ({
             <TableHead className="text-[#798283] font-medium">
               Teléfono
             </TableHead>
-            <TableHead className="text-[#798283] font-medium">Tipo</TableHead>
             <TableHead className="text-[#798283] font-medium">Estado</TableHead>
             <TableHead className="text-[#798283] font-medium">
               Acciones
@@ -148,7 +124,6 @@ export const EmbarcadoresTable: React.FC<EmbarcadoresTableProps> = ({
               <TableCell className="text-sm text-[#798283]">
                 {embarcador.telefono}
               </TableCell>
-              <TableCell>{getTipoBadge(embarcador.tipo)}</TableCell>
               <TableCell>{getEstadoBadge(embarcador.activo)}</TableCell>
               <TableCell>
                 <div className="flex gap-2">

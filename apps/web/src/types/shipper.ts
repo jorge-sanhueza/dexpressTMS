@@ -11,7 +11,6 @@ export interface Embarcador {
   comuna?: any;
   activo: boolean;
   estado: string;
-  tipo: string;
   tenantId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -26,7 +25,6 @@ export interface CreateEmbarcadorDto {
   telefono: string;
   direccion: string;
   comunaId: string;
-  tipo: string;
 }
 
 export interface UpdateEmbarcadorDto {
@@ -38,14 +36,12 @@ export interface UpdateEmbarcadorDto {
   telefono?: string;
   direccion?: string;
   comunaId?: string;
-  tipo?: string;
   activo?: boolean;
 }
 
 export interface EmbarcadoresFilter {
   search?: string;
   activo?: boolean;
-  tipo?: string;
   page?: number;
   limit?: number;
 }

@@ -67,7 +67,9 @@ export const RolesTable: React.FC<RolesTableProps> = React.memo(
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
     const getTipoAccionBadgeVariant = (tipoAccion: string) => {
-      switch (tipoAccion) {
+      const lowerCaseAction = tipoAccion.toLowerCase();
+
+      switch (lowerCaseAction) {
         case "activar":
           return "bg-purple-100 text-purple-800 hover:bg-purple-100";
         case "crear":
@@ -114,12 +116,16 @@ export const RolesTable: React.FC<RolesTableProps> = React.memo(
         header: "Acción",
         cell: ({ row }) => {
           const tipoAccion = row.getValue("tipo_accion") as string;
+          const displayText =
+            tipoAccion.charAt(0).toUpperCase() +
+            tipoAccion.slice(1).toLowerCase();
+
           return (
             <Badge
               variant="secondary"
               className={getTipoAccionBadgeVariant(tipoAccion)}
             >
-              {tipoAccion}
+              {displayText}
             </Badge>
           );
         },

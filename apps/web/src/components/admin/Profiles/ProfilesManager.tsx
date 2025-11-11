@@ -2,24 +2,16 @@ import React, { useState } from "react";
 import { ProfilesTable } from "./ProfilesTable";
 import { ProfileDetailsModal } from "./ProfileDetailsModal";
 import { profilesFilterConfig } from "./profiles-filter-config";
-import type { Profile, ProfileType, ProfileWithRoles } from "@/types/profile";
+import type { Profile, ProfileWithRoles } from "@/types/profile";
 import {
   useCreateProfile,
   useDeactivateProfile,
   useProfiles,
-  useProfileTypes,
   useProfileWithRoles,
   useUpdateProfile,
 } from "@/hooks/useProfiles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { TableFilters } from "@/components/TableFilters";
 import { RoleAssignmentModal } from "../Roles/RoleAssignmentModal";
 import { useAuthStore } from "@/store/authStore";
@@ -27,7 +19,6 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface ProfilesFilter {
   search?: string;
-  tipo?: string;
   activo?: boolean;
   page?: number;
   limit?: number;
@@ -46,13 +37,11 @@ export const ProfilesManager: React.FC = () => {
   const [formData, setFormData] = useState({
     nombre: "",
     descripcion: "",
-    tipo: "",
   });
 
   // Filter state
   const [filters, setFilters] = useState<ProfilesFilter>({
     search: "",
-    tipo: undefined,
     activo: undefined,
     page: 1,
     limit: 10,
@@ -61,8 +50,16 @@ export const ProfilesManager: React.FC = () => {
   const canViewProfiles = hasModulePermission("perfiles", "ver");
   const canCreateProfiles = hasModulePermission("perfiles", "crear");
   const canEditProfiles = hasModulePermission("perfiles", "editar");
-  const canDeleteProfiles = hasModulePermission("perfiles", "activar");
+  const canDeleteProfiles = hasModulePermission("perfiles", "eliminar");
   const canAssignRoles = hasModulePermission("perfiles", "editar");
+
+  console.log("User Permissions:", {
+    canViewProfiles,
+    canCreateProfiles,
+    canEditProfiles,
+    canDeleteProfiles,
+    canAssignRoles,
+  });
 
   // unauthorized message
   if (!canViewProfiles) {
@@ -97,9 +94,6 @@ export const ProfilesManager: React.FC = () => {
   console.log("Profiles array:", profiles);
   console.log("Total count:", totalCount);
 
-  const { data: profileTypes = [], isLoading: profileTypesLoading } =
-    useProfileTypes();
-
   const {
     data: profileWithRoles,
     isLoading: profileRolesLoading,
@@ -109,15 +103,6 @@ export const ProfilesManager: React.FC = () => {
   const createProfileMutation = useCreateProfile();
   const updateProfileMutation = useUpdateProfile();
   const deactivateProfileMutation = useDeactivateProfile();
-
-  React.useEffect(() => {
-    if (profileTypes.length > 0 && !formData.tipo) {
-      setFormData((prev) => ({
-        ...prev,
-        tipo: profileTypes[0]?.tipoPerfil || "básico",
-      }));
-    }
-  }, [profileTypes, formData.tipo]);
 
   const handlePageChange = (page: number) => {
     setFilters((prev) => ({ ...prev, page }));
@@ -133,7 +118,6 @@ export const ProfilesManager: React.FC = () => {
   const clearFilters = () => {
     setFilters({
       search: "",
-      tipo: undefined,
       activo: undefined,
     });
   };
@@ -156,7 +140,6 @@ export const ProfilesManager: React.FC = () => {
       setFormData({
         nombre: "",
         descripcion: "",
-        tipo: profileTypes[0]?.tipoPerfil || "básico",
       });
     } catch (err) {
       console.error("Error saving profile:", err);
@@ -186,7 +169,6 @@ export const ProfilesManager: React.FC = () => {
       setFormData({
         nombre: profile.nombre,
         descripcion: profile.descripcion || "",
-        tipo: profile.tipo,
       });
       setShowForm(true);
     }
@@ -321,48 +303,12 @@ export const ProfilesManager: React.FC = () => {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[#798283] mb-2">
-                Tipo de Perfil *
-              </label>
-              <Select
-                value={formData.tipo}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, tipo: value })
-                }
-                disabled={
-                  createProfileMutation.isPending ||
-                  updateProfileMutation.isPending ||
-                  profileTypesLoading
-                }
-              >
-                <SelectTrigger className="text-[#798283] border-[#798283]/30 focus:ring-[#D42B22]">
-                  <SelectValue placeholder="Seleccionar tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {profileTypesLoading ? (
-                    <SelectItem value="" disabled>
-                      Cargando tipos...
-                    </SelectItem>
-                  ) : (
-                    profileTypes.map((type: ProfileType) => (
-                      <SelectItem key={type.id} value={type.tipoPerfil}>
-                        {type.tipoPerfil.charAt(0).toUpperCase() +
-                          type.tipoPerfil.slice(1)}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="flex space-x-3 pt-4">
               <Button
                 type="submit"
                 disabled={
                   createProfileMutation.isPending ||
-                  updateProfileMutation.isPending ||
-                  profileTypesLoading
+                  updateProfileMutation.isPending
                 }
                 className="bg-[#D42B22] hover:bg-[#B3251E] text-white px-6 py-2 rounded-lg transition-all duration-200 font-semibold disabled:opacity-50"
               >
@@ -386,7 +332,6 @@ export const ProfilesManager: React.FC = () => {
                   setFormData({
                     nombre: "",
                     descripcion: "",
-                    tipo: profileTypes[0]?.tipoPerfil || "básico",
                   });
                 }}
                 disabled={

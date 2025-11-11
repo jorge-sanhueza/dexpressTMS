@@ -1,12 +1,10 @@
 import { apiClient } from "../lib/api-client";
-import { useAuthStore } from "../store/authStore";
 import type { Profile, ProfileType, ProfileWithRoles } from "../types/profile";
 import { API_BASE } from "./apiConfig";
 
 export interface CreateProfileDto {
   nombre: string;
   descripcion?: string;
-  tipo: string;
   contacto?: string;
   rut?: string;
 }
@@ -14,7 +12,6 @@ export interface CreateProfileDto {
 export interface UpdateProfileDto {
   nombre?: string;
   descripcion?: string;
-  tipo?: string;
   contacto?: string;
   rut?: string;
   activo?: boolean;
@@ -25,13 +22,11 @@ export interface AvailableRole {
   codigo: string;
   nombre: string;
   modulo: string;
-  tipo_accion: string;
   asignado: boolean;
 }
 
 export interface ProfilesFilter {
   search?: string;
-  tipo?: string;
   activo?: boolean;
   page?: number;
   limit?: number;
@@ -46,14 +41,6 @@ export interface ProfilesResponse {
 
 class ProfilesService {
   private baseUrl = `${API_BASE}/api/profiles`;
-
-  private getCurrentTenantId(): string {
-    const { tenant } = useAuthStore.getState();
-    if (!tenant) {
-      throw new Error("No tenant found in auth store");
-    }
-    return tenant.id;
-  }
 
   async getProfileTypes(): Promise<ProfileType[]> {
     const response = await apiClient.get(`${this.baseUrl}/types`);
@@ -71,7 +58,6 @@ class ProfilesService {
       const queryParams = new URLSearchParams();
 
       if (filter.search) queryParams.append("search", filter.search);
-      if (filter.tipo) queryParams.append("tipo", filter.tipo);
       if (filter.activo !== undefined)
         queryParams.append("activo", filter.activo.toString());
       if (filter.page) queryParams.append("page", filter.page.toString());
@@ -107,11 +93,7 @@ class ProfilesService {
   }
 
   async createProfile(profileData: CreateProfileDto): Promise<Profile> {
-    const tenantId = this.getCurrentTenantId();
-    const response = await apiClient.post(this.baseUrl, {
-      ...profileData,
-      tenantId: tenantId,
-    });
+    const response = await apiClient.post(this.baseUrl, profileData);
 
     if (!response.ok) {
       throw new Error(`Failed to create profile: ${response.statusText}`);

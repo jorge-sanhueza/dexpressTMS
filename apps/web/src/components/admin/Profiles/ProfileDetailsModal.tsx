@@ -57,18 +57,6 @@ export const ProfileDetailsModal: React.FC<ProfileDetailsModalProps> = ({
 
           <div>
             <label className="block text-sm font-medium text-[#798283] mb-1">
-              Tipo de Perfil
-            </label>
-            <Badge
-              variant="secondary"
-              className="bg-[#798283]/10 text-[#798283]"
-            >
-              {profile.tipo}
-            </Badge>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-[#798283] mb-1">
               Descripción
             </label>
             <p className="text-[#798283]">
@@ -91,62 +79,71 @@ export const ProfileDetailsModal: React.FC<ProfileDetailsModalProps> = ({
               {profile.activo ? "Activo" : "Inactivo"}
             </Badge>
           </div>
+        </div>
+        {/* Roles section */}
+        <div>
+          <label className="block text-sm font-medium text-[#798283] mb-3">
+            Roles Asignados {profile.roles && `(${profile.roles.length})`}
+          </label>
 
-          {/* Roles section */}
-          <div>
-            <label className="block text-sm font-medium text-[#798283] mb-3">
-              Roles Asignados {profile.roles && `(${profile.roles.length})`}
-            </label>
-
-            {isLoadingRoles ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D42B22] mx-auto"></div>
-                <p className="mt-2 text-sm text-[#798283]/70">
-                  Cargando roles...
-                </p>
-              </div>
-            ) : profile.roles && profile.roles.length > 0 ? (
-              <div className="space-y-2">
-                {profile.roles.map((role: string, index: number) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 border border-[#798283]/20 rounded-lg"
-                  >
-                    <div>
-                      <span className="font-medium text-[#798283]">{role}</span>
-                    </div>
-                    <Badge
-                      variant="secondary"
-                      className="bg-[#D42B22]/10 text-[#D42B22]"
-                    >
-                      Asignado
-                    </Badge>
+          {isLoadingRoles ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D42B22] mx-auto"></div>
+              <p className="mt-2 text-sm text-[#798283]/70">
+                Cargando roles...
+              </p>
+            </div>
+          ) : profile.roles && profile.roles.length > 0 ? (
+            <div className="space-y-2">
+              {profile.roles.map((role, index) => (
+                <div
+                  key={role.id || index}
+                  className="flex items-center justify-between p-3 border border-[#798283]/20 rounded-lg"
+                >
+                  <div>
+                    <span className="font-medium text-[#798283]">
+                      {role.nombre}
+                    </span>
+                    {role.codigo && (
+                      <p className="text-sm text-[#798283]/70">{role.codigo}</p>
+                    )}
+                    {role.modulo && (
+                      <p className="text-xs text-[#798283]/50">
+                        Módulo: {role.modulo}
+                      </p>
+                    )}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 border-2 border-dashed border-[#798283]/20 rounded-lg">
-                <div className="text-[#798283]/40 mb-3">
-                  <svg
-                    className="mx-auto h-12 w-12"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                  <Badge
+                    variant="secondary"
+                    className="bg-[#D42B22]/10 text-[#D42B22]"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1}
-                      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
-                    />
-                  </svg>
+                    {role.tipo_accion || "Asignado"}
+                  </Badge>
                 </div>
-                <p className="mt-2 text-sm text-[#798283]/70">
-                  No hay roles asignados a este perfil
-                </p>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 border-2 border-dashed border-[#798283]/20 rounded-lg">
+              <div className="text-[#798283]/40 mb-3">
+                <svg
+                  className="mx-auto h-12 w-12"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1}
+                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                  />
+                </svg>
               </div>
-            )}
-          </div>
+              <p className="mt-2 text-sm text-[#798283]/70">
+                No hay roles asignados a este perfil
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}

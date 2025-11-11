@@ -16,12 +16,6 @@ interface EmbarcadorFormProps {
   isEditing?: boolean;
 }
 
-const TIPO_OPTIONS = [
-  { value: "exportador", label: "Exportador" },
-  { value: "importador", label: "Importador" },
-  { value: "nacional", label: "Nacional" },
-];
-
 export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
   embarcador,
   onSubmit,
@@ -40,11 +34,7 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
     watch,
     setValue,
     reset,
-  } = useForm<CreateEmbarcadorDto & { comuna?: Comuna | null }>({
-    defaultValues: {
-      tipo: "exportador",
-    },
-  });
+  } = useForm<CreateEmbarcadorDto & { comuna?: Comuna | null }>();
 
   const selectedComuna = watch("comuna");
 
@@ -58,7 +48,6 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
         email: embarcador.email,
         telefono: embarcador.telefono,
         direccion: embarcador.direccion,
-        tipo: embarcador.tipo,
         comuna: comunaData || null,
       });
     }
@@ -73,7 +62,6 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
       email: data.email || "",
       telefono: data.telefono || "",
       direccion: data.direccion || "",
-      tipo: data.tipo || "exportador",
       comunaId: data.comuna?.id || "",
     };
 
@@ -260,29 +248,8 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
                 )}
               </div>
 
-              {/* Tipo and Comuna */}
-              <div className="space-y-2">
-                <Label htmlFor="tipo">
-                  Tipo <span className="text-red-500">*</span>
-                </Label>
-                <select
-                  id="tipo"
-                  {...register("tipo", { required: "El tipo es requerido" })}
-                  className="flex h-10 w-full rounded-md border border-[#798283]/30 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-[#798283]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D42B22] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={isLoading}
-                >
-                  {TIPO_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                {errors.tipo && (
-                  <p className="text-red-500 text-sm">{errors.tipo.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
+              {/* Comuna only (tipo removed) */}
+              <div className="space-y-2 md:col-span-2">
                 <ComunaSelect
                   onComunaSelect={handleComunaSelect}
                   selectedComuna={selectedComuna}

@@ -31,7 +31,6 @@ export const RolesManager: React.FC = () => {
     nombre: "",
     modulo: "general",
     tipo_accion: "ver",
-    descripcion: "",
   });
 
   const [filters, setFilters] = useState<RolesFilterDto>({
@@ -46,7 +45,7 @@ export const RolesManager: React.FC = () => {
   const canViewRoles = hasModulePermission("roles", "ver");
   const canCreateRoles = hasModulePermission("roles", "crear");
   const canEditRoles = hasModulePermission("roles", "editar");
-  const canDeleteRoles = hasModulePermission("roles", "activar");
+  const canDeleteRoles = hasModulePermission("roles", "eliminar");
 
   if (!canViewRoles) {
     return (
@@ -149,7 +148,6 @@ export const RolesManager: React.FC = () => {
         nombre: "",
         modulo: availableModules[0] || "general",
         tipo_accion: availableTipoAcciones[0] || "ver",
-        descripcion: "",
       });
     } catch (err) {
       console.error("Error saving role:", err);
@@ -164,7 +162,6 @@ export const RolesManager: React.FC = () => {
         nombre: role.nombre,
         modulo: role.modulo,
         tipo_accion: role.tipo_accion,
-        descripcion: role.descripcion || "",
       });
       setShowForm(true);
     }
@@ -370,7 +367,6 @@ export const RolesManager: React.FC = () => {
                     nombre: "",
                     modulo: availableModules[0] || "general",
                     tipo_accion: availableTipoAcciones[0] || "ver",
-                    descripcion: "",
                   });
                 }}
                 disabled={

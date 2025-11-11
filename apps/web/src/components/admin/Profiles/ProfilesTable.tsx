@@ -95,30 +95,6 @@ export const ProfilesTable: React.FC<ProfilesTableProps> = ({
         ),
       },
       {
-        accessorKey: "tipo",
-        header: "Tipo",
-        cell: ({ row }) => {
-          const tipo = row.getValue("tipo");
-          const tipoString = tipo?.toString() || "Desconocido";
-          const isAdministrativo = tipoString
-            .toLowerCase()
-            .includes("administrativo");
-
-          return (
-            <Badge
-              variant="secondary"
-              className={
-                isAdministrativo
-                  ? "bg-purple-100 text-purple-800 hover:bg-purple-100"
-                  : "bg-blue-100 text-blue-800 hover:bg-blue-100"
-              }
-            >
-              {tipoString}
-            </Badge>
-          );
-        },
-      },
-      {
         accessorKey: "descripcion",
         header: "Descripción",
         cell: ({ row }) => (

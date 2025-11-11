@@ -8,17 +8,6 @@ export const profilesFilterConfig: FilterConfig[] = [
     placeholder: "Buscar por nombre o descripción...",
   },
   {
-    key: "tipo",
-    type: "select",
-    label: "Tipo",
-    placeholder: "Todos",
-    options: [
-      { value: "básico", label: "Básico" },
-      { value: "administrativo", label: "Administrativo" },
-    ],
-    width: "w-full md:w-40",
-  },
-  {
     key: "activo",
     type: "select",
     label: "Estado",
