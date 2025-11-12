@@ -1,5 +1,3 @@
-import { TipoEntidad } from '@prisma/client';
-
 export class ClientResponseDto {
   id: string;
   nombre?: string;
@@ -12,20 +10,11 @@ export class ClientResponseDto {
   comunaId: string;
   activo: boolean;
   esPersona: boolean;
-  tipoEntidad: TipoEntidad;
+  tipoEntidad: string;
   tenantId: string;
   createdAt: Date;
   updatedAt: Date;
-
-  // Include related data if needed
-  comuna?: {
-    id: string;
-    nombre: string;
-    region?: {
-      id: string;
-      nombre: string;
-    };
-  };
+  comuna?: any;
 
   constructor(client: any) {
     this.id = client.id;
@@ -45,16 +34,7 @@ export class ClientResponseDto {
     this.updatedAt = client.updatedAt;
 
     if (client.comuna) {
-      this.comuna = {
-        id: client.comuna.id,
-        nombre: client.comuna.nombre,
-        ...(client.comuna.region && {
-          region: {
-            id: client.comuna.region.id,
-            nombre: client.comuna.region.nombre,
-          },
-        }),
-      };
+      this.comuna = client.comuna;
     }
   }
 }

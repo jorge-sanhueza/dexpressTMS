@@ -41,7 +41,6 @@ export const EmbarcadoresList: React.FC = () => {
   // ========== STATE HOOKS ==========
   const { tenant, hasModulePermission, isInitialized } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState("");
-  const [tipoFilter, setTipoFilter] = useState<string | undefined>(undefined);
   const [activoFilter, setActivoFilter] = useState<boolean | undefined>(
     undefined
   );
@@ -77,10 +76,6 @@ export const EmbarcadoresList: React.FC = () => {
       filterObj.search = debouncedSearchTerm;
     }
 
-    if (tipoFilter) {
-      filterObj.tipo = tipoFilter;
-    }
-
     if (activoFilter !== undefined) {
       filterObj.activo = activoFilter;
     }
@@ -89,7 +84,7 @@ export const EmbarcadoresList: React.FC = () => {
     filterObj.limit = pageSize;
 
     return filterObj;
-  }, [debouncedSearchTerm, tipoFilter, activoFilter, currentPage, pageSize]);
+  }, [debouncedSearchTerm, activoFilter, currentPage, pageSize]);
 
   // ========== DATA FETCHING ==========
   const {
@@ -144,13 +139,6 @@ export const EmbarcadoresList: React.FC = () => {
   const handleSearch = (value: string) => {
     setSearchTerm(value);
     setCurrentPage(1); // Reset to first page when searching
-  };
-
-  const handleTipoFilter = (tipo: string) => {
-    // Use "all" for "Todos" option
-    const filterValue = tipo === "all" ? undefined : tipo;
-    setTipoFilter(filterValue);
-    setCurrentPage(1);
   };
 
   const handleActivoFilter = (activo: string) => {
@@ -275,7 +263,6 @@ export const EmbarcadoresList: React.FC = () => {
 
   const handleClearFilters = () => {
     setSearchTerm("");
-    setTipoFilter(undefined);
     setActivoFilter(undefined);
     setCurrentPage(1);
   };
@@ -363,27 +350,6 @@ export const EmbarcadoresList: React.FC = () => {
               />
             </div>
 
-            {/* Tipo Filter */}
-            <div>
-              <Label htmlFor="tipo-filter" className="text-[#798283]">
-                Tipo
-              </Label>
-              <Select
-                value={tipoFilter || "all"}
-                onValueChange={handleTipoFilter}
-              >
-                <SelectTrigger id="tipo-filter">
-                  <SelectValue placeholder="Todos los tipos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los tipos</SelectItem>
-                  <SelectItem value="exportador">Exportadores</SelectItem>
-                  <SelectItem value="importador">Importadores</SelectItem>
-                  <SelectItem value="nacional">Nacionales</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Estado Filter */}
             <div>
               <Label htmlFor="estado-filter" className="text-[#798283]">
@@ -425,11 +391,6 @@ export const EmbarcadoresList: React.FC = () => {
             {searchTerm && (
               <Badge variant="secondary" className="bg-blue-50 text-blue-700">
                 Búsqueda: "{searchTerm}"
-              </Badge>
-            )}
-            {tipoFilter && tipoFilter !== "all" && (
-              <Badge variant="secondary" className="bg-green-50 text-green-700">
-                Tipo: {tipoFilter}
               </Badge>
             )}
             {activoFilter !== undefined && (

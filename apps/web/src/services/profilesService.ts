@@ -22,6 +22,7 @@ export interface AvailableRole {
   codigo: string;
   nombre: string;
   modulo: string;
+  tipo_accion: string;
   asignado: boolean;
 }
 

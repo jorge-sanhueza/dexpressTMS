@@ -11,6 +11,10 @@ import { API_BASE } from "./apiConfig";
 class EmbarcadoresService {
   private baseUrl = `${API_BASE}/api/embarcadores`;
 
+  private formatRut(rut: string): string {
+    return rut.replace(/\./g, "");
+  }
+
   private async handleApiResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
       const errorData = await response.json();
@@ -28,7 +32,8 @@ class EmbarcadoresService {
       if (filter.search) queryParams.append("search", filter.search);
       if (filter.activo !== undefined)
         queryParams.append("activo", filter.activo.toString());
-      if (filter.tipo) queryParams.append("tipo", filter.tipo);
+      if (filter.esPersona !== undefined)
+        queryParams.append("esPersona", filter.esPersona.toString());
       if (filter.page) queryParams.append("page", filter.page.toString());
       if (filter.limit) queryParams.append("limit", filter.limit.toString());
 
@@ -55,7 +60,13 @@ class EmbarcadoresService {
     embarcadorData: CreateEmbarcadorDto
   ): Promise<Embarcador> {
     try {
-      const response = await apiClient.post(this.baseUrl, embarcadorData);
+      const formattedData = {
+        ...embarcadorData,
+        rut: this.formatRut(embarcadorData.rut),
+        esPersona: embarcadorData.esPersona || false,
+      };
+
+      const response = await apiClient.post(this.baseUrl, formattedData);
       return this.handleApiResponse<Embarcador>(response);
     } catch (error) {
       console.error("Error creating embarcador:", error);
@@ -68,9 +79,14 @@ class EmbarcadoresService {
     embarcadorData: UpdateEmbarcadorDto
   ): Promise<Embarcador> {
     try {
+      const formattedData = {
+        ...embarcadorData,
+        ...(embarcadorData.rut && { rut: this.formatRut(embarcadorData.rut) }),
+      };
+
       const response = await apiClient.put(
         `${this.baseUrl}/${id}`,
-        embarcadorData
+        formattedData
       );
 
       return this.handleApiResponse<Embarcador>(response);

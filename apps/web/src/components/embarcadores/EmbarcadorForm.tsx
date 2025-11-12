@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Checkbox } from "../ui/checkbox";
 import { useComuna } from "@/hooks/useComunas";
 import { ComunaSelect } from "../ComunaSelect";
 import type { Comuna } from "@/services/comunasService";
@@ -34,20 +35,26 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
     watch,
     setValue,
     reset,
-  } = useForm<CreateEmbarcadorDto & { comuna?: Comuna | null }>();
+  } = useForm<CreateEmbarcadorDto & { comuna?: Comuna | null }>({
+    defaultValues: {
+      esPersona: false,
+    },
+  });
 
+  const isPersona = watch("esPersona");
   const selectedComuna = watch("comuna");
 
   useEffect(() => {
     if (isEditing && embarcador) {
       reset({
         nombre: embarcador.nombre,
-        razonSocial: embarcador.razonSocial,
+        razonSocial: embarcador.razonSocial || "",
         rut: embarcador.rut,
         contacto: embarcador.contacto,
         email: embarcador.email,
         telefono: embarcador.telefono,
         direccion: embarcador.direccion,
+        esPersona: embarcador.esPersona,
         comuna: comunaData || null,
       });
     }
@@ -56,13 +63,14 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
   const handleFormSubmit = (data: any) => {
     const submitData: CreateEmbarcadorDto = {
       nombre: data.nombre || "",
-      razonSocial: data.razonSocial || "",
+      razonSocial: data.razonSocial || undefined,
       rut: data.rut || "",
       contacto: data.contacto || "",
       email: data.email || "",
       telefono: data.telefono || "",
       direccion: data.direccion || "",
       comunaId: data.comuna?.id || "",
+      esPersona: data.esPersona || false,
     };
 
     onSubmit(submitData);
@@ -92,9 +100,31 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
           <p className="text-[#798283]/70 mb-6">{description}</p>
           <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Person Type Toggle */}
+              <div className="flex items-center space-x-2 md:col-span-2 p-4 bg-[#EFF4F9] rounded-lg">
+                <Checkbox
+                  id="esPersona"
+                  {...register("esPersona")}
+                  onCheckedChange={(checked) =>
+                    setValue("esPersona", !!checked)
+                  }
+                />
+                <Label
+                  htmlFor="esPersona"
+                  className="text-sm font-medium text-[#798283]"
+                >
+                  ¿Es persona natural?
+                </Label>
+                <p className="text-xs text-[#798283]/70 ml-2">
+                  {isPersona
+                    ? "Embarcador es persona natural (no requiere razón social)"
+                    : "Embarcador es empresa (puede incluir razón social)"}
+                </p>
+              </div>
+
               {/* Basic Information */}
               <div className="space-y-2">
-                <Label htmlFor="nombre">
+                <Label htmlFor="nombre" className="text-[#798283]">
                   Nombre <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -117,28 +147,24 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="razonSocial">
-                  Razón Social <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="razonSocial"
-                  {...register("razonSocial", {
-                    required: "La razón social es requerida",
-                  })}
-                  placeholder="Razón social"
-                  disabled={isLoading}
-                  className="border-[#798283]/30 focus:ring-[#D42B22] focus:border-[#D42B22]"
-                />
-                {errors.razonSocial && (
-                  <p className="text-red-500 text-sm">
-                    {errors.razonSocial.message}
-                  </p>
-                )}
-              </div>
+              {/* Razón Social - Only show for companies */}
+              {!isPersona && (
+                <div className="space-y-2">
+                  <Label htmlFor="razonSocial" className="text-[#798283]">
+                    Razón Social
+                  </Label>
+                  <Input
+                    id="razonSocial"
+                    {...register("razonSocial")}
+                    placeholder="Razón social (opcional)"
+                    disabled={isLoading}
+                    className="border-[#798283]/30 focus:ring-[#D42B22] focus:border-[#D42B22]"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
-                <Label htmlFor="rut">
+                <Label htmlFor="rut" className="text-[#798283]">
                   RUT <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -146,11 +172,11 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
                   {...register("rut", {
                     required: "El RUT es requerido",
                     pattern: {
-                      value: /^[0-9]{1,2}\.[0-9]{3}\.[0-9]{3}-[0-9kK]{1}$/,
-                      message: "Formato de RUT inválido (ej: 12.345.678-9)",
+                      value: /^[0-9]{7,8}-[0-9kK]{1}$/,
+                      message: "Formato de RUT inválido (ej: 12345678-9)",
                     },
                   })}
-                  placeholder="12.345.678-9"
+                  placeholder="12345678-9"
                   disabled={isLoading || isEditing}
                   className="border-[#798283]/30 focus:ring-[#D42B22] focus:border-[#D42B22]"
                 />
@@ -166,7 +192,7 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
 
               {/* Contact Information */}
               <div className="space-y-2">
-                <Label htmlFor="contacto">
+                <Label htmlFor="contacto" className="text-[#798283]">
                   Contacto <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -186,7 +212,7 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">
+                <Label htmlFor="email" className="text-[#798283]">
                   Email <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -209,7 +235,7 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="telefono">
+                <Label htmlFor="telefono" className="text-[#798283]">
                   Teléfono <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -229,7 +255,7 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="direccion">
+                <Label htmlFor="direccion" className="text-[#798283]">
                   Dirección <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -248,7 +274,7 @@ export const EmbarcadorForm: React.FC<EmbarcadorFormProps> = ({
                 )}
               </div>
 
-              {/* Comuna only (tipo removed) */}
+              {/* Comuna */}
               <div className="space-y-2 md:col-span-2">
                 <ComunaSelect
                   onComunaSelect={handleComunaSelect}

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { UsersManager } from "./admin/Users/UsersManager";
 import { Button } from "./ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
 export const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuthStore();

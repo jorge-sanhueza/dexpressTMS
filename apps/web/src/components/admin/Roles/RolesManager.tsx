@@ -183,7 +183,7 @@ export const RolesManager: React.FC = () => {
         ...config,
         options: availableModules.map((module) => ({
           value: module,
-          label: module.charAt(0).toUpperCase() + module.slice(1),
+          label: module.charAt(0).toUpperCase() + module.slice(1).toLowerCase(),
         })),
       };
     }
@@ -192,7 +192,7 @@ export const RolesManager: React.FC = () => {
         ...config,
         options: availableTipoAcciones.map((accion) => ({
           value: accion,
-          label: accion.charAt(0).toUpperCase() + accion.slice(1),
+          label: accion.charAt(0).toUpperCase() + accion.slice(1).toLowerCase(),
         })),
       };
     }

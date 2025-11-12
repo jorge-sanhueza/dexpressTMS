@@ -10,6 +10,10 @@ import { API_BASE } from "./apiConfig";
 class ClientsService {
   private baseUrl = `${API_BASE}/api/clients`;
 
+  private formatRut(rut: string): string {
+    return rut.replace(/\./g, "");
+  }
+
   private async handleApiCall<T>(apiCall: () => Promise<Response>): Promise<T> {
     try {
       const response = await apiCall();
@@ -69,8 +73,13 @@ class ClientsService {
   }
 
   async createClient(clientData: CreateClientData): Promise<Client> {
+    const formattedData = {
+      ...clientData,
+      rut: this.formatRut(clientData.rut),
+    };
+
     return this.handleApiCall<Client>(() =>
-      apiClient.post(this.baseUrl, clientData)
+      apiClient.post(this.baseUrl, formattedData)
     );
   }
 
@@ -78,8 +87,13 @@ class ClientsService {
     id: string,
     clientData: UpdateClientData
   ): Promise<Client> {
+    const formattedData = {
+      ...clientData,
+      ...(clientData.rut && { rut: this.formatRut(clientData.rut) }),
+    };
+
     return this.handleApiCall<Client>(() =>
-      apiClient.put(`${this.baseUrl}/${id}`, clientData)
+      apiClient.put(`${this.baseUrl}/${id}`, formattedData)
     );
   }
 }

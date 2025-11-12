@@ -1,7 +1,7 @@
 export interface Embarcador {
   id: string;
   nombre: string;
-  razonSocial: string;
+  razonSocial?: string;
   rut: string;
   contacto: string;
   email: string;
@@ -10,8 +10,8 @@ export interface Embarcador {
   comunaId: string;
   comuna?: any;
   activo: boolean;
-  estado: string;
-  tipo: string;
+  esPersona: boolean;
+  tipoEntidad: string;
   tenantId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -19,14 +19,14 @@ export interface Embarcador {
 
 export interface CreateEmbarcadorDto {
   nombre: string;
-  razonSocial: string;
+  razonSocial?: string;
   rut: string;
   contacto: string;
   email: string;
   telefono: string;
   direccion: string;
   comunaId: string;
-  tipo: string;
+  esPersona?: boolean;
 }
 
 export interface UpdateEmbarcadorDto {
@@ -38,14 +38,14 @@ export interface UpdateEmbarcadorDto {
   telefono?: string;
   direccion?: string;
   comunaId?: string;
-  tipo?: string;
   activo?: boolean;
+  esPersona?: boolean;
 }
 
 export interface EmbarcadoresFilterDto {
   search?: string;
   activo?: boolean;
-  tipo?: string;
+  esPersona?: boolean;
   page?: number;
   limit?: number;
 }

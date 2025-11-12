@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import type {
   Client,
   CreateClientData,
@@ -19,12 +20,6 @@ interface ClientFormProps {
   isLoading?: boolean;
   isEditing?: boolean;
 }
-
-const TIPO_OPTIONS = [
-  { value: "empresa", label: "Empresa" },
-  { value: "persona", label: "Persona Natural" },
-  { value: "institucion", label: "Institución" },
-];
 
 export const ClientForm: React.FC<ClientFormProps> = ({
   client,
@@ -46,39 +41,39 @@ export const ClientForm: React.FC<ClientFormProps> = ({
     reset,
   } = useForm<CreateClientData & { comuna?: Comuna | null }>({
     defaultValues: {
-      tipo: "empresa",
+      esPersona: false,
     },
   });
 
-  const selectedTipo = watch("tipo");
+  const isPersona = watch("esPersona");
   const selectedComuna = watch("comuna");
 
   useEffect(() => {
     if (isEditing && client) {
       reset({
-        nombre: client.nombre,
+        nombre: client.nombre || "",
         razonSocial: client.razonSocial || "",
         rut: client.rut,
         contacto: client.contacto,
         email: client.email,
         telefono: client.telefono,
         direccion: client.direccion,
-        tipo: client.tipo,
+        esPersona: client.esPersona,
         comuna: comunaData || null,
       });
     }
   }, [isEditing, client, comunaData, reset]);
 
   const handleFormSubmit = (data: any) => {
-    const submitData: any = {
-      nombre: data.nombre || "",
-      razonSocial: data.razonSocial,
+    const submitData: CreateClientData | UpdateClientData = {
+      nombre: data.nombre || undefined,
+      razonSocial: data.razonSocial || undefined,
       rut: data.rut || "",
       contacto: data.contacto || "",
       email: data.email || "",
       telefono: data.telefono || "",
       direccion: data.direccion || "",
-      tipo: data.tipo || "empresa",
+      esPersona: data.esPersona || false,
     };
 
     if (data.comuna?.id) {
@@ -112,21 +107,44 @@ export const ClientForm: React.FC<ClientFormProps> = ({
           <p className="text-muted-foreground mb-6">{description}</p>
           <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Person Type Toggle */}
+              <div className="flex items-center space-x-2 md:col-span-2 p-4 bg-muted rounded-lg">
+                <Checkbox
+                  id="esPersona"
+                  {...register("esPersona")}
+                  onCheckedChange={(checked) =>
+                    setValue("esPersona", !!checked)
+                  }
+                />
+                <Label htmlFor="esPersona" className="text-sm font-medium">
+                  ¿Es persona natural?
+                </Label>
+                <p className="text-xs text-muted-foreground ml-2">
+                  {isPersona
+                    ? "Cliente es persona natural (no requiere razón social)"
+                    : "Cliente es empresa (puede incluir razón social)"}
+                </p>
+              </div>
+
               {/* Basic Information */}
               <div className="space-y-2">
                 <Label htmlFor="nombre">
-                  Nombre <span className="text-red-500">*</span>
+                  Nombre {!isPersona && <span className="text-red-500">*</span>}
                 </Label>
                 <Input
                   id="nombre"
                   {...register("nombre", {
-                    required: "El nombre es requerido",
+                    required: !isPersona
+                      ? "El nombre es requerido para empresas"
+                      : false,
                     minLength: {
                       value: 2,
                       message: "El nombre debe tener al menos 2 caracteres",
                     },
                   })}
-                  placeholder="Nombre del cliente"
+                  placeholder={
+                    isPersona ? "Nombre completo" : "Nombre de la empresa"
+                  }
                   disabled={isLoading}
                 />
                 {errors.nombre && (
@@ -145,11 +163,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                   {...register("rut", {
                     required: "El RUT es requerido",
                     pattern: {
-                      value: /^[0-9]{1,2}\.[0-9]{3}\.[0-9]{3}-[0-9kK]{1}$/,
-                      message: "Formato de RUT inválido (ej: 12.345.678-9)",
+                      value: /^[0-9]{7,8}-[0-9kK]{1}$/,
+                      message: "Formato de RUT inválido (ej: 12345678-9)",
                     },
                   })}
-                  placeholder="12.345.678-9"
+                  placeholder="12345678-9"
                   disabled={isLoading || isEditing}
                 />
                 {isEditing && (
@@ -162,14 +180,14 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 )}
               </div>
 
-              {/* Razón Social */}
-              {selectedTipo === "empresa" && (
+              {/* Razón Social - Only show for companies */}
+              {!isPersona && (
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="razonSocial">Razón Social</Label>
                   <Input
                     id="razonSocial"
                     {...register("razonSocial")}
-                    placeholder="Razón social de la empresa"
+                    placeholder="Razón social de la empresa (opcional)"
                     disabled={isLoading}
                   />
                 </div>
@@ -255,42 +273,29 @@ export const ClientForm: React.FC<ClientFormProps> = ({
                 )}
               </div>
 
-              {/* Tipo and Comuna */}
-              <div className="space-y-2">
-                <Label htmlFor="tipo">
-                  Tipo <span className="text-red-500">*</span>
+              {/* Comuna - Now required */}
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="comuna">
+                  Comuna <span className="text-red-500">*</span>
                 </Label>
-                <select
-                  id="tipo"
-                  {...register("tipo", { required: "El tipo es requerido" })}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={isLoading}
-                >
-                  {TIPO_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                {errors.tipo && (
-                  <p className="text-red-500 text-sm">{errors.tipo.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
                 <ComunaSelect
                   onComunaSelect={handleComunaSelect}
                   selectedComuna={selectedComuna}
                   disabled={isLoading}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Opcional - Busca y selecciona una comuna
+                  Busca y selecciona una comuna
                 </p>
                 {selectedComuna && (
                   <p className="text-xs text-green-600">
                     ✓ Seleccionado: {selectedComuna.nombre}
                     {selectedComuna.region &&
                       `, ${selectedComuna.region.nombre}`}
+                  </p>
+                )}
+                {!selectedComuna && (
+                  <p className="text-xs text-red-500">
+                    ⚠ Debes seleccionar una comuna
                   </p>
                 )}
               </div>
@@ -331,7 +336,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({
               <Button
                 type="submit"
                 className="bg-brand hover:bg-brand/90 text-white"
-                disabled={isLoading}
+                disabled={isLoading || !selectedComuna}
               >
                 {submitText}
               </Button>

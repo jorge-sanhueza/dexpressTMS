@@ -17,7 +17,6 @@ export class EmbarcadorResponseDto {
   createdAt: Date;
   updatedAt: Date;
 
-  // Include related data
   comuna?: {
     id: string;
     nombre: string;

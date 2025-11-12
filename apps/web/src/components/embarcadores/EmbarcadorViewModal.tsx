@@ -26,19 +26,6 @@ export const EmbarcadorViewModal: React.FC<EmbarcadorViewModalProps> = ({
     return format(new Date(date), "PPP", { locale: es });
   };
 
-  const getTipoLabel = (tipo: string) => {
-    switch (tipo) {
-      case "exportador":
-        return "Exportador";
-      case "importador":
-        return "Importador";
-      case "nacional":
-        return "Nacional";
-      default:
-        return tipo;
-    }
-  };
-
   const getEstadoLabel = (activo: boolean) => {
     return activo ? "Activo" : "Inactivo";
   };
@@ -63,12 +50,6 @@ export const EmbarcadorViewModal: React.FC<EmbarcadorViewModalProps> = ({
                   }
                 >
                   {getEstadoLabel(embarcador.activo)}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="text-[#798283] border-[#798283]/30"
-                >
-                  {getTipoLabel(embarcador.tipo)}
                 </Badge>
               </div>
             </div>
@@ -102,15 +83,6 @@ export const EmbarcadorViewModal: React.FC<EmbarcadorViewModalProps> = ({
                       Razón Social
                     </label>
                     <p className="text-[#798283]">{embarcador.razonSocial}</p>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-[#798283]/70">
-                      Tipo
-                    </label>
-                    <p className="text-[#798283] capitalize">
-                      {getTipoLabel(embarcador.tipo)}
-                    </p>
                   </div>
                 </div>
               </div>

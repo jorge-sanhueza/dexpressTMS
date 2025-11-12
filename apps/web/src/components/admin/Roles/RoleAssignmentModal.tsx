@@ -50,13 +50,34 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
   const assignRolesMutation = useAssignRolesToProfile();
 
   useEffect(() => {
+    console.log("🔍 DEBUG - Available roles data:", {
+      totalRoles: availableRoles.length,
+      roles: availableRoles.map((role) => ({
+        id: role.id,
+        nombre: role.nombre,
+        asignado: role.asignado,
+        codigo: role.codigo,
+      })),
+      assignedRoles: availableRoles.filter((role) => role.asignado),
+      assignedCount: availableRoles.filter((role) => role.asignado).length,
+    });
+  }, [availableRoles]);
+
+  useEffect(() => {
     if (isOpen && availableRoles.length > 0) {
+      console.log("Setting selected roles from available roles...");
       const assignedRoleIds = availableRoles
         .filter((role: AvailableRole) => role.asignado)
         .map((role: AvailableRole) => role.id);
-      setSelectedRoles(assignedRoleIds as string[]);
+
+      console.log("Assigned role IDs:", assignedRoleIds);
+      setSelectedRoles(assignedRoleIds);
+    } else if (isOpen && availableRoles.length === 0 && !isLoading) {
+      // If no roles are available and we're not loading, reset selection
+      console.log("No roles available, resetting selection");
+      setSelectedRoles([]);
     }
-  }, [isOpen, availableRoles]);
+  }, [isOpen, availableRoles, isLoading]);
 
   const handleRoleToggle = (roleId: string) => {
     setSelectedRoles((prev) =>
@@ -93,6 +114,28 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
     setSelectedRoles([]);
     assignRolesMutation.reset();
     onClose();
+  };
+
+  // Case-insensitive badge variant function
+  const getTipoAccionBadgeVariant = (tipoAccion: string) => {
+    const lowerCaseAction = tipoAccion.toLowerCase();
+
+    switch (lowerCaseAction) {
+      case "activar":
+        return "bg-purple-100 text-purple-800 hover:bg-purple-100";
+      case "crear":
+        return "bg-green-100 text-green-800 hover:bg-green-100";
+      case "editar":
+        return "bg-blue-100 text-blue-800 hover:bg-blue-100";
+      case "eliminar":
+        return "bg-red-100 text-red-800 hover:bg-red-100";
+      case "ver":
+        return "bg-gray-100 text-gray-800 hover:bg-gray-100";
+      case "administrar":
+        return "bg-indigo-100 text-indigo-800 hover:bg-indigo-100";
+      default:
+        return "bg-gray-100 text-gray-800 hover:bg-gray-100";
+    }
   };
 
   const filteredRoles = availableRoles.filter((role: AvailableRole) => {
@@ -219,15 +262,13 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
             <div className="divide-y divide-[#798283]/10">
               {filteredRoles.map((role: AvailableRole) => (
                 <div
-                  key={role.id as string}
+                  key={role.id}
                   className="p-4 hover:bg-[#EFF4F9] transition-colors duration-200"
                 >
                   <div className="flex items-start space-x-3">
                     <Checkbox
-                      checked={selectedRoles.includes(role.id as string)}
-                      onCheckedChange={() =>
-                        handleRoleToggle(role.id as string)
-                      }
+                      checked={selectedRoles.includes(role.id)}
+                      onCheckedChange={() => handleRoleToggle(role.id)}
                       disabled={assignRolesMutation.isPending}
                       className="mt-1"
                     />
@@ -248,23 +289,16 @@ export const RoleAssignmentModal: React.FC<RoleAssignmentModalProps> = ({
                             variant="secondary"
                             className="bg-[#798283]/10 text-[#798283]"
                           >
-                            {role.modulo as string}
+                            {role.modulo}
                           </Badge>
                           <Badge
                             variant="secondary"
-                            className={
-                              role.tipo_accion === "administrar"
-                                ? "bg-purple-100 text-purple-800 hover:bg-purple-100"
-                                : role.tipo_accion === "crear"
-                                ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                : role.tipo_accion === "editar"
-                                ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
-                                : role.tipo_accion === "eliminar"
-                                ? "bg-red-100 text-red-800 hover:bg-red-100"
-                                : "bg-gray-100 text-gray-800 hover:bg-gray-100"
-                            }
+                            className={getTipoAccionBadgeVariant(
+                              role.tipo_accion
+                            )}
                           >
-                            {role.tipo_accion as string}
+                            {role.tipo_accion.charAt(0).toUpperCase() +
+                              role.tipo_accion.slice(1).toLowerCase()}
                           </Badge>
                         </div>
                       </div>

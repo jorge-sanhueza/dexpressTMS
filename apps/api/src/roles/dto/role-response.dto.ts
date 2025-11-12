@@ -10,6 +10,7 @@ export class RoleResponseDto {
   orden: number;
   tenantId: string;
   visible: boolean;
+  asignado: boolean;
   createdAt: Date;
   updatedAt: Date;
 
@@ -23,6 +24,7 @@ export class RoleResponseDto {
     this.orden = role.orden;
     this.tenantId = role.tenantId;
     this.visible = role.visible ?? true;
+    this.asignado = role.asignado;
     this.createdAt = role.createdAt;
     this.updatedAt = role.updatedAt;
   }

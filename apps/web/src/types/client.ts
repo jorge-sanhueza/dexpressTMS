@@ -1,13 +1,13 @@
 export interface Client {
   id: string;
-  nombre: string;
+  nombre?: string;
   razonSocial?: string;
   rut: string;
   contacto: string;
   email: string;
   telefono: string;
   direccion: string;
-  comunaId?: string;
+  comunaId: string;
   comuna?: {
     id: string;
     nombre: string;
@@ -16,8 +16,7 @@ export interface Client {
     };
   };
   activo: boolean;
-  estado: string;
-  tipo: string;
+  esPersona: boolean;
   tipoEntidad: string;
   tenantId: string;
   createdAt: Date;
@@ -25,15 +24,15 @@ export interface Client {
 }
 
 export interface CreateClientData {
-  nombre: string;
+  nombre?: string;
   razonSocial?: string;
   rut: string;
   contacto: string;
   email: string;
   telefono: string;
   direccion: string;
-  comunaId?: string;
-  tipo: string;
+  comunaId: string;
+  esPersona: boolean;
 }
 
 export interface UpdateClientData {
@@ -46,7 +45,7 @@ export interface UpdateClientData {
   direccion?: string;
   comunaId?: string;
   activo?: boolean;
-  tipo?: string;
+  esPersona?: boolean;
 }
 
 export interface ClientsFilter {

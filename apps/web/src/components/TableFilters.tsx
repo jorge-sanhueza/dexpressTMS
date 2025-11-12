@@ -63,8 +63,10 @@ export const TableFilters: React.FC<TableFiltersProps> = ({
               />
             ) : (
               <Select
-                value={filters[filter.key]}
-                onValueChange={(value) => onFilterChange(filter.key, value)}
+                value={filters[filter.key] || ""} // Use empty string instead of undefined
+                onValueChange={(value) =>
+                  onFilterChange(filter.key, value === "" ? undefined : value)
+                }
               >
                 <SelectTrigger
                   className={`text-[#798283] border-[#798283]/30 focus:ring-[#D42B22] ${

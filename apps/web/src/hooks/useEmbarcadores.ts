@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 export interface UseEmbarcadoresFilters {
   search?: string;
   activo?: boolean;
-  tipo?: string;
+  esPersona?: boolean;
   page?: number;
   limit?: number;
 }
