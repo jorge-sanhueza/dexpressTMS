@@ -8,6 +8,7 @@ import { UserProfile } from "../components/UserProfile";
 import { CreateOrder } from "../components/orders/CreateOrder";
 import { ClientsList } from "../components/clients/ClientsList";
 import { EmbarcadoresList } from "../components/embarcadores/EmbarcadoresList";
+import { CarriersList } from "@/components/carriers/CarriersList";
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -64,7 +65,7 @@ export const AppRoutes: React.FC = () => {
         path="/carriers"
         element={
           <ProtectedRoute>
-            <div className="p-8">Gestión de Carriers - Próximamente</div>
+            <CarriersList />
           </ProtectedRoute>
         }
       />

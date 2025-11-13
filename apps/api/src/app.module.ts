@@ -11,6 +11,7 @@ import { OrdersModule } from './orders/orders.module';
 import { ClientsModule } from './clients/clients.module';
 import { EmbarcadoresModule } from './embarcadores/embarcadores.module';
 import { ComunasModule } from './comunas/comunas.module';
+import { CarriersModule } from './carriers/carriers.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ComunasModule } from './comunas/comunas.module';
     OrdersModule,
     ClientsModule,
     EmbarcadoresModule,
+    CarriersModule,
     ComunasModule,
   ],
   controllers: [AppController],
