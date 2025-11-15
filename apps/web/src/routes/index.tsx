@@ -5,10 +5,11 @@ import { LoginForm } from "../components/LoginForm";
 import { Dashboard } from "../components/Dashboard";
 import { AdminDashboard } from "../components/AdminDashboard";
 import { UserProfile } from "../components/UserProfile";
-import { CreateOrder } from "../components/orders/CreateOrder";
 import { ClientsList } from "../components/clients/ClientsList";
 import { EmbarcadoresList } from "../components/embarcadores/EmbarcadoresList";
 import { CarriersList } from "@/components/carriers/CarriersList";
+import { DireccionesList } from "@/components/direcciones/DireccionesList";
+import { CreateOrderForm } from "@/components/orders/CreateOrder";
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -70,10 +71,26 @@ export const AppRoutes: React.FC = () => {
         }
       />
       <Route
+        path="/direcciones"
+        element={
+          <ProtectedRoute>
+            <DireccionesList />
+          </ProtectedRoute>
+        }
+      />
+{/*       <Route
+        path="/ordenes"
+        element={
+          <ProtectedRoute>
+            <OrdersList />
+          </ProtectedRoute>
+        }
+      /> */}
+      <Route
         path="/ordenes/crear"
         element={
           <ProtectedRoute>
-            <CreateOrder />
+            <CreateOrderForm />
           </ProtectedRoute>
         }
       />

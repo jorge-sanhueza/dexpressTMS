@@ -232,13 +232,13 @@ export class OrdersService {
     });
 
     if (existingOrder) {
-      throw new ConflictException('Order with this OT number already exists');
+      throw new ConflictException('Ya existe una orden con este número de OT');
     }
 
     const order = await this.prisma.orden.create({
       data: {
         codigo,
-        numeroOt: createOrderDto.numeroOt, // Fixed: removed 'numero' field
+        numeroOt: createOrderDto.numeroOt,
         fecha: createOrderDto.fecha,
         fechaEntregaEstimada: createOrderDto.fechaEntregaEstimada,
         estado: createOrderDto.estado,

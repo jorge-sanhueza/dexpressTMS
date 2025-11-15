@@ -1,10 +1,8 @@
 export interface Order {
   id: string;
   codigo: string;
-  numero: string;
-  numeroOt?: string;
+  numeroOt: string;
   fecha: Date;
-  fechaCreacion: Date;
   fechaEntregaEstimada?: Date;
   estado: string;
   tipoTarifa: string;
@@ -18,17 +16,17 @@ export interface Order {
   createdAt: Date;
   updatedAt: Date;
 
-  // Foreign keys (optional in the response)
-  clienteId?: string;
-  remitenteId?: string;
-  destinatarioId?: string;
-  direccionOrigenId?: string;
-  direccionDestinoId?: string;
-  tipoCargaId?: string;
-  tipoServicioId?: string;
+  // Foreign keys
+  clienteId: string;
+  remitenteId: string;
+  destinatarioId: string;
+  direccionOrigenId: string;
+  direccionDestinoId: string;
+  tipoCargaId: string;
+  tipoServicioId: string;
   equipoId?: string;
 
-  // Relations (optional)
+  // Relations
   cliente?: any;
   remitente?: any;
   destinatario?: any;
@@ -36,15 +34,14 @@ export interface Order {
   direccionDestino?: any;
   tipoCarga?: any;
   tipoServicio?: any;
+  equipo?: any;
 }
 
-// Keep the other interfaces the same...
 export interface CreateOrderDto {
   // Basic information
   clienteId: string;
-  codigo: string;
-  numero: string;
-  numeroOt?: string;
+  codigo?: string; // Auto-generated if not provided
+  numeroOt: string;
   fecha: Date;
   fechaEntregaEstimada?: Date;
 
@@ -77,7 +74,6 @@ export interface CreateOrderDto {
 export interface UpdateOrderDto {
   clienteId?: string;
   codigo?: string;
-  numero?: string;
   numeroOt?: string;
   fecha?: Date;
   fechaEntregaEstimada?: Date;
@@ -98,7 +94,7 @@ export interface UpdateOrderDto {
   observaciones?: string;
 }
 
-export interface OrdersFilterDto {
+export interface OrdersFilter {
   search?: string;
   estado?: string;
   clienteId?: string;
@@ -108,55 +104,10 @@ export interface OrdersFilterDto {
   limit?: number;
 }
 
-export interface OrderWithDetails extends Order {
-  cliente: {
-    id: string;
-    nombre: string;
-    rut: string;
-  };
-  remitente: {
-    id: string;
-    nombre: string;
-    rut: string;
-  };
-  destinatario: {
-    id: string;
-    nombre: string;
-    rut: string;
-  };
-  direccionOrigen: {
-    id: string;
-    direccion: string;
-    comuna?: {
-      nombre: string;
-      region?: {
-        nombre: string;
-      };
-    };
-  };
-  direccionDestino: {
-    id: string;
-    direccion: string;
-    comuna?: {
-      nombre: string;
-      region?: {
-        nombre: string;
-      };
-    };
-  };
-  tipoCarga: {
-    id: string;
-    nombre: string;
-  };
-  tipoServicio: {
-    id: string;
-    nombre: string;
-  };
-}
-
-export interface OrderWithFullDetails extends OrderWithDetails {
-  tenant: {
-    id: string;
-    nombre: string;
-  };
+export interface OrdersResponse {
+  orders: Order[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }

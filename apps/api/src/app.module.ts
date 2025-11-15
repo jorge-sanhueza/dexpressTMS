@@ -12,6 +12,7 @@ import { ClientsModule } from './clients/clients.module';
 import { EmbarcadoresModule } from './embarcadores/embarcadores.module';
 import { ComunasModule } from './comunas/comunas.module';
 import { CarriersModule } from './carriers/carriers.module';
+import { DireccionesModule } from './direcciones/direcciones.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { CarriersModule } from './carriers/carriers.module';
     EmbarcadoresModule,
     CarriersModule,
     ComunasModule,
+    DireccionesModule,
   ],
   controllers: [AppController],
 })

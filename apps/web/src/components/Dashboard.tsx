@@ -32,6 +32,10 @@ export const Dashboard: React.FC = () => {
     navigate("/ordenes");
   };
 
+  const handleNavigateToAddresses = () => {
+    navigate("/direcciones");
+  };
+
   return (
     <Layout>
       <div className="space-y-8">
@@ -176,7 +180,10 @@ export const Dashboard: React.FC = () => {
                 </svg>
                 Crear Orden
               </Button>
-              <Button className="w-full flex items-center justify-center px-4 py-3 border border-[#798283]/30 text-sm font-semibold rounded-lg text-[#798283] bg-white hover:bg-[#EFF4F9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#798283] transition-all duration-200">
+              <Button
+                onClick={handleNavigateToAddresses}
+                className="w-full flex items-center justify-center px-4 py-3 border border-[#798283]/30 text-sm font-semibold rounded-lg text-[#798283] bg-white hover:bg-[#EFF4F9] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#798283] transition-all duration-200"
+              >
                 <svg
                   className="w-4 h-4 mr-2"
                   fill="none"
@@ -187,14 +194,21 @@ export const Dashboard: React.FC = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                   />
                 </svg>
-                Seguir Orden
+                Gestionar Direcciones
               </Button>
             </div>
           </div>
 
+          {/* Contacts Management Card */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10 hover:shadow-md transition-shadow duration-200">
             <div className="flex items-center mb-4">
               <div className="h-10 w-10 bg-[#EFF4F9] rounded-lg flex items-center justify-center mr-3">
@@ -213,7 +227,7 @@ export const Dashboard: React.FC = () => {
                 </svg>
               </div>
               <h3 className="font-semibold text-lg text-[#798283]">
-                Lista de contactos
+                Gestión de Contactos
               </h3>
             </div>
             <div className="space-y-3">
@@ -354,8 +368,8 @@ export const Dashboard: React.FC = () => {
               <p className="text-sm text-[#798283] mt-1">Carriers</p>
             </div>
             <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
-              <p className="text-2xl font-bold text-teal-600">25</p>
-              <p className="text-sm text-[#798283] mt-1">Total</p>
+              <p className="text-2xl font-bold text-teal-600">42</p>
+              <p className="text-sm text-[#798283] mt-1">Direcciones</p>
             </div>
           </div>
         </div>

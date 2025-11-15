@@ -22,7 +22,7 @@ export class UpdateOrderDto {
 
   @IsOptional()
   @IsString()
-  numeroOt?: string; // Changed from 'numero' to 'numeroOt'
+  numeroOt?: string;
 
   @IsOptional()
   @IsDate()

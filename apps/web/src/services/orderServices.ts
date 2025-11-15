@@ -2,30 +2,27 @@ import type {
   CreateOrderDto,
   UpdateOrderDto,
   Order,
-  OrdersFilterDto,
+  OrdersFilter,
+  OrdersResponse,
 } from "../types/order";
 import { API_BASE } from "./apiConfig";
-import { cacheService } from "./cacheService";
+import { apiClient } from "../lib/api-client";
 
 class OrdersService {
   private baseUrl = `${API_BASE}/api/orders`;
 
-  async getOrders(
-    filter: OrdersFilterDto = {}
-  ): Promise<{ orders: Order[]; total: number }> {
-    const cacheKey = `orders-${JSON.stringify(filter)}`;
-
-    const cached = cacheService.get(cacheKey);
-    if (cached) {
-      console.log("serving orders from cache");
-      return cached;
+  private async handleApiResponse<T>(response: Response): Promise<T> {
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `API error: ${response.statusText}`);
     }
+    return response.json();
+  }
 
+  async getOrders(filter: OrdersFilter = {}): Promise<OrdersResponse> {
     try {
-      const token = localStorage.getItem("access_token");
       const queryParams = new URLSearchParams();
 
-      // Add filter parameters
       if (filter.search) queryParams.append("search", filter.search);
       if (filter.estado) queryParams.append("estado", filter.estado);
       if (filter.clienteId) queryParams.append("clienteId", filter.clienteId);
@@ -37,22 +34,8 @@ class OrdersService {
       if (filter.limit) queryParams.append("limit", filter.limit.toString());
 
       const url = `${this.baseUrl}?${queryParams.toString()}`;
-
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch orders: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      cacheService.set(cacheKey, data);
-
-      return data;
+      const response = await apiClient.get(url);
+      return this.handleApiResponse<OrdersResponse>(response);
     } catch (error) {
       console.error("Error fetching orders:", error);
       throw error;
@@ -61,78 +44,42 @@ class OrdersService {
 
   async getOrderById(id: string): Promise<Order> {
     try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(`${this.baseUrl}/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch order: ${response.statusText}`);
-      }
-
-      return await response.json();
+      const response = await apiClient.get(`${this.baseUrl}/${id}`);
+      return this.handleApiResponse<Order>(response);
     } catch (error) {
       console.error("Error fetching order:", error);
       throw error;
     }
   }
 
-  private invalidateOrdersCache(): void {
-    // Clear all orders-related cache
-    const keys = Array.from(cacheService["cache"].keys());
-    keys.forEach((key) => {
-      if (key.startsWith("orders-")) {
-        cacheService.delete(key);
-      }
-    });
-  }
-
   async createOrder(orderData: CreateOrderDto): Promise<Order> {
-    const newOrder = await this.makeRequest(this.baseUrl, "POST", orderData);
-    this.invalidateOrdersCache();
-    return newOrder;
+    try {
+      const response = await apiClient.post(this.baseUrl, orderData);
+      return this.handleApiResponse<Order>(response);
+    } catch (error) {
+      console.error("Error creating order:", error);
+      throw error;
+    }
   }
 
   async updateOrder(id: string, orderData: UpdateOrderDto): Promise<Order> {
-    const updatedOrder = await this.makeRequest(
-      `${this.baseUrl}/${id}`,
-      "PUT",
-      orderData
-    );
-    this.invalidateOrdersCache();
-    return updatedOrder;
+    try {
+      const response = await apiClient.put(`${this.baseUrl}/${id}`, orderData);
+      return this.handleApiResponse<Order>(response);
+    } catch (error) {
+      console.error("Error updating order:", error);
+      throw error;
+    }
   }
 
   async cancelOrder(id: string): Promise<void> {
-    await this.makeRequest(`${this.baseUrl}/${id}`, "DELETE");
-    this.invalidateOrdersCache();
-  }
-
-  private async makeRequest(
-    url: string,
-    method: string,
-    data?: any
-  ): Promise<any> {
-    const token = localStorage.getItem("access_token");
-    const response = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: data ? JSON.stringify(data) : undefined,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        errorData.message || `Request failed: ${response.statusText}`
-      );
+    try {
+      const response = await apiClient.delete(`${this.baseUrl}/${id}`);
+      return this.handleApiResponse<void>(response);
+    } catch (error) {
+      console.error("Error cancelling order:", error);
+      throw error;
     }
-
-    return response.json();
   }
 }
 

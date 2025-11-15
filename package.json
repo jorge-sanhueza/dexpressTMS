@@ -27,6 +27,7 @@
   },
   "packageManager": "npm@10.9.3",
   "devDependencies": {
+    "@types/google.maps": "^3.58.1",
     "concurrently": "^8.2.2",
     "turbo": "^2.5.8"
   },

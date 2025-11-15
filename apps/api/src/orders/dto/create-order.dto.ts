@@ -17,7 +17,6 @@ export class CreateOrderDto {
 
   @IsOptional()
   @IsString()
-  @Transform(({ value }) => value || undefined)
   codigo?: string;
 
   @IsString()

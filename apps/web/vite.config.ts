@@ -21,6 +21,11 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5174,
+      host: "127.0.0.1", // Use explicit IP
+      cors: true,
+      headers: {
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+      },
     },
     preview: {
       port: 4173,
