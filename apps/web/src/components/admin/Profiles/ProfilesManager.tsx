@@ -90,10 +90,6 @@ export const ProfilesManager: React.FC = () => {
   const profiles = profilesData?.profiles || [];
   const totalCount = profilesData?.total || 0;
 
-  console.log("Full profiles API response:", profilesData);
-  console.log("Profiles array:", profiles);
-  console.log("Total count:", totalCount);
-
   const {
     data: profileWithRoles,
     isLoading: profileRolesLoading,

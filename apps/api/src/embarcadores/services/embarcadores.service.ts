@@ -69,6 +69,7 @@ export class EmbarcadoresService {
                 },
               },
             },
+            entidad: true, // NEW: Include entidad relation
           },
           skip,
           take: limitNumber,
@@ -106,6 +107,7 @@ export class EmbarcadoresService {
               },
             },
           },
+          entidad: true, // NEW: Include entidad relation
         },
       });
 
@@ -125,7 +127,7 @@ export class EmbarcadoresService {
     tenantId: string,
   ): Promise<EmbarcadorResponseDto> {
     try {
-      // Check if RUT already exists for this tenant
+      // Check if RUT already exists for this tenant in Embarcador
       const existingEmbarcador = await this.prisma.embarcador.findFirst({
         where: {
           rut: createEmbarcadorDto.rut,
@@ -146,6 +148,59 @@ export class EmbarcadoresService {
         throw new BadRequestException('Invalid comunaId');
       }
 
+      // NEW: Check if Entidad already exists - but don't fail, just use it
+      const existingEntidad = await this.prisma.entidad.findFirst({
+        where: {
+          rut: createEmbarcadorDto.rut,
+          tenantId,
+        },
+      });
+
+      let entidadId: string;
+
+      if (existingEntidad) {
+        // Update existing Entidad to ensure data consistency
+        await this.prisma.entidad.update({
+          where: { id: existingEntidad.id },
+          data: {
+            nombre:
+              createEmbarcadorDto.nombre || createEmbarcadorDto.razonSocial,
+            razonSocial: createEmbarcadorDto.razonSocial,
+            contacto: createEmbarcadorDto.contacto,
+            email: createEmbarcadorDto.email,
+            telefono: createEmbarcadorDto.telefono,
+            direccion: createEmbarcadorDto.direccion,
+            comunaId: createEmbarcadorDto.comunaId,
+            esPersona: createEmbarcadorDto.esPersona ?? false,
+            tipoEntidad: TipoEntidad.EMBARCADOR, // Update type if needed
+            activo: true, // Reactivate if was inactive
+          },
+        });
+        entidadId = existingEntidad.id;
+        this.logger.log(`Linked to existing Entidad: ${existingEntidad.rut}`);
+      } else {
+        // Create new Entidad
+        const newEntidad = await this.prisma.entidad.create({
+          data: {
+            nombre:
+              createEmbarcadorDto.nombre || createEmbarcadorDto.razonSocial,
+            razonSocial: createEmbarcadorDto.razonSocial,
+            rut: createEmbarcadorDto.rut,
+            contacto: createEmbarcadorDto.contacto,
+            email: createEmbarcadorDto.email,
+            telefono: createEmbarcadorDto.telefono,
+            direccion: createEmbarcadorDto.direccion,
+            comunaId: createEmbarcadorDto.comunaId,
+            esPersona: createEmbarcadorDto.esPersona ?? false,
+            activo: true,
+            tipoEntidad: TipoEntidad.EMBARCADOR,
+            tenantId,
+          },
+        });
+        entidadId = newEntidad.id;
+      }
+
+      // Create Embarcador with entidadId link
       const embarcador = await this.prisma.embarcador.create({
         data: {
           nombre: createEmbarcadorDto.nombre,
@@ -160,6 +215,7 @@ export class EmbarcadoresService {
           activo: true,
           tipoEntidad: TipoEntidad.EMBARCADOR,
           tenantId,
+          entidadId: entidadId, // NEW: Add entidad link
         },
         include: {
           comuna: {
@@ -171,6 +227,7 @@ export class EmbarcadoresService {
               },
             },
           },
+          entidad: true, // NEW: Include entidad relation
         },
       });
 
@@ -191,6 +248,9 @@ export class EmbarcadoresService {
       // Verify embarcador exists and belongs to tenant
       const existingEmbarcador = await this.prisma.embarcador.findFirst({
         where: { id, tenantId },
+        include: {
+          entidad: true, // NEW: Include entidad to check if it exists
+        },
       });
 
       if (!existingEmbarcador) {
@@ -228,6 +288,42 @@ export class EmbarcadoresService {
         }
       }
 
+      // NEW: Also update the linked Entidad if it exists
+      if (existingEmbarcador.entidadId) {
+        await this.prisma.entidad.update({
+          where: {
+            id: existingEmbarcador.entidadId,
+          },
+          data: {
+            ...(updateEmbarcadorDto.nombre && {
+              nombre: updateEmbarcadorDto.nombre,
+            }),
+            ...(updateEmbarcadorDto.razonSocial && {
+              razonSocial: updateEmbarcadorDto.razonSocial,
+            }),
+            ...(updateEmbarcadorDto.rut && { rut: updateEmbarcadorDto.rut }),
+            ...(updateEmbarcadorDto.contacto && {
+              contacto: updateEmbarcadorDto.contacto,
+            }),
+            ...(updateEmbarcadorDto.email && {
+              email: updateEmbarcadorDto.email,
+            }),
+            ...(updateEmbarcadorDto.telefono && {
+              telefono: updateEmbarcadorDto.telefono,
+            }),
+            ...(updateEmbarcadorDto.direccion && {
+              direccion: updateEmbarcadorDto.direccion,
+            }),
+            ...(updateEmbarcadorDto.comunaId && {
+              comunaId: updateEmbarcadorDto.comunaId,
+            }),
+            ...(updateEmbarcadorDto.esPersona !== undefined && {
+              esPersona: updateEmbarcadorDto.esPersona,
+            }),
+          },
+        });
+      }
+
       const embarcador = await this.prisma.embarcador.update({
         where: { id },
         data: updateEmbarcadorDto,
@@ -241,6 +337,7 @@ export class EmbarcadoresService {
               },
             },
           },
+          entidad: true, // NEW: Include entidad relation
         },
       });
 
@@ -263,13 +360,25 @@ export class EmbarcadoresService {
         throw new NotFoundException('Embarcador not found');
       }
 
-      // Soft delete by setting activo to false
-      await this.prisma.embarcador.update({
-        where: { id },
-        data: { activo: false },
-      });
+      // NEW: Use transaction to deactivate both Embarcador and Entidad
+      await this.prisma.$transaction([
+        // Soft delete embarcador
+        this.prisma.embarcador.update({
+          where: { id },
+          data: { activo: false },
+        }),
+        // Soft delete corresponding entidad if it exists
+        ...(existingEmbarcador.entidadId
+          ? [
+              this.prisma.entidad.update({
+                where: { id: existingEmbarcador.entidadId },
+                data: { activo: false },
+              }),
+            ]
+          : []),
+      ]);
 
-      this.logger.log(`Embarcador ${id} deactivated`);
+      this.logger.log(`Embarcador ${id} and corresponding Entity deactivated`);
       return { message: 'Embarcador deactivated successfully' };
     } catch (error) {
       this.logger.error(`Error deactivating embarcador ${id}:`, error);
@@ -297,6 +406,7 @@ export class EmbarcadoresService {
               },
             },
           },
+          entidad: true, // NEW: Include entidad relation
         },
       });
 

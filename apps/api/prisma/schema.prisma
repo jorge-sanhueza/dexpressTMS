@@ -439,7 +439,7 @@ model Entidad {
   direccion   String
   email       String
   esPersona   Boolean     @default(false) @map("es_persona")
-  nombre      String
+  nombre      String?
   razonSocial String?     @map("razon_social")
   rut         String
   telefono    String
@@ -456,11 +456,14 @@ model Entidad {
   ordenesComoDestinatario Orden[] @relation("OrdenDestinatario")
 
   // Planning relationships
-  choferes   Chofer[]
-  hubs       Hub[]
-  retiros    Retiro[]
-  contactos  Contacto[]
-  coberturas Cobertura[]
+  choferes    Chofer[]
+  hubs        Hub[]
+  retiros     Retiro[]
+  contactos   Contacto[]
+  coberturas  Cobertura[]
+  clientes    Cliente[]
+  carriers    Carrier[]
+  embarcadors Embarcador[]
 
   @@index([tenantId, activo])
   @@index([tipoEntidad])
@@ -484,11 +487,14 @@ model Cliente {
   telefono    String
   tenantId    String      @map("tenant_id")
   tipoEntidad TipoEntidad @default(CLIENTE) @map("tipo_entidad")
+  entidadId   String?     @map("entidad_id")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 
-  comuna  Comuna  @relation(fields: [comunaId], references: [id])
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  comuna  Comuna   @relation(fields: [comunaId], references: [id])
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  entidad Entidad? @relation(fields: [entidadId], references: [id])
+
   ordenes Orden[]
 
   @@index([tenantId, activo])
@@ -512,11 +518,13 @@ model Carrier {
   telefono    String
   tenantId    String      @map("tenant_id")
   tipoEntidad TipoEntidad @default(CARRIER) @map("tipo_entidad")
+  entidadId   String?     @map("entidad_id")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 
   comuna  Comuna   @relation(fields: [comunaId], references: [id])
   tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  entidad Entidad? @relation(fields: [entidadId], references: [id])
   equipos Equipo[]
 
   @@index([tenantId, activo])
@@ -540,11 +548,13 @@ model Embarcador {
   telefono    String
   tenantId    String      @map("tenant_id")
   tipoEntidad TipoEntidad @default(EMBARCADOR) @map("tipo_entidad")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
+  entidadId   String?     @map("entidad_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   comuna  Comuna   @relation(fields: [comunaId], references: [id])
   tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  entidad Entidad? @relation(fields: [entidadId], references: [id])
   retiros Retiro[]
 
   @@index([tenantId, activo])

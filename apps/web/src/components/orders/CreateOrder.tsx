@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import type { CreateOrderDto } from "../../types/order";
-import { clientsService } from "../../services/clientsService";
 import { ordersService } from "@/services/orderServices";
 
 interface FormData {
@@ -41,7 +40,7 @@ export const CreateOrderForm: React.FC = () => {
 
   const [formData, setFormData] = useState<FormData>({
     clienteId: "",
-    numeroOt: "", // Fixed: removed 'numero' field
+    numeroOt: "",
     fecha: new Date().toISOString().split("T")[0],
     fechaEntregaEstimada: "",
     remitenteId: "",
@@ -50,7 +49,7 @@ export const CreateOrderForm: React.FC = () => {
     direccionDestinoId: "",
     tipoCargaId: "",
     tipoServicioId: "",
-    tipoTarifa: "PESO_VOLUMEN", // Default value matching enum
+    tipoTarifa: "PESO_VOLUMEN",
     pesoTotalKg: "",
     volumenTotalM3: "",
     altoCm: "",
@@ -59,7 +58,8 @@ export const CreateOrderForm: React.FC = () => {
     observaciones: "",
   });
 
-  /*   useEffect(() => {
+  /*   
+  useEffect(() => {
     const fetchDropdownData = async () => {
       try {
         // Fetch clients
@@ -118,14 +118,14 @@ export const CreateOrderForm: React.FC = () => {
       const orderData: CreateOrderDto = {
         // Basic information
         clienteId: formData.clienteId,
-        numeroOt: formData.numeroOt, // Fixed: only numeroOt
+        numeroOt: formData.numeroOt,
         fecha: new Date(formData.fecha),
         fechaEntregaEstimada: formData.fechaEntregaEstimada
           ? new Date(formData.fechaEntregaEstimada)
           : undefined,
 
         // Status and type
-        estado: "PENDIENTE", // Matching enum value
+        estado: "PENDIENTE",
         tipoTarifa: formData.tipoTarifa,
 
         // Parties

@@ -60,6 +60,7 @@ export class ClientsService {
                 provincia: true,
               },
             },
+            entidad: true, // NEW: Include entidad relation
           },
           skip,
           take: limitNumber,
@@ -92,6 +93,7 @@ export class ClientsService {
               provincia: true,
             },
           },
+          entidad: true, // NEW: Include entidad relation
         },
       });
 
@@ -111,7 +113,7 @@ export class ClientsService {
     tenantId: string,
   ): Promise<ClientResponseDto> {
     try {
-      // Check if RUT already exists for this tenant
+      // Check if RUT already exists for this tenant in Cliente
       const existingClient = await this.prisma.cliente.findFirst({
         where: {
           rut: createClientDto.rut,
@@ -132,6 +134,57 @@ export class ClientsService {
         throw new BadRequestException('Invalid comunaId');
       }
 
+      // Check if Entidad already exists - but don't fail, just use it
+      const existingEntidad = await this.prisma.entidad.findFirst({
+        where: {
+          rut: createClientDto.rut,
+          tenantId,
+        },
+      });
+
+      let entidadId: string;
+
+      if (existingEntidad) {
+        // Update existing Entidad to ensure data consistency
+        await this.prisma.entidad.update({
+          where: { id: existingEntidad.id },
+          data: {
+            nombre: createClientDto.nombre || createClientDto.razonSocial,
+            razonSocial: createClientDto.razonSocial,
+            contacto: createClientDto.contacto,
+            email: createClientDto.email,
+            telefono: createClientDto.telefono,
+            direccion: createClientDto.direccion,
+            comunaId: createClientDto.comunaId,
+            esPersona: createClientDto.esPersona ?? false,
+            tipoEntidad: TipoEntidad.CLIENTE, // Update type if needed
+            activo: true, // Reactivate if was inactive
+          },
+        });
+        entidadId = existingEntidad.id;
+        this.logger.log(`Linked to existing Entidad: ${existingEntidad.rut}`);
+      } else {
+        // Create new Entidad
+        const newEntidad = await this.prisma.entidad.create({
+          data: {
+            nombre: createClientDto.nombre || createClientDto.razonSocial,
+            razonSocial: createClientDto.razonSocial,
+            rut: createClientDto.rut,
+            contacto: createClientDto.contacto,
+            email: createClientDto.email,
+            telefono: createClientDto.telefono,
+            direccion: createClientDto.direccion,
+            comunaId: createClientDto.comunaId,
+            esPersona: createClientDto.esPersona ?? false,
+            activo: true,
+            tipoEntidad: TipoEntidad.CLIENTE,
+            tenantId,
+          },
+        });
+        entidadId = newEntidad.id;
+      }
+
+      // Create Cliente with entidadId link
       const client = await this.prisma.cliente.create({
         data: {
           nombre: createClientDto.nombre,
@@ -146,6 +199,7 @@ export class ClientsService {
           activo: true,
           tipoEntidad: TipoEntidad.CLIENTE,
           tenantId,
+          entidadId: entidadId,
         },
         include: {
           comuna: {
@@ -154,6 +208,7 @@ export class ClientsService {
               provincia: true,
             },
           },
+          entidad: true, // NEW: Include entidad relation
         },
       });
 
@@ -174,6 +229,9 @@ export class ClientsService {
       // Verify client exists and belongs to tenant
       const existingClient = await this.prisma.cliente.findFirst({
         where: { id, tenantId },
+        include: {
+          entidad: true, // NEW: Include entidad to check if it exists
+        },
       });
 
       if (!existingClient) {
@@ -208,6 +266,38 @@ export class ClientsService {
         }
       }
 
+      // NEW: Also update the linked Entidad if it exists
+      if (existingClient.entidadId) {
+        await this.prisma.entidad.update({
+          where: {
+            id: existingClient.entidadId,
+          },
+          data: {
+            ...(updateClientDto.nombre && { nombre: updateClientDto.nombre }),
+            ...(updateClientDto.razonSocial && {
+              razonSocial: updateClientDto.razonSocial,
+            }),
+            ...(updateClientDto.rut && { rut: updateClientDto.rut }),
+            ...(updateClientDto.contacto && {
+              contacto: updateClientDto.contacto,
+            }),
+            ...(updateClientDto.email && { email: updateClientDto.email }),
+            ...(updateClientDto.telefono && {
+              telefono: updateClientDto.telefono,
+            }),
+            ...(updateClientDto.direccion && {
+              direccion: updateClientDto.direccion,
+            }),
+            ...(updateClientDto.comunaId && {
+              comunaId: updateClientDto.comunaId,
+            }),
+            ...(updateClientDto.esPersona !== undefined && {
+              esPersona: updateClientDto.esPersona,
+            }),
+          },
+        });
+      }
+
       const client = await this.prisma.cliente.update({
         where: { id },
         data: updateClientDto,
@@ -218,6 +308,7 @@ export class ClientsService {
               provincia: true,
             },
           },
+          entidad: true, // NEW: Include entidad relation
         },
       });
 
@@ -240,13 +331,25 @@ export class ClientsService {
         throw new NotFoundException('Client not found');
       }
 
-      // Soft delete by setting activo to false
-      await this.prisma.cliente.update({
-        where: { id },
-        data: { activo: false },
-      });
+      // NEW: Use transaction to deactivate both Cliente and Entidad
+      await this.prisma.$transaction([
+        // Soft delete cliente
+        this.prisma.cliente.update({
+          where: { id },
+          data: { activo: false },
+        }),
+        // Soft delete corresponding entidad if it exists
+        ...(existingClient.entidadId
+          ? [
+              this.prisma.entidad.update({
+                where: { id: existingClient.entidadId },
+                data: { activo: false },
+              }),
+            ]
+          : []),
+      ]);
 
-      this.logger.log(`Client ${id} deactivated`);
+      this.logger.log(`Client ${id} and corresponding Entity deactivated`);
     } catch (error) {
       this.logger.error(`Error deactivating client ${id}:`, error);
       throw error;
@@ -270,6 +373,7 @@ export class ClientsService {
               provincia: true,
             },
           },
+          entidad: true, // NEW: Include entidad relation
         },
       });
 

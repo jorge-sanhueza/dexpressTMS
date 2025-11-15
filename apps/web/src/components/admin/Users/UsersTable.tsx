@@ -184,7 +184,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
         cell: ({ row }) => {
           const user = row.original;
           return (
-            <div className="flex space-x-2 justify-end">
+            <div className="flex space-x-2">
               {canEdit && (
                 <Button
                   variant="ghost"
@@ -268,16 +268,6 @@ export const UsersTable: React.FC<UsersTableProps> = ({
   const totalPages = Math.ceil(totalCount / pageSize);
   const startItem = (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalCount);
-
-  console.log("Users Table pagination state:", {
-    currentPage,
-    totalPages,
-    pageSize,
-    startItem,
-    endItem,
-    totalCount,
-    dataLength: safeData.length,
-  });
 
   if (isLoading) {
     return (

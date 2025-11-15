@@ -81,6 +81,7 @@ export class CarriersService {
               },
               orderBy: { nombre: 'asc' },
             },
+            entidad: true,
           },
           skip,
           take: limitNumber,
@@ -128,6 +129,7 @@ export class CarriersService {
             },
             orderBy: { nombre: 'asc' },
           },
+          entidad: true,
         },
       });
 
@@ -147,7 +149,7 @@ export class CarriersService {
     tenantId: string,
   ): Promise<CarrierResponseDto> {
     try {
-      // Check if RUT already exists for this tenant
+      // Check if RUT already exists for this tenant in Carrier
       const existingCarrier = await this.prisma.carrier.findFirst({
         where: {
           rut: createCarrierDto.rut,
@@ -168,6 +170,57 @@ export class CarriersService {
         throw new BadRequestException('Invalid comunaId');
       }
 
+      // NEW: Check if Entidad already exists
+      const existingEntidad = await this.prisma.entidad.findFirst({
+        where: {
+          rut: createCarrierDto.rut,
+          tenantId,
+        },
+      });
+
+      let entidadId: string;
+
+      if (existingEntidad) {
+        // Update existing Entidad to ensure data consistency
+        await this.prisma.entidad.update({
+          where: { id: existingEntidad.id },
+          data: {
+            nombre: createCarrierDto.nombre || createCarrierDto.razonSocial,
+            razonSocial: createCarrierDto.razonSocial,
+            contacto: createCarrierDto.contacto,
+            email: createCarrierDto.email,
+            telefono: createCarrierDto.telefono,
+            direccion: createCarrierDto.direccion,
+            comunaId: createCarrierDto.comunaId,
+            esPersona: createCarrierDto.esPersona ?? false,
+            tipoEntidad: TipoEntidad.CARRIER,
+            activo: true,
+          },
+        });
+        entidadId = existingEntidad.id;
+        this.logger.log(`Linked to existing Entidad: ${existingEntidad.rut}`);
+      } else {
+        // Create new Entidad
+        const newEntidad = await this.prisma.entidad.create({
+          data: {
+            nombre: createCarrierDto.nombre || createCarrierDto.razonSocial,
+            razonSocial: createCarrierDto.razonSocial,
+            rut: createCarrierDto.rut,
+            contacto: createCarrierDto.contacto,
+            email: createCarrierDto.email,
+            telefono: createCarrierDto.telefono,
+            direccion: createCarrierDto.direccion,
+            comunaId: createCarrierDto.comunaId,
+            esPersona: createCarrierDto.esPersona ?? false,
+            activo: true,
+            tipoEntidad: TipoEntidad.CARRIER,
+            tenantId,
+          },
+        });
+        entidadId = newEntidad.id;
+      }
+
+      // Create Carrier with entidadId link
       const carrier = await this.prisma.carrier.create({
         data: {
           nombre: createCarrierDto.nombre,
@@ -182,6 +235,7 @@ export class CarriersService {
           activo: true,
           tipoEntidad: TipoEntidad.CARRIER,
           tenantId,
+          entidadId: entidadId,
         },
         include: {
           comuna: {
@@ -204,6 +258,7 @@ export class CarriersService {
               },
             },
           },
+          entidad: true,
         },
       });
 
@@ -261,6 +316,39 @@ export class CarriersService {
         }
       }
 
+      //Also update the linked Entidad if it exists
+      if (existingCarrier.entidadId) {
+        await this.prisma.entidad.updateMany({
+          where: {
+            id: existingCarrier.entidadId,
+            tenantId,
+          },
+          data: {
+            ...(updateCarrierDto.nombre && { nombre: updateCarrierDto.nombre }),
+            ...(updateCarrierDto.razonSocial && {
+              razonSocial: updateCarrierDto.razonSocial,
+            }),
+            ...(updateCarrierDto.rut && { rut: updateCarrierDto.rut }),
+            ...(updateCarrierDto.contacto && {
+              contacto: updateCarrierDto.contacto,
+            }),
+            ...(updateCarrierDto.email && { email: updateCarrierDto.email }),
+            ...(updateCarrierDto.telefono && {
+              telefono: updateCarrierDto.telefono,
+            }),
+            ...(updateCarrierDto.direccion && {
+              direccion: updateCarrierDto.direccion,
+            }),
+            ...(updateCarrierDto.comunaId && {
+              comunaId: updateCarrierDto.comunaId,
+            }),
+            ...(updateCarrierDto.esPersona !== undefined && {
+              esPersona: updateCarrierDto.esPersona,
+            }),
+          },
+        });
+      }
+
       const carrier = await this.prisma.carrier.update({
         where: { id },
         data: updateCarrierDto,
@@ -285,6 +373,7 @@ export class CarriersService {
               },
             },
           },
+          entidad: true,
         },
       });
 
@@ -321,13 +410,25 @@ export class CarriersService {
         );
       }
 
-      // Soft delete by setting activo to false
-      await this.prisma.carrier.update({
-        where: { id },
-        data: { activo: false },
-      });
+      // Use transaction to deactivate both Carrier and Entidad
+      await this.prisma.$transaction([
+        // Soft delete carrier
+        this.prisma.carrier.update({
+          where: { id },
+          data: { activo: false },
+        }),
+        // Soft delete corresponding entidad if it exists
+        ...(existingCarrier.entidadId
+          ? [
+              this.prisma.entidad.update({
+                where: { id: existingCarrier.entidadId },
+                data: { activo: false },
+              }),
+            ]
+          : []),
+      ]);
 
-      this.logger.log(`Carrier ${id} deactivated`);
+      this.logger.log(`Carrier ${id} and corresponding Entity deactivated`);
       return { message: 'Carrier deactivated successfully' };
     } catch (error) {
       this.logger.error(`Error deactivating carrier ${id}:`, error);
@@ -366,6 +467,7 @@ export class CarriersService {
               },
             },
           },
+          entidad: true,
         },
       });
 
