@@ -10,6 +10,7 @@ import { EmbarcadoresList } from "../components/embarcadores/EmbarcadoresList";
 import { CarriersList } from "@/components/carriers/CarriersList";
 import { DireccionesList } from "@/components/direcciones/DireccionesList";
 import { CreateOrderForm } from "@/components/orders/CreateOrder";
+import { ContactosList } from "@/components/contactos/ContactosList";
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -78,7 +79,15 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-{/*       <Route
+      <Route
+        path="/contactos"
+        element={
+          <ProtectedRoute>
+            <ContactosList />
+          </ProtectedRoute>
+        }
+      />
+      {/*       <Route
         path="/ordenes"
         element={
           <ProtectedRoute>

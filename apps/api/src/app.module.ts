@@ -13,6 +13,7 @@ import { EmbarcadoresModule } from './embarcadores/embarcadores.module';
 import { ComunasModule } from './comunas/comunas.module';
 import { CarriersModule } from './carriers/carriers.module';
 import { DireccionesModule } from './direcciones/direcciones.module';
+import { ContactosModule } from './contactos/contactos.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { DireccionesModule } from './direcciones/direcciones.module';
     CarriersModule,
     ComunasModule,
     DireccionesModule,
+    ContactosModule
   ],
   controllers: [AppController],
 })

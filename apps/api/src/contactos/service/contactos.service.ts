@@ -10,6 +10,7 @@ import { ContactosFilterDto } from '../dto/contactos-filter.dto';
 import { CreateContactoDto } from '../dto/create-contacto.dto';
 import { UpdateContactoDto } from '../dto/update-contacto.dto';
 import { ContactoResponseDto } from '../dto/contacto-response.dto';
+import { TipoEntidad } from '@prisma/client';
 
 @Injectable()
 export class ContactosService {
@@ -44,6 +45,7 @@ export class ContactosService {
   private prepareContactoData(
     createContactoDto: CreateContactoDto,
     tenantId: string,
+    entidadId: string,
   ) {
     return {
       nombre: createContactoDto.nombre,
@@ -56,7 +58,7 @@ export class ContactosService {
       esPersonaNatural: createContactoDto.esPersonaNatural ?? true,
       activo: true,
       comunaId: createContactoDto.comunaId,
-      entidadId: createContactoDto.entidadId,
+      entidadId: entidadId,
       tenantId,
     };
   }
@@ -84,8 +86,6 @@ export class ContactosService {
       data.activo = updateContactoDto.activo;
     if (updateContactoDto.comunaId !== undefined)
       data.comunaId = updateContactoDto.comunaId;
-    if (updateContactoDto.entidadId !== undefined)
-      data.entidadId = updateContactoDto.entidadId;
 
     return data;
   }
@@ -119,6 +119,7 @@ export class ContactosService {
           { nombre: { contains: search, mode: 'insensitive' } },
           { rut: { contains: search, mode: 'insensitive' } },
           { email: { contains: search, mode: 'insensitive' } },
+          { direccion: { contains: search, mode: 'insensitive' } },
           { cargo: { contains: search, mode: 'insensitive' } },
           { contacto: { contains: search, mode: 'insensitive' } },
         ];
@@ -212,21 +213,29 @@ export class ContactosService {
         throw new BadRequestException('Invalid comunaId');
       }
 
-      // Verify entidad exists
-      const entidad = await this.prisma.entidad.findFirst({
-        where: {
-          id: createContactoDto.entidadId,
+      // Create entidad automatically for the contacto
+      const entidad = await this.prisma.entidad.create({
+        data: {
+          nombre: createContactoDto.nombre,
+          rut: createContactoDto.rut,
+          tipoEntidad: TipoEntidad.PERSONA,
+          comunaId: createContactoDto.comunaId,
+          contacto: createContactoDto.contacto,
+          email: createContactoDto.email || '',
+          telefono: createContactoDto.telefono || '',
+          direccion: createContactoDto.direccion || null,
+          esPersona: true,
+          activo: true,
           tenantId,
         },
       });
 
-      if (!entidad) {
-        throw new BadRequestException('Invalid entidadId');
-      }
+      this.logger.log(`Entidad created for contacto: ${entidad.id}`);
 
       const contactoData = this.prepareContactoData(
         createContactoDto,
         tenantId,
+        entidad.id,
       );
 
       const contacto = await this.prisma.contacto.create({
@@ -251,6 +260,7 @@ export class ContactosService {
       // Verify contacto exists and belongs to tenant
       const existingContacto = await this.prisma.contacto.findFirst({
         where: { id, tenantId },
+        include: { entidad: true }, // Include entidad to update it too
       });
 
       if (!existingContacto) {
@@ -288,27 +298,46 @@ export class ContactosService {
         }
       }
 
-      // Verify entidad exists if entidadId is being updated
-      if (updateContactoDto.entidadId) {
-        const entidad = await this.prisma.entidad.findFirst({
-          where: {
-            id: updateContactoDto.entidadId,
-            tenantId,
-          },
-        });
-
-        if (!entidad) {
-          throw new BadRequestException('Invalid entidadId');
-        }
-      }
-
       const updateData = this.prepareUpdateData(updateContactoDto);
 
-      const contacto = await this.prisma.contacto.update({
-        where: { id },
-        data: updateData,
-        include: this.getContactoInclude(),
-      });
+      // Use transaction to update both contacto and entidad
+      const [contacto] = await this.prisma.$transaction([
+        this.prisma.contacto.update({
+          where: { id },
+          data: updateData,
+          include: this.getContactoInclude(),
+        }),
+        // Also update the associated entidad with the same data
+        this.prisma.entidad.update({
+          where: { id: existingContacto.entidadId },
+          data: {
+            nombre:
+              updateContactoDto.nombre !== undefined
+                ? updateContactoDto.nombre
+                : undefined,
+            rut:
+              updateContactoDto.rut !== undefined
+                ? updateContactoDto.rut
+                : undefined,
+            email:
+              updateContactoDto.email !== undefined
+                ? updateContactoDto.email
+                : undefined,
+            telefono:
+              updateContactoDto.telefono !== undefined
+                ? updateContactoDto.telefono
+                : undefined,
+            direccion:
+              updateContactoDto.direccion !== undefined
+                ? updateContactoDto.direccion
+                : undefined,
+            comunaId:
+              updateContactoDto.comunaId !== undefined
+                ? updateContactoDto.comunaId
+                : undefined,
+          },
+        }),
+      ]);
 
       this.logger.log(`Contacto updated successfully: ${contacto.rut}`);
       return new ContactoResponseDto(contacto);
@@ -342,11 +371,19 @@ export class ContactosService {
         );
       }
 
-      // Soft delete by setting activo to false
-      await this.prisma.contacto.update({
-        where: { id },
-        data: { activo: false },
-      });
+      // Use transaction to deactivate both contacto and entidad
+      await this.prisma.$transaction([
+        // Soft delete contacto
+        this.prisma.contacto.update({
+          where: { id },
+          data: { activo: false },
+        }),
+        // Also deactivate the associated entidad
+        this.prisma.entidad.update({
+          where: { id: existingContacto.entidadId },
+          data: { activo: false },
+        }),
+      ]);
 
       this.logger.log(`Contacto ${id} deactivated`);
       return { message: 'Contacto deactivated successfully' };

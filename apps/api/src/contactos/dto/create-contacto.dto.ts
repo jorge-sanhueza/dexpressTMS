@@ -1,21 +1,21 @@
 import {
   IsString,
+  IsEmail,
   IsBoolean,
   IsOptional,
-  IsEmail,
   IsUUID,
   Matches,
 } from 'class-validator';
 
 export class CreateContactoDto {
   @IsString()
-  nombre: string;
-
-  @IsString()
   @Matches(/^[0-9]{7,8}-[0-9kK]{1}$/, {
-    message: 'RUT must be in format 12345678-9',
+    message: 'Formato de RUT inválido (ej: 12345678-9)',
   })
   rut: string;
+
+  @IsString()
+  nombre: string;
 
   @IsOptional()
   @IsEmail()
@@ -29,12 +29,6 @@ export class CreateContactoDto {
   @IsString()
   direccion?: string;
 
-  @IsUUID()
-  comunaId: string;
-
-  @IsUUID()
-  entidadId: string;
-
   @IsOptional()
   @IsString()
   cargo?: string;
@@ -45,4 +39,7 @@ export class CreateContactoDto {
   @IsOptional()
   @IsBoolean()
   esPersonaNatural?: boolean;
+
+  @IsUUID()
+  comunaId: string;
 }

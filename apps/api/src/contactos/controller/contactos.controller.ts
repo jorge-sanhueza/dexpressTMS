@@ -19,7 +19,7 @@ import { ContactoResponseDto } from '../dto/contacto-response.dto';
 import { CreateContactoDto } from '../dto/create-contacto.dto';
 import { UpdateContactoDto } from '../dto/update-contacto.dto';
 
-@Controller('contactos')
+@Controller('api/contactos')
 @UseGuards(JwtGuard)
 export class ContactosController {
   private readonly logger = new Logger(ContactosController.name);

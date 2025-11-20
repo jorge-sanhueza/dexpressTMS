@@ -1,12 +1,10 @@
-import { Contacto, Entidad, Comuna, Provincia, Region } from '@prisma/client';
-
 export class ContactoResponseDto {
   id: string;
   nombre: string;
   rut: string;
   email?: string;
   telefono?: string;
-  direccion?: string;
+  direccion?: string; // Added as optional
   cargo?: string;
   contacto?: string;
   esPersonaNatural: boolean;
@@ -23,6 +21,7 @@ export class ContactoResponseDto {
     nombre: string;
     rut: string;
     tipoEntidad: string;
+    direccion?: string; // Also add to entidad relation if needed
   };
 
   comuna?: {
@@ -44,7 +43,7 @@ export class ContactoResponseDto {
     this.rut = contacto.rut;
     this.email = contacto.email;
     this.telefono = contacto.telefono;
-    this.direccion = contacto.direccion;
+    this.direccion = contacto.direccion; // Added
     this.cargo = contacto.cargo;
     this.contacto = contacto.contacto;
     this.esPersonaNatural = contacto.esPersonaNatural;
@@ -62,6 +61,7 @@ export class ContactoResponseDto {
         nombre: contacto.entidad.nombre,
         rut: contacto.entidad.rut,
         tipoEntidad: contacto.entidad.tipoEntidad,
+        direccion: contacto.entidad.direccion,
       };
     }
 

@@ -1,24 +1,24 @@
 import React, { useState, useMemo } from "react";
 import { WideLayout } from "../layout/WideLayout";
-import { ClientsTable } from "./ClientsTable";
+import { ContactosTable } from "./ContactosTable";
+import { ContactoForm } from "./ContactoForm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  useClients,
-  useDeactivateClient,
-  useActivateClient,
-  useCreateClient,
-  useUpdateClient,
-} from "../../hooks/useClients";
+  useContactos,
+  useDeactivateContacto,
+  useActivateContacto,
+  useCreateContacto,
+  useUpdateContacto,
+} from "../../hooks/useContactos";
 import { useAuthStore } from "../../store/authStore";
 import type {
-  Client,
-  ClientsFilter,
-  CreateClientData,
-  UpdateClientData,
-} from "@/types/client";
+  Contacto,
+  ContactosFilter,
+  CreateContactoData,
+  UpdateContactoData,
+} from "@/types/contacto";
 import { Input } from "@/components/ui/input";
-import { ClientForm } from "./ClientForm";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -30,7 +30,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ClientViewModal } from "./ClientViewModal";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { useCompositeError, useMutationError } from "@/hooks/useErrorHandling";
@@ -43,24 +42,26 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
-export const ClientsList: React.FC = () => {
+export const ContactosList: React.FC = () => {
   // ========== STATE HOOKS ==========
   const { hasModulePermission, isInitialized } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<boolean | undefined>(
     undefined
   );
+  const [personTypeFilter, setPersonTypeFilter] = useState<boolean | undefined>(
+    undefined
+  );
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [viewingClient, setViewingClient] = useState<Client | null>(null);
+  const [editingContacto, setEditingContacto] = useState<Contacto | null>(null);
   const [deactivateDialog, setDeactivateDialog] = useState<{
     isOpen: boolean;
-    clientId: string | null;
-    clientName: string;
+    contactoId: string | null;
+    contactoName: string;
   }>({
     isOpen: false,
-    clientId: null,
-    clientName: "",
+    contactoId: null,
+    contactoName: "",
   });
 
   // Pagination state
@@ -72,7 +73,7 @@ export const ClientsList: React.FC = () => {
 
   // Build filters object for API
   const filters = useMemo(() => {
-    const filterObj: ClientsFilter = {
+    const filterObj: ContactosFilter = {
       page: currentPage,
       limit: pageSize,
     };
@@ -85,74 +86,89 @@ export const ClientsList: React.FC = () => {
       filterObj.activo = statusFilter;
     }
 
+    if (personTypeFilter !== undefined) {
+      filterObj.esPersonaNatural = personTypeFilter;
+    }
+
     return filterObj;
-  }, [debouncedSearchTerm, statusFilter, currentPage, pageSize]);
+  }, [
+    debouncedSearchTerm,
+    statusFilter,
+    personTypeFilter,
+    currentPage,
+    pageSize,
+  ]);
 
   // ========== DATA FETCHING ==========
   const {
-    data: clientsData,
+    data: contactosData,
     isLoading,
     error,
     isFetching,
-  } = useClients(filters);
+  } = useContactos(filters);
 
-  const clients = clientsData?.clients || [];
-  const totalCount = clientsData?.total || 0;
+  const contactos = contactosData?.contactos || [];
+  const totalCount = contactosData?.total || 0;
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  const deactivateClientMutation = useDeactivateClient();
-  const activateClientMutation = useActivateClient();
-  const createClientMutation = useCreateClient();
-  const updateClientMutation = useUpdateClient();
+  const deactivateContactoMutation = useDeactivateContacto();
+  const activateContactoMutation = useActivateContacto();
+  const createContactoMutation = useCreateContacto();
+  const updateContactoMutation = useUpdateContacto();
 
   // ========== ERROR HANDLING ==========
   const errors = useMemo(
     () => [
       { error, operation: "fetch" },
-      { error: deactivateClientMutation.error, operation: "deactivate" },
-      { error: activateClientMutation.error, operation: "activate" },
-      { error: createClientMutation.error, operation: "create" },
-      { error: updateClientMutation.error, operation: "update" },
+      { error: deactivateContactoMutation.error, operation: "deactivate" },
+      { error: activateContactoMutation.error, operation: "activate" },
+      { error: createContactoMutation.error, operation: "create" },
+      { error: updateContactoMutation.error, operation: "update" },
     ],
     [
       error,
-      deactivateClientMutation.error,
-      activateClientMutation.error,
-      createClientMutation.error,
-      updateClientMutation.error,
+      deactivateContactoMutation.error,
+      activateContactoMutation.error,
+      createContactoMutation.error,
+      updateContactoMutation.error,
     ]
   );
 
   const { message: errorMessage, hasError } = useCompositeError(errors);
 
   // Individual mutation errors for toasts
-  const createError = useMutationError(createClientMutation, "create");
-  const updateError = useMutationError(updateClientMutation, "update");
+  const createError = useMutationError(createContactoMutation, "create");
+  const updateError = useMutationError(updateContactoMutation, "update");
   const deactivateError = useMutationError(
-    deactivateClientMutation,
+    deactivateContactoMutation,
     "deactivate"
   );
-  const activateError = useMutationError(activateClientMutation, "activate");
+  const activateError = useMutationError(activateContactoMutation, "activate");
 
   // ========== PERMISSIONS ==========
-  const canViewClients = hasModulePermission("clientes", "ver");
-  const canCreateClients = hasModulePermission("clientes", "crear");
-  const canEditClients = hasModulePermission("clientes", "editar");
-  const canDeleteClients = hasModulePermission("clientes", "eliminar");
-  const canActivateClients = hasModulePermission("clientes", "activar");
+  const canViewContactos = hasModulePermission("clientes", "ver");
+  const canCreateContactos = hasModulePermission("clientes", "crear");
+  const canEditContactos = hasModulePermission("clientes", "editar");
+  const canDeleteContactos = hasModulePermission("clientes", "eliminar");
+  const canActivateContactos = hasModulePermission("clientes", "activar");
 
   // ========== EVENT HANDLERS ==========
 
   // Search & Filter handlers
   const handleSearch = (value: string) => {
     setSearchTerm(value);
-    setCurrentPage(1); // Reset to first page when searching
+    setCurrentPage(1);
   };
 
   const handleStatusFilter = (status: string) => {
-    // Use "all" for "Todos" option
     const filterValue = status === "all" ? undefined : status === "true";
     setStatusFilter(filterValue);
+    setCurrentPage(1);
+  };
+
+  const handlePersonTypeFilter = (type: string) => {
+    const filterValue = type === "all" ? undefined : type === "true";
+    setPersonTypeFilter(filterValue);
     setCurrentPage(1);
   };
 
@@ -168,21 +184,26 @@ export const ClientsList: React.FC = () => {
   const handleClearFilters = () => {
     setSearchTerm("");
     setStatusFilter(undefined);
+    setPersonTypeFilter(undefined);
     setCurrentPage(1);
   };
 
-  // Client CRUD handlers
-  const handleCreateClient = () => {
-    if (canCreateClients) {
+  // Contacto CRUD handlers
+  const handleCreateContacto = () => {
+    if (canCreateContactos) {
       setIsCreateModalOpen(true);
     }
   };
 
-  const handleCreateSubmit = async (clientData: CreateClientData) => {
+  const handleCreateSubmit = async (
+    contactoData: CreateContactoData | UpdateContactoData
+  ) => {
     try {
-      await createClientMutation.mutateAsync(clientData);
+      await createContactoMutation.mutateAsync(
+        contactoData as CreateContactoData
+      );
       setIsCreateModalOpen(false);
-      toast.success("Cliente creado correctamente");
+      toast.success("Contacto creado correctamente");
     } catch {
       if (createError) {
         toast.error(createError);
@@ -194,22 +215,24 @@ export const ClientsList: React.FC = () => {
     setIsCreateModalOpen(false);
   };
 
-  const handleEdit = (client: Client) => {
-    if (canEditClients) {
-      setEditingClient(client);
+  const handleEdit = (contacto: Contacto) => {
+    if (canEditContactos) {
+      setEditingContacto(contacto);
     }
   };
 
-  const handleEditSubmit = async (clientData: UpdateClientData) => {
-    if (!editingClient) return;
+  const handleEditSubmit = async (
+    contactoData: CreateContactoData | UpdateContactoData
+  ) => {
+    if (!editingContacto) return;
 
     try {
-      await updateClientMutation.mutateAsync({
-        id: editingClient.id,
-        clientData,
+      await updateContactoMutation.mutateAsync({
+        id: editingContacto.id,
+        contactoData: contactoData as UpdateContactoData,
       });
-      setEditingClient(null);
-      toast.success("Cliente actualizado correctamente");
+      setEditingContacto(null);
+      toast.success("Contacto actualizado correctamente");
     } catch {
       if (updateError) {
         toast.error(updateError);
@@ -218,40 +241,37 @@ export const ClientsList: React.FC = () => {
   };
 
   const handleEditCancel = () => {
-    setEditingClient(null);
+    setEditingContacto(null);
   };
 
-  const handleView = (client: Client) => {
-    setViewingClient(client);
-  };
-
-  const handleViewClose = () => {
-    setViewingClient(null);
+  const handleView = (contacto: Contacto) => {
+    // You can implement a view modal similar to ClientViewModal
+    console.log("View contacto:", contacto);
   };
 
   // Activation/Deactivation handlers
-  const openDeactivateDialog = (client: Client) => {
+  const openDeactivateDialog = (contacto: Contacto) => {
     setDeactivateDialog({
       isOpen: true,
-      clientId: client.id,
-      clientName: client.nombre ?? "",
+      contactoId: contacto.id,
+      contactoName: contacto.nombre,
     });
   };
 
   const closeDeactivateDialog = () => {
     setDeactivateDialog({
       isOpen: false,
-      clientId: null,
-      clientName: "",
+      contactoId: null,
+      contactoName: "",
     });
   };
 
   const handleDeactivateConfirm = async () => {
-    if (!deactivateDialog.clientId) return;
+    if (!deactivateDialog.contactoId) return;
 
     try {
-      await deactivateClientMutation.mutateAsync(deactivateDialog.clientId);
-      toast.success("Cliente desactivado correctamente");
+      await deactivateContactoMutation.mutateAsync(deactivateDialog.contactoId);
+      toast.success("Contacto desactivado correctamente");
       closeDeactivateDialog();
     } catch {
       if (deactivateError) {
@@ -262,8 +282,8 @@ export const ClientsList: React.FC = () => {
 
   const handleActivate = async (id: string) => {
     try {
-      await activateClientMutation.mutateAsync(id);
-      toast.success("Cliente activado correctamente");
+      await activateContactoMutation.mutateAsync(id);
+      toast.success("Contacto activado correctamente");
     } catch {
       if (activateError) {
         toast.error(activateError);
@@ -283,7 +303,7 @@ export const ClientsList: React.FC = () => {
     );
   }
 
-  if (!canViewClients) {
+  if (!canViewContactos) {
     return (
       <WideLayout>
         <div className="flex justify-center items-center h-64">
@@ -292,7 +312,7 @@ export const ClientsList: React.FC = () => {
               Acceso No Autorizado
             </div>
             <p className="text-[#798283]/70">
-              No tienes permisos para ver clientes.
+              No tienes permisos para ver contactos.
             </p>
             <p className="text-sm text-[#798283]/50 mt-2">
               Contacta al administrador del sistema para solicitar acceso.
@@ -311,20 +331,20 @@ export const ClientsList: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm border border-[#798283]/10 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-[#798283]">Clientes</h2>
+              <h2 className="text-2xl font-bold text-[#798283]">Contactos</h2>
               <p className="text-[#798283]/70 mt-1">
-                Gestiona los clientes de tu organización
+                Gestiona los contactos de tu organización
               </p>
             </div>
-            {canCreateClients && (
+            {canCreateContactos && (
               <Button
-                onClick={handleCreateClient}
+                onClick={handleCreateContacto}
                 className="bg-[#D42B22] hover:bg-[#B3251E] text-white"
-                disabled={createClientMutation.isPending}
+                disabled={createContactoMutation.isPending}
               >
-                {createClientMutation.isPending
+                {createContactoMutation.isPending
                   ? "Creando..."
-                  : "+ Nuevo Cliente"}
+                  : "+ Nuevo Contacto"}
               </Button>
             )}
           </div>
@@ -335,16 +355,16 @@ export const ClientsList: React.FC = () => {
 
         {/* Enhanced Filters Section */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             {/* Search Input */}
             <div>
               <Label htmlFor="search" className="text-[#798283]">
-                Buscar clientes
+                Buscar contactos
               </Label>
               <Input
                 id="search"
                 type="text"
-                placeholder="Buscar por nombre, RUT, contacto o email..."
+                placeholder="Buscar por nombre, RUT, cargo o email..."
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="w-full"
@@ -369,6 +389,30 @@ export const ClientsList: React.FC = () => {
                   <SelectItem value="all">Todos los estados</SelectItem>
                   <SelectItem value="true">Activos</SelectItem>
                   <SelectItem value="false">Inactivos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Person Type Filter */}
+            <div>
+              <Label htmlFor="person-type-filter" className="text-[#798283]">
+                Tipo
+              </Label>
+              <Select
+                value={
+                  personTypeFilter === undefined
+                    ? "all"
+                    : personTypeFilter.toString()
+                }
+                onValueChange={handlePersonTypeFilter}
+              >
+                <SelectTrigger id="person-type-filter">
+                  <SelectValue placeholder="Todos los tipos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los tipos</SelectItem>
+                  <SelectItem value="true">Personas Naturales</SelectItem>
+                  <SelectItem value="false">Empresas</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -404,15 +448,31 @@ export const ClientsList: React.FC = () => {
                 Estado: Inactivos
               </Badge>
             )}
+            {personTypeFilter === true && (
+              <Badge
+                variant="secondary"
+                className="bg-purple-50 text-purple-700"
+              >
+                Tipo: Personas Naturales
+              </Badge>
+            )}
+            {personTypeFilter === false && (
+              <Badge
+                variant="secondary"
+                className="bg-orange-50 text-orange-700"
+              >
+                Tipo: Empresas
+              </Badge>
+            )}
           </div>
         </div>
 
-        {/* Clients Table */}
+        {/* Contactos Table */}
         <div className="bg-white rounded-xl shadow-sm border border-[#798283]/10">
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-semibold text-[#798283]">
-                Lista de Clientes
+                Lista de Contactos
               </h3>
               <div className="flex items-center gap-4">
                 {/* Page Size Selector */}
@@ -447,8 +507,8 @@ export const ClientsList: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      Mostrando {clients.length} de {totalCount}{" "}
-                      {totalCount === 1 ? "cliente" : "clientes"}
+                      Mostrando {contactos.length} de {totalCount}{" "}
+                      {totalCount === 1 ? "contacto" : "contactos"}
                     </>
                   )}
                 </div>
@@ -466,16 +526,16 @@ export const ClientsList: React.FC = () => {
                 </div>
               )}
 
-              <ClientsTable
-                data={clients}
+              <ContactosTable
+                data={contactos}
                 onEdit={handleEdit}
                 onView={handleView}
                 onDeactivate={openDeactivateDialog}
                 onActivate={handleActivate}
-                canView={canViewClients}
-                canEdit={canEditClients}
-                canDelete={canDeleteClients}
-                canActivate={canActivateClients}
+                canView={canViewContactos}
+                canEdit={canEditContactos}
+                canDelete={canDeleteContactos}
+                canActivate={canActivateContactos}
                 isLoading={isLoading}
               />
 
@@ -530,67 +590,52 @@ export const ClientsList: React.FC = () => {
 
       {/* Modals */}
       {isCreateModalOpen && (
-        <ClientForm
-          onSubmit={
-            handleCreateSubmit as (
-              data: CreateClientData | UpdateClientData
-            ) => void
-          }
+        <ContactoForm
+          onSubmit={handleCreateSubmit}
           onCancel={handleCreateCancel}
-          isLoading={createClientMutation.isPending}
+          isLoading={createContactoMutation.isPending}
         />
       )}
 
-      {editingClient && (
-        <ClientForm
-          client={editingClient}
+      {editingContacto && (
+        <ContactoForm
+          contacto={editingContacto}
           onSubmit={handleEditSubmit}
           onCancel={handleEditCancel}
-          isLoading={updateClientMutation.isPending}
+          isLoading={updateContactoMutation.isPending}
           isEditing={true}
         />
       )}
 
-      {viewingClient && (
-        <ClientViewModal
-          client={viewingClient}
-          onClose={handleViewClose}
-          onEdit={() => {
-            setViewingClient(null);
-            setEditingClient(viewingClient);
-          }}
-          canEdit={canEditClients}
-        />
-      )}
-
-      {/* Deactivate Client Confirmation Dialog */}
-      {canDeleteClients && (
+      {/* Deactivate Contacto Confirmation Dialog */}
+      {canDeleteContactos && (
         <AlertDialog
           open={deactivateDialog.isOpen}
           onOpenChange={closeDeactivateDialog}
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>¿Desactivar cliente?</AlertDialogTitle>
+              <AlertDialogTitle>¿Desactivar contacto?</AlertDialogTitle>
               <AlertDialogDescription>
-                Estás a punto de desactivar al cliente{" "}
-                <strong>{deactivateDialog.clientName}</strong>. Esta acción no
-                se puede deshacer y el cliente ya no podrá acceder al sistema.
+                Estás a punto de desactivar al contacto{" "}
+                <strong>{deactivateDialog.contactoName}</strong>. Esta acción no
+                se puede deshacer y el contacto ya no estará disponible para uso
+                en el sistema.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel
-                disabled={deactivateClientMutation.isPending}
+                disabled={deactivateContactoMutation.isPending}
                 onClick={closeDeactivateDialog}
               >
                 Cancelar
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDeactivateConfirm}
-                disabled={deactivateClientMutation.isPending}
+                disabled={deactivateContactoMutation.isPending}
                 className="bg-red-600 hover:bg-red-700 text-white"
               >
-                {deactivateClientMutation.isPending
+                {deactivateContactoMutation.isPending
                   ? "Desactivando..."
                   : "Sí, desactivar"}
               </AlertDialogAction>

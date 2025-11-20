@@ -346,6 +346,7 @@ model Comuna {
 
   // Geographic relationships
   clientes     Cliente[]
+  contactos    Contacto[]
   carriers     Carrier[]
   embarcadores Embarcador[]
   entidades    Entidad[]
@@ -436,7 +437,7 @@ model Entidad {
   activo      Boolean     @default(true)
   comunaId    String      @map("comuna_id")
   contacto    String
-  direccion   String
+  direccion   String?
   email       String
   esPersona   Boolean     @default(false) @map("es_persona")
   nombre      String?
@@ -549,8 +550,8 @@ model Embarcador {
   tenantId    String      @map("tenant_id")
   tipoEntidad TipoEntidad @default(EMBARCADOR) @map("tipo_entidad")
   entidadId   String?     @map("entidad_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
 
   comuna  Comuna   @relation(fields: [comunaId], references: [id])
   tenant  Tenant   @relation(fields: [tenantId], references: [id])
@@ -949,19 +950,23 @@ model Retiro {
 // ===== ADDITIONAL BUSINESS MODELS =====
 
 model Contacto {
-  id               String   @id @default(uuid())
-  activo           Boolean  @default(true)
+  id               String  @id @default(uuid())
+  activo           Boolean @default(true)
   cargo            String?
   contacto         String
+  direccion        String? @map("direccion")
   email            String?
-  entidadId        String   @map("entidad_id")
-  esPersonaNatural Boolean  @default(true) @map("es_persona_natural")
+  entidadId        String  @map("entidad_id")
+  esPersonaNatural Boolean @default(true) @map("es_persona_natural")
   nombre           String
   rut              String
   telefono         String?
-  tenantId         String   @map("tenant_id")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  tenantId         String  @map("tenant_id")
+  comunaId         String? @map("comuna_id")
+  comuna           Comuna? @relation(fields: [comunaId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   entidad Entidad  @relation(fields: [entidadId], references: [id])
   tenant  Tenant   @relation(fields: [tenantId], references: [id])
