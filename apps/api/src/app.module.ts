@@ -14,6 +14,9 @@ import { ComunasModule } from './comunas/comunas.module';
 import { CarriersModule } from './carriers/carriers.module';
 import { DireccionesModule } from './direcciones/direcciones.module';
 import { ContactosModule } from './contactos/contactos.module';
+import { EntidadesModule } from './entidades/entidades.module';
+import { TipoCargaModule } from './cargas/tipo-carga.module';
+import { TipoServicioModule } from './servicios/tipo-servicio.module';
 
 @Module({
   imports: [
@@ -30,7 +33,10 @@ import { ContactosModule } from './contactos/contactos.module';
     CarriersModule,
     ComunasModule,
     DireccionesModule,
-    ContactosModule
+    ContactosModule,
+    EntidadesModule,
+    TipoCargaModule,
+    TipoServicioModule,
   ],
   controllers: [AppController],
 })

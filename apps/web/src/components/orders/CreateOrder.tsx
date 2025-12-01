@@ -1,8 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import type { CreateOrderDto } from "../../types/order";
 import { ordersService } from "@/services/orderServices";
+import { clientsService } from "@/services/clientsService";
+import { direccionesService } from "@/services/direccionesService";
+import { tipoCargaService } from "@/services/tipoCargaService";
+import { tipoServicioService } from "@/services/tipoServicioService";
+import { EntidadSelect } from "../EntidadSelect";
+import type { Entidad } from "@/services/entidadesService";
 
 interface FormData {
   clienteId: string;
@@ -28,15 +34,21 @@ export const CreateOrderForm: React.FC = () => {
   const navigate = useNavigate();
   const { tenant } = useAuthStore();
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // State for dropdown data
   const [clients, setClients] = useState<any[]>([]);
-  const [senders, setSenders] = useState<any[]>([]);
-  const [receivers, setReceivers] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [cargaTypes, setCargaTypes] = useState<any[]>([]);
   const [serviceTypes, setServiceTypes] = useState<any[]>([]);
+
+  // State for selected entidades (searchable selects)
+  const [selectedRemitente, setSelectedRemitente] = useState<Entidad | null>(
+    null
+  );
+  const [selectedDestinatario, setSelectedDestinatario] =
+    useState<Entidad | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     clienteId: "",
@@ -58,43 +70,35 @@ export const CreateOrderForm: React.FC = () => {
     observaciones: "",
   });
 
-  /*   
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        // Fetch clients
-        const clientsData = await clientsService.getClients();
-        setClients(clientsData.clients);
+        setDataLoading(true);
+        setError(null);
 
-        // Fetch senders and receivers (entidades)
-        const sendersData = await entidadesService.getEntidades({
-          tipoEntidad: "REMITENTE",
-        });
-        setSenders(sendersData.entidades);
+        // Fetch all data in parallel for better performance
+        const [clientsData, addressesData, cargaTypesData, serviceTypesData] =
+          await Promise.all([
+            clientsService.getClients(),
+            direccionesService.getDirecciones({ activo: true }),
+            tipoCargaService.getTiposCarga({ activo: true }),
+            tipoServicioService.getTiposServicio({ activo: true }),
+          ]);
 
-        const receiversData = await entidadesService.getEntidades({
-          tipoEntidad: "DESTINATARIO",
-        });
-        setReceivers(receiversData.entidades);
-
-        // Fetch addresses
-        const addressesData = await direccionesService.getDirecciones();
-        setAddresses(addressesData.direcciones);
-
-        // Fetch service types
-        const cargaTypesData = await tipoCargaService.getTiposCarga();
-        setCargaTypes(cargaTypesData.tiposCarga);
-
-        const serviceTypesData = await tipoServicioService.getTiposServicio();
-        setServiceTypes(serviceTypesData.tiposServicio);
+        setClients(clientsData.clients || []);
+        setAddresses(addressesData.direcciones || []);
+        setCargaTypes(cargaTypesData.tiposCarga || []);
+        setServiceTypes(serviceTypesData.tiposServicio || []);
       } catch (error) {
         console.error("Error fetching dropdown data:", error);
-        setError("Error loading form data");
+        setError("Error loading form data. Please try again.");
+      } finally {
+        setDataLoading(false);
       }
     };
 
     fetchDropdownData();
-  }, []); */
+  }, []);
 
   const handleInputChange = (
     e: React.ChangeEvent<
@@ -108,12 +112,54 @@ export const CreateOrderForm: React.FC = () => {
     }));
   };
 
+  // Handler for remitente selection
+  const handleRemitenteSelect = (entidad: Entidad | null) => {
+    setSelectedRemitente(entidad);
+    setFormData((prev) => ({
+      ...prev,
+      remitenteId: entidad?.id || "",
+    }));
+  };
+
+  // Handler for destinatario selection
+  const handleDestinatarioSelect = (entidad: Entidad | null) => {
+    setSelectedDestinatario(entidad);
+    setFormData((prev) => ({
+      ...prev,
+      destinatarioId: entidad?.id || "",
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
+      // Validate required fields
+      const requiredFields = [
+        "clienteId",
+        "numeroOt",
+        "fecha",
+        "remitenteId",
+        "destinatarioId",
+        "direccionOrigenId",
+        "direccionDestinoId",
+        "tipoCargaId",
+        "tipoServicioId",
+      ];
+
+      const missingFields = requiredFields.filter(
+        (field) => !formData[field as keyof FormData]
+      );
+      if (missingFields.length > 0) {
+        throw new Error(
+          `Por favor complete todos los campos requeridos: ${missingFields.join(
+            ", "
+          )}`
+        );
+      }
+
       // Prepare the order data
       const orderData: CreateOrderDto = {
         // Basic information
@@ -126,7 +172,7 @@ export const CreateOrderForm: React.FC = () => {
 
         // Status and type
         estado: "PENDIENTE",
-        tipoTarifa: formData.tipoTarifa,
+        tipoTarifa: formData.tipoTarifa as any,
 
         // Parties
         remitenteId: formData.remitenteId,
@@ -258,9 +304,14 @@ export const CreateOrderForm: React.FC = () => {
                     value={formData.clienteId}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                    disabled={clients.length === 0 || dataLoading}
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                   >
-                    <option value="">Seleccionar cliente</option>
+                    <option value="">
+                      {clients.length === 0
+                        ? "No hay clientes disponibles"
+                        : "Seleccionar cliente"}
+                    </option>
                     {clients.map((client) => (
                       <option key={client.id} value={client.id}>
                         {client.nombre} - {client.rut}
@@ -310,50 +361,39 @@ export const CreateOrderForm: React.FC = () => {
               </div>
             </div>
 
-            {/* Parties Information */}
+            {/* Parties Information - UPDATED WITH SEARCHABLE SELECTS */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10">
               <h3 className="text-lg font-semibold text-[#798283] mb-4">
                 Partes Involucradas
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Remitente - Searchable Select */}
                 <div>
-                  <label className="block text-sm font-medium text-[#798283] mb-2">
-                    Remitente *
-                  </label>
-                  <select
-                    name="remitenteId"
-                    value={formData.remitenteId}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
-                  >
-                    <option value="">Seleccionar remitente</option>
-                    {senders.map((sender) => (
-                      <option key={sender.id} value={sender.id}>
-                        {sender.nombre} - {sender.rut}
-                      </option>
-                    ))}
-                  </select>
+                  <EntidadSelect
+                    onEntidadSelect={handleRemitenteSelect}
+                    selectedEntidad={selectedRemitente}
+                    tipoEntidad="REMITENTE"
+                    placeholder="Buscar remitente por nombre o RUT..."
+                    label="Remitente *"
+                    required={true}
+                    disabled={dataLoading}
+                  />
                 </div>
+
+                {/* Destinatario - Searchable Select */}
                 <div>
-                  <label className="block text-sm font-medium text-[#798283] mb-2">
-                    Destinatario *
-                  </label>
-                  <select
-                    name="destinatarioId"
-                    value={formData.destinatarioId}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
-                  >
-                    <option value="">Seleccionar destinatario</option>
-                    {receivers.map((receiver) => (
-                      <option key={receiver.id} value={receiver.id}>
-                        {receiver.nombre} - {receiver.rut}
-                      </option>
-                    ))}
-                  </select>
+                  <EntidadSelect
+                    onEntidadSelect={handleDestinatarioSelect}
+                    selectedEntidad={selectedDestinatario}
+                    tipoEntidad="DESTINATARIO"
+                    placeholder="Buscar destinatario por nombre o RUT..."
+                    label="Destinatario *"
+                    required={true}
+                    disabled={dataLoading}
+                  />
                 </div>
+
+                {/* Addresses */}
                 <div>
                   <label className="block text-sm font-medium text-[#798283] mb-2">
                     Dirección de Origen *
@@ -363,9 +403,14 @@ export const CreateOrderForm: React.FC = () => {
                     value={formData.direccionOrigenId}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                    disabled={addresses.length === 0 || dataLoading}
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                   >
-                    <option value="">Seleccionar dirección origen</option>
+                    <option value="">
+                      {addresses.length === 0
+                        ? "No hay direcciones disponibles"
+                        : "Seleccionar dirección origen"}
+                    </option>
                     {addresses.map((address) => (
                       <option key={address.id} value={address.id}>
                         {address.direccionTexto}
@@ -382,9 +427,14 @@ export const CreateOrderForm: React.FC = () => {
                     value={formData.direccionDestinoId}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                    disabled={addresses.length === 0 || dataLoading}
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                   >
-                    <option value="">Seleccionar dirección destino</option>
+                    <option value="">
+                      {addresses.length === 0
+                        ? "No hay direcciones disponibles"
+                        : "Seleccionar dirección destino"}
+                    </option>
                     {addresses.map((address) => (
                       <option key={address.id} value={address.id}>
                         {address.direccionTexto}
@@ -410,9 +460,14 @@ export const CreateOrderForm: React.FC = () => {
                     value={formData.tipoCargaId}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                    disabled={cargaTypes.length === 0 || dataLoading}
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                   >
-                    <option value="">Seleccionar tipo de carga</option>
+                    <option value="">
+                      {cargaTypes.length === 0
+                        ? "No hay tipos de carga disponibles"
+                        : "Seleccionar tipo de carga"}
+                    </option>
                     {cargaTypes.map((type) => (
                       <option key={type.id} value={type.id}>
                         {type.nombre}
@@ -429,9 +484,14 @@ export const CreateOrderForm: React.FC = () => {
                     value={formData.tipoServicioId}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent"
+                    disabled={serviceTypes.length === 0 || dataLoading}
+                    className="w-full px-3 py-2 border border-[#798283]/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798283] focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                   >
-                    <option value="">Seleccionar tipo de servicio</option>
+                    <option value="">
+                      {serviceTypes.length === 0
+                        ? "No hay tipos de servicio disponibles"
+                        : "Seleccionar tipo de servicio"}
+                    </option>
                     {serviceTypes.map((type) => (
                       <option key={type.id} value={type.id}>
                         {type.nombre}
@@ -570,7 +630,7 @@ export const CreateOrderForm: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || dataLoading}
                 className="px-6 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-[#D42B22] hover:bg-[#B3251E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D42B22] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
                 {loading ? "Creando..." : "Crear Orden"}

@@ -11,6 +11,8 @@ import { CarriersList } from "@/components/carriers/CarriersList";
 import { DireccionesList } from "@/components/direcciones/DireccionesList";
 import { CreateOrderForm } from "@/components/orders/CreateOrder";
 import { ContactosList } from "@/components/contactos/ContactosList";
+import { TipoCargaList } from "@/components/orders/TipoCargaList";
+import { TipoServicioList } from "@/components/orders/TipoServicioList";
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -87,7 +89,7 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      {/*       <Route
+      {/* <Route
         path="/ordenes"
         element={
           <ProtectedRoute>
@@ -100,6 +102,23 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <CreateOrderForm />
+          </ProtectedRoute>
+        }
+      />
+      {/* Add the new routes for tipos de carga y servicio */}
+      <Route
+        path="/tipos-carga"
+        element={
+          <ProtectedRoute>
+            <TipoCargaList />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tipos-servicio"
+        element={
+          <ProtectedRoute>
+            <TipoServicioList />
           </ProtectedRoute>
         }
       />

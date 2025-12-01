@@ -55,5 +55,6 @@
   },
   
   "git.mergeEditor": true,
-  "explorer.compactFolders": false
+  "explorer.compactFolders": false,
+  "prisma.pinToPrisma6": true
 }
