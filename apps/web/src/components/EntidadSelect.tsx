@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useSearchEntidades } from "@/hooks/useEntidades";
@@ -25,13 +25,45 @@ export const EntidadSelect: React.FC<EntidadSelectProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Use the new search hook
+  // Use the search hook
   const {
     data: entidades = [],
     isLoading,
     isFetching,
-  } = useSearchEntidades(searchTerm, tipoEntidad);
+    refetch,
+  } = useSearchEntidades(searchTerm);
+
+  useEffect(() => {
+    console.log("EntidadSelect state:", {
+      searchTerm,
+      tipoEntidad,
+      entidades,
+      entidadesLength: entidades.length,
+      isLoading,
+      isFetching,
+      isOpen,
+      showDropdown: isOpen && searchTerm.length > 1,
+    });
+  }, [searchTerm, tipoEntidad, entidades, isLoading, isFetching, isOpen]);
+
+  // Handle clicks outside the component
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Reset search when an entidad is selected
   useEffect(() => {
@@ -45,7 +77,20 @@ export const EntidadSelect: React.FC<EntidadSelectProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
-    setIsOpen(true);
+
+    if (value.length > 1) {
+      setIsOpen(true);
+      // Trigger refetch when user types
+      refetch();
+    } else {
+      setIsOpen(false);
+    }
+  };
+
+  const handleInputFocus = () => {
+    if (searchTerm.length > 1 && entidades.length > 0) {
+      setIsOpen(true);
+    }
   };
 
   const handleEntidadSelect = (entidad: Entidad) => {
@@ -57,10 +102,13 @@ export const EntidadSelect: React.FC<EntidadSelectProps> = ({
   const handleClear = () => {
     onEntidadSelect(null);
     setSearchTerm("");
+    setIsOpen(false);
   };
 
+  const showDropdown = isOpen && searchTerm.length > 1;
+
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <Label className="text-[#798283] mb-2 block">
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
@@ -71,8 +119,8 @@ export const EntidadSelect: React.FC<EntidadSelectProps> = ({
           type="text"
           value={searchTerm}
           onChange={handleInputChange}
-          onFocus={() => entidades.length > 0 && setIsOpen(true)}
-          placeholder={selectedEntidad ? "" : placeholder}
+          onFocus={handleInputFocus}
+          placeholder={placeholder}
           disabled={disabled}
           className="pr-10 border-[#798283]/30 focus:ring-[#D42B22] focus:border-[#D42B22]"
         />
@@ -82,9 +130,22 @@ export const EntidadSelect: React.FC<EntidadSelectProps> = ({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+            title="Clear selection"
           >
-            Clear
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
           </button>
         )}
 
@@ -97,7 +158,7 @@ export const EntidadSelect: React.FC<EntidadSelectProps> = ({
       </div>
 
       {/* Dropdown menu */}
-      {isOpen && searchTerm.length > 1 && (
+      {showDropdown && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-[#798283]/20 rounded-lg shadow-lg max-h-60 overflow-auto">
           {isLoading || isFetching ? (
             <div className="p-4 text-center text-[#798283]/70">
@@ -106,7 +167,9 @@ export const EntidadSelect: React.FC<EntidadSelectProps> = ({
             </div>
           ) : entidades.length === 0 ? (
             <div className="p-4 text-center text-[#798283]/70">
-              No se encontraron resultados
+              {searchTerm.length > 1
+                ? "No se encontraron resultados"
+                : "Escribe al menos 2 caracteres para buscar"}
             </div>
           ) : (
             <div className="py-1">
@@ -115,7 +178,7 @@ export const EntidadSelect: React.FC<EntidadSelectProps> = ({
                   key={entidad.id}
                   type="button"
                   onClick={() => handleEntidadSelect(entidad)}
-                  className="w-full text-left px-4 py-3 hover:bg-[#EFF4F9] transition-colors"
+                  className="w-full text-left px-4 py-3 hover:bg-[#EFF4F9] transition-colors border-b border-[#798283]/10 last:border-b-0"
                 >
                   <div className="font-medium text-[#798283]">
                     {entidad.nombre}
@@ -132,7 +195,7 @@ export const EntidadSelect: React.FC<EntidadSelectProps> = ({
       )}
 
       {/* Selected entidad display */}
-      {selectedEntidad && !isOpen && (
+      {selectedEntidad && !showDropdown && (
         <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
           <div className="flex justify-between items-start">
             <div>
@@ -140,12 +203,18 @@ export const EntidadSelect: React.FC<EntidadSelectProps> = ({
                 {selectedEntidad.nombre}
               </div>
               <div className="text-green-700">RUT: {selectedEntidad.rut}</div>
+              {selectedEntidad.tipoEntidad && (
+                <div className="text-green-700 text-xs mt-1">
+                  Tipo: {selectedEntidad.tipoEntidad}
+                </div>
+              )}
             </div>
             <button
+              type="button"
               onClick={handleClear}
-              className="text-green-600 hover:text-green-800"
+              className="text-green-600 hover:text-green-800 text-sm px-2 py-1"
             >
-              Change
+              Cambiar
             </button>
           </div>
         </div>

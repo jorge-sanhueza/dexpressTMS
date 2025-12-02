@@ -28,8 +28,12 @@ export const useSearchEntidades = (
 
   return useQuery({
     queryKey: ["entidades", "search", debouncedSearch, tipoEntidad],
-    queryFn: () =>
-      entidadesService.searchEntidades(debouncedSearch, tipoEntidad),
+    queryFn: async () => {
+      console.log('QueryFn called with:', { debouncedSearch, tipoEntidad });
+      const result = await entidadesService.searchEntidades(debouncedSearch, tipoEntidad);
+      console.log('QueryFn result:', result);
+      return result;
+    },
     enabled: debouncedSearch.trim().length > 1,
     staleTime: 2 * 60 * 1000,
   });

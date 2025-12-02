@@ -55,17 +55,13 @@ class EntidadesService {
       if (filter.page) queryParams.append("page", filter.page.toString());
       if (filter.limit) queryParams.append("limit", filter.limit.toString());
 
-      const response = await apiClient.get(
-        `${this.baseUrl}?${queryParams.toString()}`
-      );
+      const url = `${this.baseUrl}?${queryParams.toString()}`;
+      console.log("Fetching entidades from:", url); // Add this log
 
+      const response = await apiClient.get(url);
+      console.log("API Response status:", response.status);
       const data = await this.handleApiResponse<EntidadesResponse>(response);
-
-      // Calculate totalPages if not provided by backend
-      if (data.totalPages === undefined) {
-        data.totalPages = Math.ceil(data.total / (filter.limit || 10));
-      }
-
+      console.log("API Response data:", data);
       return data;
     } catch (error) {
       console.error("Error fetching entidades:", error);
@@ -92,7 +88,7 @@ class EntidadesService {
       const filter: EntidadesFilter = {
         search: searchTerm,
         activo: true,
-        limit: 50, // Higher limit for search
+        limit: 20, // Match backend's reasonable limit
       };
 
       if (tipoEntidad) {
@@ -103,7 +99,7 @@ class EntidadesService {
       return response.entidades;
     } catch (error) {
       console.error("Error searching entidades:", error);
-      throw error;
+      return []; // Return empty array instead of throwing to prevent UI crashes
     }
   }
 }

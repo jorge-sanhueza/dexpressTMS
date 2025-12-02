@@ -324,9 +324,19 @@ export const OrdersList: React.FC = () => {
           value={viewMode}
           onValueChange={(v) => setViewMode(v as "list" | "stats")}
         >
-          <TabsList className="grid w-full md:w-auto grid-cols-2">
-            <TabsTrigger value="list">Lista de Órdenes</TabsTrigger>
-            <TabsTrigger value="stats">Estadísticas</TabsTrigger>
+          <TabsList className="grid w-full md:w-auto grid-cols-2 bg-muted/50 rounded-lg p-1">
+            <TabsTrigger
+              value="list"
+              className="data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground border border-border rounded-md transition-all duration-200"
+            >
+              Lista de Órdenes
+            </TabsTrigger>
+            <TabsTrigger
+              value="stats"
+              className="data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground border border-border rounded-md transition-all duration-200"
+            >
+              Estadísticas
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="list" className="space-y-6">
