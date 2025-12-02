@@ -54,6 +54,16 @@ export class TipoServicioController {
     totalPages: number;
   }> {
     const tenantId = this.getTenantId(req);
+
+    // ADD CONTROLLER DEBUGGING (SAME AS TIPO CARGA)
+    this.logger.debug('=== CONTROLLER DEBUG ===');
+    this.logger.debug(`Raw query params: ${JSON.stringify(req.query)}`);
+    this.logger.debug(`Transformed filter: ${JSON.stringify(filter)}`);
+    this.logger.debug(
+      `activo value: ${filter.activo}, type: ${typeof filter.activo}`,
+    );
+    this.logger.debug('=== END CONTROLLER DEBUG ===');
+
     this.logger.log(`Fetching tipos de servicio for tenant: ${tenantId}`);
 
     const result = await this.tipoServicioService.findAll(filter, tenantId);

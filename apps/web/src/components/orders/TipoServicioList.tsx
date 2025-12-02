@@ -1,7 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { WideLayout } from "../layout/WideLayout";
 import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
 import {
   useTiposServicio,
@@ -44,6 +43,7 @@ export const TipoServicioList: React.FC = () => {
   );
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingTipoServicio, setEditingTipoServicio] = useState<any>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{
     isOpen: boolean;
     tipoServicioId: string | null;
@@ -73,11 +73,17 @@ export const TipoServicioList: React.FC = () => {
     return filterObj;
   }, [debouncedSearchTerm, activoFilter, currentPage, pageSize]);
 
+  useEffect(() => {
+    console.log("Current filters:", filters);
+    console.log("activoFilter:", activoFilter);
+  }, [filters]);
+
   const {
     data: tiposServicioData,
     isLoading,
     isFetching,
     error,
+    refetch,
   } = useTiposServicio(tenant?.id || "", filters);
 
   const tiposServicio = tiposServicioData?.tiposServicio || [];
@@ -89,6 +95,20 @@ export const TipoServicioList: React.FC = () => {
   const updateTipoServicioMutation = useUpdateTipoServicio();
   const deleteTipoServicioMutation = useDeleteTipoServicio();
   const deactivateTipoServicioMutation = useDeactivateTipoServicio();
+
+  useEffect(() => {
+    if (activoFilter !== undefined) {
+      refetch();
+    }
+  }, [activoFilter, refetch]);
+
+  useEffect(() => {
+    console.log("=== FILTER DEBUG ===");
+    console.log("activoFilter state:", activoFilter);
+    console.log("Current filters object:", filters);
+    console.log("Debounced search:", debouncedSearchTerm);
+    console.log("=== END FILTER DEBUG ===");
+  }, [filters, activoFilter, debouncedSearchTerm]);
 
   const errors = useMemo(
     () => [
@@ -117,11 +137,11 @@ export const TipoServicioList: React.FC = () => {
     "deactivate"
   );
 
-  const canViewTiposSevicio = hasModulePermission("sistema", "ver");
-  const canCreateTiposServicio = hasModulePermission("sistema", "crear");
-  const canEditTiposServicio = hasModulePermission("sistema", "editar");
-  const canDeleteTiposServicio = hasModulePermission("sistema", "eliminar");
-  const canActivateTiposServicio = hasModulePermission("sistema", "activar");
+  const canViewTiposServicio = hasModulePermission("ordenes", "ver");
+  const canCreateTiposServicio = hasModulePermission("ordenes", "crear");
+  const canEditTiposServicio = hasModulePermission("ordenes", "editar");
+  const canDeleteTiposServicio = hasModulePermission("ordenes", "eliminar");
+  const canActivateTiposServicio = hasModulePermission("ordenes", "activar");
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
@@ -129,7 +149,11 @@ export const TipoServicioList: React.FC = () => {
   };
 
   const handleActivoFilter = (activo: string) => {
+    console.log("handleActivoFilter called with:", activo);
+
     const filterValue = activo === "all" ? undefined : activo === "true";
+    console.log("Setting activoFilter to:", filterValue);
+
     setActivoFilter(filterValue);
     setCurrentPage(1);
   };
@@ -160,16 +184,23 @@ export const TipoServicioList: React.FC = () => {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deleteDialog.tipoServicioId) return;
+    if (!deleteDialog.tipoServicioId || deletingId) return; // Prevent double click
 
     try {
+      setDeletingId(deleteDialog.tipoServicioId); // Set deleting state
       await deleteTipoServicioMutation.mutateAsync(deleteDialog.tipoServicioId);
-      toast.success("Tipo de carga eliminado correctamente");
+      toast.success("Tipo de servicio eliminado correctamente");
       closeDeleteDialog();
-    } catch {
-      if (deleteError) {
+    } catch (error) {
+      // If it's a 404, the record was already deleted - treat as success
+      if (error === 404) {
+        toast.success("Tipo de servicio eliminado correctamente");
+        closeDeleteDialog();
+      } else if (deleteError) {
         toast.error(deleteError);
       }
+    } finally {
+      setDeletingId(null); // Clear deleting state
     }
   };
 
@@ -182,7 +213,7 @@ export const TipoServicioList: React.FC = () => {
   const handleDeactivate = async (tipoServicio: any) => {
     try {
       await deactivateTipoServicioMutation.mutateAsync(tipoServicio.id);
-      toast.success("Tipo de carga desactivado correctamente");
+      toast.success("Tipo de servicio desactivado correctamente");
     } catch {
       if (deactivateError) {
         toast.error(deactivateError);
@@ -199,7 +230,7 @@ export const TipoServicioList: React.FC = () => {
         tipoServicioData,
       });
       setEditingTipoServicio(null);
-      toast.success("Tipo de carga actualizado correctamente");
+      toast.success("Tipo de servicio actualizado correctamente");
     } catch {
       if (updateError) {
         toast.error(updateError);
@@ -221,7 +252,7 @@ export const TipoServicioList: React.FC = () => {
     try {
       await createTipoServicioMutation.mutateAsync(tipoServicioData);
       setIsCreateModalOpen(false);
-      toast.success("Tipo de carga creado correctamente");
+      toast.success("Tipo de servicio creado correctamente");
     } catch {
       if (createError) {
         toast.error(createError);
@@ -244,13 +275,13 @@ export const TipoServicioList: React.FC = () => {
       <WideLayout>
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D42B22]"></div>
-          <span className="ml-3 text-[#798283]">Serviciondo...</span>
+          <span className="ml-3 text-[#798283]">Cargando...</span>
         </div>
       </WideLayout>
     );
   }
 
-  if (!canViewTiposSevicio) {
+  if (!canViewTiposServicio) {
     return (
       <WideLayout>
         <div className="flex justify-center items-center h-64">
@@ -259,7 +290,7 @@ export const TipoServicioList: React.FC = () => {
               Acceso No Autorizado
             </div>
             <p className="text-[#798283]/70">
-              No tienes permisos para ver tipos de carga.
+              No tienes permisos para ver tipos de servicio.
             </p>
           </div>
         </div>
@@ -278,7 +309,7 @@ export const TipoServicioList: React.FC = () => {
                 Gestión de Tipos de Servicio
               </h2>
               <p className="text-[#798283]/70">
-                Crear y administrar tipos de carga{" "}
+                Crear y administrar tipos de servicio{" "}
                 {tenant && `- ${tenant.nombre}`}
               </p>
             </div>
@@ -305,12 +336,12 @@ export const TipoServicioList: React.FC = () => {
             {/* Search Input */}
             <div>
               <Label htmlFor="search" className="text-[#798283]">
-                Buscar tipos de carga
+                Buscar tipos de servicio
               </Label>
               <Input
                 id="search"
                 type="text"
-                placeholder="Buscar por nombre o observaciones..."
+                placeholder="Buscar por nombre, código o descripción..."
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="w-full"
@@ -394,7 +425,9 @@ export const TipoServicioList: React.FC = () => {
                   ) : (
                     <>
                       Mostrando {tiposServicio.length} de {totalCount}{" "}
-                      {totalCount === 1 ? "tipo de carga" : "tipos de carga"}
+                      {totalCount === 1
+                        ? "tipo de servicio"
+                        : "tipos de servicio"}
                     </>
                   )}
                 </div>
@@ -499,9 +532,9 @@ export const TipoServicioList: React.FC = () => {
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>¿Eliminar tipo de carga?</AlertDialogTitle>
+              <AlertDialogTitle>¿Eliminar tipo de servicio?</AlertDialogTitle>
               <AlertDialogDescription>
-                Estás a punto de eliminar el tipo de carga{" "}
+                Estás a punto de eliminar el tipo de servicio{" "}
                 <strong>{deleteDialog.tipoServicioName}</strong>. Esta acción no
                 se puede deshacer y se perderán todos los datos asociados.
               </AlertDialogDescription>
@@ -515,10 +548,12 @@ export const TipoServicioList: React.FC = () => {
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDeleteConfirm}
-                disabled={deleteTipoServicioMutation.isPending}
+                disabled={
+                  deleteTipoServicioMutation.isPending || deletingId !== null
+                }
                 className="bg-red-600 hover:bg-red-700 text-white"
               >
-                {deleteTipoServicioMutation.isPending
+                {deleteTipoServicioMutation.isPending || deletingId !== null
                   ? "Eliminando..."
                   : "Sí, eliminar"}
               </AlertDialogAction>

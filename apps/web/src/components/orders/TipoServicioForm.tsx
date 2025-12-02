@@ -1,4 +1,3 @@
-// components/tipoServicio/TipoServicioForm.tsx
 import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
@@ -12,7 +11,6 @@ interface TipoServicioFormData {
   nombre: string;
   codigo: string;
   descripcion?: string;
-  orden: number;
   activo: boolean;
   visible: boolean;
 }
@@ -40,7 +38,6 @@ export const TipoServicioForm: React.FC<TipoServicioFormProps> = ({
     setValue,
   } = useForm<TipoServicioFormData>({
     defaultValues: {
-      orden: 0,
       activo: true,
       visible: true,
     },
@@ -52,7 +49,6 @@ export const TipoServicioForm: React.FC<TipoServicioFormProps> = ({
         nombre: tipoServicio.nombre,
         codigo: tipoServicio.codigo,
         descripcion: tipoServicio.descripcion || "",
-        orden: tipoServicio.orden,
         activo: tipoServicio.activo,
         visible: tipoServicio.visible,
       });
@@ -60,10 +56,16 @@ export const TipoServicioForm: React.FC<TipoServicioFormProps> = ({
   }, [isEditing, tipoServicio, reset]);
 
   const handleFormSubmit = (data: TipoServicioFormData) => {
-    onSubmit(data);
+    const submitData = {
+      ...data,
+      orden: 3,
+    };
+    onSubmit(submitData);
   };
 
-  const title = isEditing ? "Editar Tipo de Servicio" : "Crear Nuevo Tipo de Servicio";
+  const title = isEditing
+    ? "Editar Tipo de Servicio"
+    : "Crear Nuevo Tipo de Servicio";
   const description = isEditing
     ? "Modifica la información del tipo de servicio"
     : "Completa la información del nuevo tipo de servicio";
@@ -103,7 +105,9 @@ export const TipoServicioForm: React.FC<TipoServicioFormProps> = ({
                   className="border-[#798283]/30 focus:ring-[#D42B22] focus:border-[#D42B22]"
                 />
                 {errors.nombre && (
-                  <p className="text-red-500 text-sm">{errors.nombre.message}</p>
+                  <p className="text-red-500 text-sm">
+                    {errors.nombre.message}
+                  </p>
                 )}
               </div>
 
@@ -118,7 +122,8 @@ export const TipoServicioForm: React.FC<TipoServicioFormProps> = ({
                     required: "El código es requerido",
                     pattern: {
                       value: /^[A-Z0-9_]+$/,
-                      message: "Solo se permiten letras mayúsculas, números y guiones bajos",
+                      message:
+                        "Solo se permiten letras mayúsculas, números y guiones bajos",
                     },
                     minLength: {
                       value: 2,
@@ -130,7 +135,9 @@ export const TipoServicioForm: React.FC<TipoServicioFormProps> = ({
                   className="border-[#798283]/30 focus:ring-[#D42B22] focus:border-[#D42B22] uppercase"
                 />
                 {errors.codigo && (
-                  <p className="text-red-500 text-sm">{errors.codigo.message}</p>
+                  <p className="text-red-500 text-sm">
+                    {errors.codigo.message}
+                  </p>
                 )}
                 {isEditing && (
                   <p className="text-xs text-[#798283]/70">
@@ -138,7 +145,8 @@ export const TipoServicioForm: React.FC<TipoServicioFormProps> = ({
                   </p>
                 )}
                 <p className="text-xs text-[#798283]/70">
-                  Código único para identificar el tipo de servicio (solo mayúsculas, números y _)
+                  Código único para identificar el tipo de servicio (solo
+                  mayúsculas, números y _)
                 </p>
               </div>
 
@@ -157,40 +165,13 @@ export const TipoServicioForm: React.FC<TipoServicioFormProps> = ({
                 />
               </div>
 
-              {/* Orden */}
-              <div className="space-y-2">
-                <Label htmlFor="orden" className="text-[#798283]">
-                  Orden de visualización
-                </Label>
-                <Input
-                  id="orden"
-                  type="number"
-                  {...register("orden", {
-                    valueAsNumber: true,
-                    min: { value: 0, message: "El orden debe ser mayor o igual a 0" },
-                    max: { value: 1000, message: "El orden debe ser menor o igual a 1000" },
-                  })}
-                  placeholder="0"
-                  disabled={isLoading}
-                  className="border-[#798283]/30 focus:ring-[#D42B22] focus:border-[#D42B22]"
-                />
-                {errors.orden && (
-                  <p className="text-red-500 text-sm">{errors.orden.message}</p>
-                )}
-                <p className="text-xs text-[#798283]/70">
-                  Define el orden en que aparecerá en las listas (menor número = primero)
-                </p>
-              </div>
-
               {/* Estados */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-[#EFF4F9] rounded-lg">
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="activo"
                     {...register("activo")}
-                    onCheckedChange={(checked) =>
-                      setValue("activo", !!checked)
-                    }
+                    onCheckedChange={(checked) => setValue("activo", !!checked)}
                   />
                   <Label
                     htmlFor="activo"

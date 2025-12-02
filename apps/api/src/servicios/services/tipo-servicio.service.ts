@@ -24,6 +24,14 @@ export class TipoServicioService {
     try {
       const { search, activo, visible, page = 1, limit = 10 } = filter;
 
+      // ADD COMPREHENSIVE DEBUGGING (SAME AS TIPO CARGA)
+      this.logger.debug('=== TIPO SERVICIO FILTER DEBUG ===');
+      this.logger.debug(`Received filter object: ${JSON.stringify(filter)}`);
+      this.logger.debug(
+        `activo parameter type: ${typeof activo}, value: ${activo}`,
+      );
+      this.logger.debug(`tenantId: ${tenantId}`);
+
       const pageNumber = typeof page === 'string' ? parseInt(page, 10) : page;
       const limitNumber =
         typeof limit === 'string' ? parseInt(limit, 10) : limit;
@@ -33,6 +41,16 @@ export class TipoServicioService {
         tenantId,
       };
 
+      // Activo filter with detailed logging
+      if (activo !== undefined) {
+        this.logger.debug(
+          `Applying activo filter: ${activo} (type: ${typeof activo})`,
+        );
+        where.activo = activo;
+      } else {
+        this.logger.debug('No activo filter applied');
+      }
+
       // Search filter
       if (search) {
         where.OR = [
@@ -40,17 +58,23 @@ export class TipoServicioService {
           { codigo: { contains: search, mode: 'insensitive' } },
           { descripcion: { contains: search, mode: 'insensitive' } },
         ];
-      }
-
-      // Activo filter
-      if (activo !== undefined) {
-        where.activo = activo;
+        this.logger.debug(`Applied search filter: ${search}`);
       }
 
       // Visible filter
       if (visible !== undefined) {
         where.visible = visible;
+        this.logger.debug(`Applied visible filter: ${visible}`);
       }
+
+      this.logger.debug(`Final WHERE clause: ${JSON.stringify(where)}`);
+
+      // Test query to see what's in the database
+      const allRecords = await this.prisma.tipoServicio.findMany({
+        where: { tenantId },
+        select: { id: true, nombre: true, activo: true, codigo: true },
+      });
+      this.logger.debug(`All records in DB: ${JSON.stringify(allRecords)}`);
 
       const [tiposServicio, total] = await this.prisma.$transaction([
         this.prisma.tipoServicio.findMany({
@@ -61,6 +85,12 @@ export class TipoServicioService {
         }),
         this.prisma.tipoServicio.count({ where }),
       ]);
+
+      this.logger.debug(
+        `Query returned ${tiposServicio.length} tipos de servicio`,
+      );
+      this.logger.debug(`Total count: ${total}`);
+      this.logger.debug('=== END DEBUG ===');
 
       return {
         tiposServicio: tiposServicio.map(

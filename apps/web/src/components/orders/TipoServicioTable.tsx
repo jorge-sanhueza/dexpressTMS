@@ -64,9 +64,6 @@ export const TipoServicioTable: React.FC<TipoServicioTableProps> = ({
               Descripción
             </th>
             <th className="text-left py-3 px-4 text-sm font-semibold text-[#798283]">
-              Orden
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-semibold text-[#798283]">
               Estado
             </th>
             <th className="text-left py-3 px-4 text-sm font-semibold text-[#798283]">
@@ -100,11 +97,6 @@ export const TipoServicioTable: React.FC<TipoServicioTableProps> = ({
                     Sin descripción
                   </span>
                 )}
-              </td>
-              <td className="py-3 px-4">
-                <span className="inline-flex items-center justify-center w-6 h-6 bg-[#798283]/10 rounded text-sm font-medium text-[#798283]">
-                  {tipoServicio.orden}
-                </span>
               </td>
               <td className="py-3 px-4">
                 <div className="flex flex-wrap gap-1">

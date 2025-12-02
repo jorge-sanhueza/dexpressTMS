@@ -1,7 +1,7 @@
-// hooks/useEntidades.ts
 import { useQuery } from "@tanstack/react-query";
 import { entidadesService } from "@/services/entidadesService";
 import type { EntidadesFilter } from "@/services/entidadesService";
+import { useDebounce } from "./useDebounce";
 
 export const useEntidades = (filter: EntidadesFilter = {}) => {
   return useQuery({
@@ -20,15 +20,17 @@ export const useEntidad = (id: string) => {
   });
 };
 
-// Add a convenience hook for searching entidades
 export const useSearchEntidades = (
   searchTerm: string,
   tipoEntidad?: string
 ) => {
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
   return useQuery({
-    queryKey: ["entidades", "search", searchTerm, tipoEntidad],
-    queryFn: () => entidadesService.searchEntidades(searchTerm, tipoEntidad),
-    enabled: searchTerm.length > 1,
+    queryKey: ["entidades", "search", debouncedSearch, tipoEntidad],
+    queryFn: () =>
+      entidadesService.searchEntidades(debouncedSearch, tipoEntidad),
+    enabled: debouncedSearch.trim().length > 1,
     staleTime: 2 * 60 * 1000,
   });
 };

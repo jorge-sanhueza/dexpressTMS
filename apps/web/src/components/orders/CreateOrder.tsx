@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import type { CreateOrderDto } from "../../types/order";
-import { ordersService } from "@/services/orderServices";
+import { ordersService } from "@/services/orderService";
 import { clientsService } from "@/services/clientsService";
 import { direccionesService } from "@/services/direccionesService";
 import { tipoCargaService } from "@/services/tipoCargaService";

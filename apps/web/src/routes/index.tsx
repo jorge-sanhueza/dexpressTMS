@@ -13,6 +13,7 @@ import { CreateOrderForm } from "@/components/orders/CreateOrder";
 import { ContactosList } from "@/components/contactos/ContactosList";
 import { TipoCargaList } from "@/components/orders/TipoCargaList";
 import { TipoServicioList } from "@/components/orders/TipoServicioList";
+import { OrdersList } from "@/components/orders/OrdersList";
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -89,14 +90,14 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      {/* <Route
+      <Route
         path="/ordenes"
         element={
           <ProtectedRoute>
             <OrdersList />
           </ProtectedRoute>
         }
-      /> */}
+      />
       <Route
         path="/ordenes/crear"
         element={
@@ -105,7 +106,6 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      {/* Add the new routes for tipos de carga y servicio */}
       <Route
         path="/tipos-carga"
         element={

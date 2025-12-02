@@ -1,4 +1,3 @@
-// backend: dto/create-tipo-servicio.dto.ts
 import {
   IsString,
   IsOptional,
@@ -27,7 +26,7 @@ export class CreateTipoServicioDto {
   @IsInt()
   @Min(0)
   @Max(1000)
-  orden?: number = 0;
+  orden?: number = 3;
 
   @IsOptional()
   @IsBoolean()
