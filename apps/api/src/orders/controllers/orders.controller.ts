@@ -62,6 +62,20 @@ export class OrdersController {
     };
   }
 
+  @Get('stats')
+  async getStats(@Request() req): Promise<{
+    total: number;
+    pendientes: number;
+    planificadas: number;
+    enTransporte: number;
+    entregadas: number;
+    canceladas: number;
+  }> {
+    const tenantId = this.getTenantId(req);
+    this.logger.log(`Fetching order stats for tenant: ${tenantId}`);
+    return this.ordersService.getStats(tenantId);
+  }
+
   @Get(':id')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
@@ -71,6 +85,8 @@ export class OrdersController {
     this.logger.log(`Fetching order ${id} for tenant: ${tenantId}`);
     return this.ordersService.findOne(id, tenantId);
   }
+
+  // In orders.controller.ts, add this method:
 
   @Post()
   async create(

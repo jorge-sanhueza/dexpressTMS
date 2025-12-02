@@ -11,6 +11,7 @@ import { UpdateOrderDto } from '../dto/update-order.dto';
 import { OrdersFilterDto } from '../dto/orders-filter.dto';
 import { OrderResponseDto } from '../dto/order-response.dto';
 import { OrdenEstado, TipoTarifa } from '@prisma/client';
+import { OrderStatusUpdateDto } from '../dto/order-status-update.dto';
 
 @Injectable()
 export class OrdersService {
@@ -213,53 +214,55 @@ export class OrdersService {
   }
 
   async create(
-  createOrderDto: CreateOrderDto,
-  tenantId: string,
-): Promise<OrderResponseDto> {
-  try {
-    // Verify that all related entities exist and belong to the tenant
-    await this.verifyRelatedEntities(createOrderDto, tenantId);
+    createOrderDto: CreateOrderDto,
+    tenantId: string,
+  ): Promise<OrderResponseDto> {
+    try {
+      // Verify that all related entities exist and belong to the tenant
+      await this.verifyRelatedEntities(createOrderDto, tenantId);
 
-    // Generate order code if not provided
-    const codigo = createOrderDto.codigo || await this.generateOrderCode();
+      // Generate order code if not provided
+      const codigo = createOrderDto.codigo || (await this.generateOrderCode());
 
-    // Check if order number (numeroOt) already exists for this tenant
-    const existingOrder = await this.prisma.orden.findFirst({
-      where: {
-        numeroOt: createOrderDto.numeroOt,
-        tenantId,
-      },
-    });
+      // Check if order number (numeroOt) already exists for this tenant
+      const existingOrder = await this.prisma.orden.findFirst({
+        where: {
+          numeroOt: createOrderDto.numeroOt,
+          tenantId,
+        },
+      });
 
-    if (existingOrder) {
-      throw new ConflictException('Ya existe una orden con este número de OT');
-    }
+      if (existingOrder) {
+        throw new ConflictException(
+          'Ya existe una orden con este número de OT',
+        );
+      }
 
-    const order = await this.prisma.orden.create({
-      data: {
-        codigo,
-        numeroOt: createOrderDto.numeroOt,
-        fecha: createOrderDto.fecha,
-        fechaEntregaEstimada: createOrderDto.fechaEntregaEstimada,
-        estado: createOrderDto.estado,
-        tipoTarifa: createOrderDto.tipoTarifa,
-        clienteId: createOrderDto.clienteId,
-        remitenteId: createOrderDto.remitenteId,
-        destinatarioId: createOrderDto.destinatarioId,
-        direccionOrigenId: createOrderDto.direccionOrigenId,
-        direccionDestinoId: createOrderDto.direccionDestinoId,
-        tipoCargaId: createOrderDto.tipoCargaId,
-        tipoServicioId: createOrderDto.tipoServicioId,
-        equipoId: createOrderDto.equipoId,
-        pesoTotalKg: createOrderDto.pesoTotalKg,
-        volumenTotalM3: createOrderDto.volumenTotalM3,
-        altoCm: createOrderDto.altoCm,
-        largoCm: createOrderDto.largoCm,
-        anchoCm: createOrderDto.anchoCm,
-        observaciones: createOrderDto.observaciones,
-        tenantId,
-      },
-      include: {
+      const order = await this.prisma.orden.create({
+        data: {
+          codigo,
+          numeroOt: createOrderDto.numeroOt,
+          fecha: createOrderDto.fecha,
+          fechaEntregaEstimada: createOrderDto.fechaEntregaEstimada,
+          estado: createOrderDto.estado,
+          tipoTarifa: createOrderDto.tipoTarifa,
+          clienteId: createOrderDto.clienteId,
+          remitenteId: createOrderDto.remitenteId,
+          destinatarioId: createOrderDto.destinatarioId,
+          direccionOrigenId: createOrderDto.direccionOrigenId,
+          direccionDestinoId: createOrderDto.direccionDestinoId,
+          tipoCargaId: createOrderDto.tipoCargaId,
+          tipoServicioId: createOrderDto.tipoServicioId,
+          equipoId: createOrderDto.equipoId,
+          pesoTotalKg: createOrderDto.pesoTotalKg,
+          volumenTotalM3: createOrderDto.volumenTotalM3,
+          altoCm: createOrderDto.altoCm,
+          largoCm: createOrderDto.largoCm,
+          anchoCm: createOrderDto.anchoCm,
+          observaciones: createOrderDto.observaciones,
+          tenantId,
+        },
+        include: {
           cliente: {
             select: {
               id: true,
@@ -558,5 +561,310 @@ export class OrdersService {
     const nextNumber = String(lastNumber + 1).padStart(3, '0');
 
     return `${baseCode}-${nextNumber}`;
+  }
+
+  // In orders.service.ts, add this method:
+  async getStats(tenantId: string): Promise<{
+    total: number;
+    pendientes: number;
+    planificadas: number;
+    enTransporte: number;
+    entregadas: number;
+    canceladas: number;
+  }> {
+    try {
+      // Single query approach using groupBy
+      const result = await this.prisma.orden.groupBy({
+        by: ['estado'],
+        where: { tenantId },
+        _count: {
+          estado: true,
+        },
+      });
+
+      // Initialize all counts to 0
+      const stats = {
+        total: 0,
+        pendientes: 0,
+        planificadas: 0,
+        enTransporte: 0,
+        entregadas: 0,
+        canceladas: 0,
+      };
+
+      // Sum up totals and set individual status counts
+      result.forEach((item) => {
+        const count = item._count.estado;
+        stats.total += count;
+
+        switch (item.estado) {
+          case OrdenEstado.PENDIENTE:
+            stats.pendientes = count;
+            break;
+          case OrdenEstado.PLANIFICADA:
+            stats.planificadas = count;
+            break;
+          case OrdenEstado.EN_TRANSPORTE:
+            stats.enTransporte = count;
+            break;
+          case OrdenEstado.ENTREGADA:
+            stats.entregadas = count;
+            break;
+          case OrdenEstado.CANCELADA:
+            stats.canceladas = count;
+            break;
+        }
+      });
+
+      return stats;
+    } catch (error) {
+      this.logger.error('Error fetching order stats:', error);
+      throw error;
+    }
+  }
+  // In orders.service.ts, add these methods:
+
+  async updateStatus(
+    id: string,
+    statusData: OrderStatusUpdateDto,
+    tenantId: string,
+  ): Promise<OrderResponseDto> {
+    try {
+      // Verify order exists and belongs to tenant
+      const existingOrder = await this.prisma.orden.findFirst({
+        where: { id, tenantId },
+      });
+
+      if (!existingOrder) {
+        throw new NotFoundException('Order not found');
+      }
+
+      const order = await this.prisma.orden.update({
+        where: { id },
+        data: { estado: statusData.estado },
+        include: {
+          cliente: {
+            select: {
+              id: true,
+              nombre: true,
+              rut: true,
+            },
+          },
+          remitente: {
+            select: {
+              id: true,
+              nombre: true,
+              rut: true,
+            },
+          },
+          destinatario: {
+            select: {
+              id: true,
+              nombre: true,
+              rut: true,
+            },
+          },
+          direccionOrigen: {
+            include: {
+              comuna: {
+                include: {
+                  region: true,
+                },
+              },
+            },
+          },
+          direccionDestino: {
+            include: {
+              comuna: {
+                include: {
+                  region: true,
+                },
+              },
+            },
+          },
+          tipoCarga: true,
+          tipoServicio: true,
+          equipo: {
+            select: {
+              id: true,
+              patente: true,
+              nombre: true,
+            },
+          },
+        },
+      });
+
+      this.logger.log(
+        `Order status updated to ${statusData.estado}: ${order.codigo}`,
+      );
+      return new OrderResponseDto(order);
+    } catch (error) {
+      this.logger.error(`Error updating order status ${id}:`, error);
+      throw error;
+    }
+  }
+
+  async cancel(id: string, tenantId: string): Promise<OrderResponseDto> {
+    try {
+      // Verify order exists and belongs to tenant
+      const existingOrder = await this.prisma.orden.findFirst({
+        where: { id, tenantId },
+      });
+
+      if (!existingOrder) {
+        throw new NotFoundException('Order not found');
+      }
+
+      const order = await this.prisma.orden.update({
+        where: { id },
+        data: { estado: OrdenEstado.CANCELADA },
+        include: {
+          cliente: {
+            select: {
+              id: true,
+              nombre: true,
+              rut: true,
+            },
+          },
+          remitente: {
+            select: {
+              id: true,
+              nombre: true,
+              rut: true,
+            },
+          },
+          destinatario: {
+            select: {
+              id: true,
+              nombre: true,
+              rut: true,
+            },
+          },
+          direccionOrigen: {
+            include: {
+              comuna: {
+                include: {
+                  region: true,
+                },
+              },
+            },
+          },
+          direccionDestino: {
+            include: {
+              comuna: {
+                include: {
+                  region: true,
+                },
+              },
+            },
+          },
+          tipoCarga: true,
+          tipoServicio: true,
+          equipo: {
+            select: {
+              id: true,
+              patente: true,
+              nombre: true,
+            },
+          },
+        },
+      });
+
+      this.logger.log(`Order ${id} cancelled`);
+      return new OrderResponseDto(order);
+    } catch (error) {
+      this.logger.error(`Error cancelling order ${id}:`, error);
+      throw error;
+    }
+  }
+
+  async duplicate(id: string, tenantId: string): Promise<OrderResponseDto> {
+    try {
+      // Get the original order
+      const originalOrder = await this.prisma.orden.findFirst({
+        where: { id, tenantId },
+      });
+
+      if (!originalOrder) {
+        throw new NotFoundException('Order not found');
+      }
+
+      // Generate new order code
+      const codigo = await this.generateOrderCode();
+
+      // Create a copy of the order data
+      const orderData: any = { ...originalOrder };
+      delete orderData.id;
+      delete orderData.codigo;
+      delete orderData.createdAt;
+      delete orderData.updatedAt;
+
+      // Reset to PENDING state
+      orderData.estado = OrdenEstado.PENDIENTE;
+      orderData.codigo = codigo;
+
+      // Generate new OT number by appending "-COPIA"
+      orderData.numeroOt = `${originalOrder.numeroOt}-COPIA`;
+
+      const order = await this.prisma.orden.create({
+        data: orderData,
+        include: {
+          cliente: {
+            select: {
+              id: true,
+              nombre: true,
+              rut: true,
+            },
+          },
+          remitente: {
+            select: {
+              id: true,
+              nombre: true,
+              rut: true,
+            },
+          },
+          destinatario: {
+            select: {
+              id: true,
+              nombre: true,
+              rut: true,
+            },
+          },
+          direccionOrigen: {
+            include: {
+              comuna: {
+                include: {
+                  region: true,
+                },
+              },
+            },
+          },
+          direccionDestino: {
+            include: {
+              comuna: {
+                include: {
+                  region: true,
+                },
+              },
+            },
+          },
+          tipoCarga: true,
+          tipoServicio: true,
+          equipo: {
+            select: {
+              id: true,
+              patente: true,
+              nombre: true,
+            },
+          },
+        },
+      });
+
+      this.logger.log(`Order duplicated successfully: ${order.codigo}`);
+      return new OrderResponseDto(order);
+    } catch (error) {
+      this.logger.error(`Error duplicating order ${id}:`, error);
+      throw error;
+    }
   }
 }

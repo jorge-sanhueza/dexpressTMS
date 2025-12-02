@@ -48,6 +48,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { OrderDetailsModal } from "./OrderDetailsModal"; // Add this import
 
 export const OrdersList: React.FC = () => {
   const navigate = useNavigate();
@@ -62,6 +63,7 @@ export const OrdersList: React.FC = () => {
   const [fechaHasta, setFechaHasta] = useState<Date | undefined>(undefined);
   const [viewMode, setViewMode] = useState<"list" | "stats">("list");
   const [showFilters, setShowFilters] = useState(false);
+  const [viewingOrder, setViewingOrder] = useState<Order | null>(null); // Add this state
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -192,20 +194,18 @@ export const OrdersList: React.FC = () => {
 
   const handleEdit = (order: Order) => {
     if (canEditOrders) {
+      setViewingOrder(null); // Close modal if open
       navigate(`/ordenes/editar/${order.id}`);
     }
   };
 
   const handleView = (order: Order) => {
-    // Opción 1: redirigir a detalle completo
-    navigate(`/ordenes/${order.id}`);
-
-    // Opción 2: mantener modal simple (descomenta si prefieres modal)
-    // setViewingOrder(order);
+    setViewingOrder(order);
   };
 
   const handleDuplicate = (order: Order) => {
     if (canDuplicateOrders) {
+      setViewingOrder(null); // Close modal first
       duplicateOrderMutation.mutate(order.id, {
         onSuccess: () => {
           toast.success("Orden duplicada correctamente");
@@ -239,6 +239,10 @@ export const OrdersList: React.FC = () => {
       await cancelOrderMutation.mutateAsync(cancelDialog.orderId);
       closeCancelDialog();
       refetch();
+      // If the cancelled order is being viewed, close the modal
+      if (viewingOrder?.id === cancelDialog.orderId) {
+        setViewingOrder(null);
+      }
     } catch (error) {
       console.error("Error cancelling order:", error);
     }
@@ -769,6 +773,19 @@ export const OrdersList: React.FC = () => {
           </AlertDialogContent>
         </AlertDialog>
       )}
+
+      {/* Order Details Modal */}
+      <OrderDetailsModal
+        order={viewingOrder}
+        isOpen={!!viewingOrder}
+        onClose={() => setViewingOrder(null)}
+        onEdit={handleEdit}
+        onDuplicate={handleDuplicate}
+        onCancel={(order) => openCancelDialog(order)}
+        canEdit={canEditOrders}
+        canDuplicate={canDuplicateOrders}
+        canCancel={canCancelOrders}
+      />
     </WideLayout>
   );
 };
