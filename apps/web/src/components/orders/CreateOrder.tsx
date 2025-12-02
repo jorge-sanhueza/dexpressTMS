@@ -9,6 +9,7 @@ import { tipoCargaService } from "@/services/tipoCargaService";
 import { tipoServicioService } from "@/services/tipoServicioService";
 import { EntidadSelect } from "../EntidadSelect";
 import type { Entidad } from "@/services/entidadesService";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface FormData {
   clienteId: string;
@@ -36,6 +37,7 @@ export const CreateOrderForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // State for dropdown data
   const [clients, setClients] = useState<any[]>([]);
@@ -200,6 +202,8 @@ export const CreateOrderForm: React.FC = () => {
       };
 
       await ordersService.createOrder(orderData);
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orderStats"] });
       navigate("/orders"); // Redirect to orders list
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error creating order");

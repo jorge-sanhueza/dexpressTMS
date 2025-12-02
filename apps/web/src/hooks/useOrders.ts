@@ -15,6 +15,8 @@ export const useOrders = (filters?: OrdersFilter) => {
   return useQuery({
     queryKey: ["orders", tenant, filters],
     queryFn: () => ordersService.getOrders({ ...filters }),
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     enabled: !!tenant,
     placeholderData: (previousData) => previousData,
     staleTime: 1000 * 60 * 5, // 5 minutes
