@@ -18,6 +18,7 @@ import { UpdateEmbarcadorDto } from '../dto/update-embarcador.dto';
 import { EmbarcadoresFilterDto } from '../dto/embarcadores-filter.dto';
 import { EmbarcadorResponseDto } from '../dto/embarcador-response.dto';
 import { JwtGuard } from 'src/auth/guards/jwt.guard';
+import { ShipperStatsDto } from '../dto/embarcadores-stats.dto';
 
 @Controller('api/embarcadores')
 @UseGuards(JwtGuard)
@@ -60,6 +61,13 @@ export class EmbarcadoresController {
       page: filter.page || 1,
       limit: filter.limit || 10,
     };
+  }
+
+  @Get('stats')
+  async getStats(@Request() req): Promise<ShipperStatsDto> {
+    const tenantId = this.getTenantId(req);
+    this.logger.log(`Fetching shipper stats for tenant: ${tenantId}`);
+    return this.embarcadoresService.getStats(tenantId);
   }
 
   @Get(':id')

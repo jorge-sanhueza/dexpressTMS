@@ -18,6 +18,7 @@ import { UpdateClientDto } from '../dto/update-client.dto';
 import { ClientsFilterDto } from '../dto/clients-filter.dto';
 import { ClientResponseDto } from '../dto/client-response.dto';
 import { JwtGuard } from 'src/auth/guards/jwt.guard';
+import { ClientStatsDto } from '../dto/client-stats.dto';
 
 @Controller('api/clients')
 @UseGuards(JwtGuard)
@@ -37,6 +38,14 @@ export class ClientsController {
     }
 
     return tenantId;
+  }
+
+  // In your ClientsController, add this method:
+  @Get('stats')
+  async getStats(@Request() req): Promise<ClientStatsDto> {
+    const tenantId = this.getTenantId(req);
+    this.logger.log(`Fetching client stats for tenant: ${tenantId}`);
+    return this.clientsService.getStats(tenantId);
   }
 
   @Get()

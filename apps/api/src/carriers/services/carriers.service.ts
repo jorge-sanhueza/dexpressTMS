@@ -11,6 +11,7 @@ import { UpdateCarrierDto } from '../dto/update-carrier.dto';
 import { CarriersFilterDto } from '../dto/carriers-filter.dto';
 import { CarrierResponseDto } from '../dto/carrier-response.dto';
 import { TipoEntidad } from '@prisma/client';
+import { CarrierStatsDto } from '../dto/carrier-stats.dto';
 
 @Injectable()
 export class CarriersService {
@@ -474,6 +475,36 @@ export class CarriersService {
       return carrier ? new CarrierResponseDto(carrier) : null;
     } catch (error) {
       this.logger.error(`Error finding carrier by RUT ${rut}:`, error);
+      throw error;
+    }
+  }
+  async getStats(tenantId: string): Promise<CarrierStatsDto> {
+    try {
+      const total = await this.prisma.carrier.count({
+        where: { tenantId },
+      });
+
+      const activos = await this.prisma.carrier.count({
+        where: {
+          tenantId,
+          activo: true,
+        },
+      });
+
+      const inactivos = await this.prisma.carrier.count({
+        where: {
+          tenantId,
+          activo: false,
+        },
+      });
+
+      return {
+        total,
+        activos,
+        inactivos,
+      };
+    } catch (error) {
+      this.logger.error('Error fetching carrier stats:', error);
       throw error;
     }
   }

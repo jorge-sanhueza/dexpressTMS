@@ -3,41 +3,113 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { Layout } from "./layout/Layout";
 import { Button } from "./ui/button";
+import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { Skeleton } from "./ui/skeleton";
 
 export const Dashboard: React.FC = () => {
   const { user, tenant } = useAuthStore();
   const navigate = useNavigate();
 
-  const handleNavigateToProfile = () => {
-    navigate("/perfil");
+  const { orderStats, entityStats, isLoading } = useDashboardStats();
+
+  // Navigation handlers
+  const handleNavigateToProfile = () => navigate("/perfil");
+  const handleCreateOrder = () => navigate("/ordenes/crear");
+  const handleNavigateToClients = () => navigate("/clientes");
+  const handleNavigateToShippers = () => navigate("/embarcadores");
+  const handleNavigateToCarriers = () => navigate("/carriers");
+  const handleNavigateToOrders = () => navigate("/ordenes");
+  const handleNavigateToAddresses = () => navigate("/direcciones");
+  const handleNavigateToContacts = () => navigate("/contactos");
+
+  // Activity Summary
+  const renderActivitySummary = () => {
+    if (isLoading) {
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="text-center p-4 bg-[#EFF4F9] rounded-lg">
+              <Skeleton className="h-8 w-12 mx-auto mb-2" />
+              <Skeleton className="h-4 w-24 mx-auto" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
+          <p className="text-2xl font-bold text-yellow-600">
+            {orderStats?.pendientes || 0}
+          </p>
+          <p className="text-sm text-[#798283] mt-1">Órdenes Pendientes</p>
+        </div>
+        <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
+          <p className="text-2xl font-bold text-purple-600">
+            {orderStats?.enTransporte || 0}
+          </p>
+          <p className="text-sm text-[#798283] mt-1">En Transporte</p>
+        </div>
+        <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
+          <p className="text-2xl font-bold text-green-600">
+            {orderStats?.entregadas || 0}
+          </p>
+          <p className="text-sm text-[#798283] mt-1">Entregadas</p>
+        </div>
+        <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
+          <p className="text-2xl font-bold text-red-600">
+            {orderStats?.canceladas || 0}
+          </p>
+          <p className="text-sm text-[#798283] mt-1">Canceladas</p>
+        </div>
+      </div>
+    );
   };
 
-  const handleCreateOrder = () => {
-    navigate("/ordenes/crear");
-  };
+  // Entity Summary
+  const renderEntitySummary = () => {
+    if (isLoading) {
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="text-center p-4 bg-[#EFF4F9] rounded-lg">
+              <Skeleton className="h-8 w-12 mx-auto mb-2" />
+              <Skeleton className="h-4 w-24 mx-auto" />
+            </div>
+          ))}
+        </div>
+      );
+    }
 
-  const handleNavigateToClients = () => {
-    navigate("/clientes");
-  };
-
-  const handleNavigateToShippers = () => {
-    navigate("/embarcadores");
-  };
-
-  const handleNavigateToCarriers = () => {
-    navigate("/carriers");
-  };
-
-  const handleNavigateToOrders = () => {
-    navigate("/ordenes");
-  };
-
-  const handleNavigateToAddresses = () => {
-    navigate("/direcciones");
-  };
-
-  const handleNavigateToContacts = () => {
-    navigate("/contactos");
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
+          <p className="text-2xl font-bold text-blue-600">
+            {entityStats?.clients || 0}
+          </p>
+          <p className="text-sm text-[#798283] mt-1">Clientes</p>
+        </div>
+        <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
+          <p className="text-2xl font-bold text-teal-600">
+            {entityStats?.addresses || 0}
+          </p>
+          <p className="text-sm text-[#798283] mt-1">Direcciones</p>
+        </div>
+        <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
+          <p className="text-2xl font-bold text-indigo-600">
+            {entityStats?.carriers || 0}
+          </p>
+          <p className="text-sm text-[#798283] mt-1">Carriers</p>
+        </div>
+        <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
+          <p className="text-2xl font-bold text-purple-600">
+            {entityStats?.shippers || 0}
+          </p>
+          <p className="text-sm text-[#798283] mt-1">Embarcadores</p>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -53,6 +125,7 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
 
+        {/* Three-column grid with all cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* User Info Card */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-[#798283]/10 hover:shadow-md transition-shadow duration-200">
@@ -315,6 +388,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Orders Summary Section */}
         <div className="bg-white rounded-xl shadow-sm border border-[#798283]/10 p-6 hover:shadow-md transition-shadow duration-200">
           <div className="flex items-center mb-6">
             <div className="h-10 w-10 bg-[#EFF4F9] rounded-lg flex items-center justify-center mr-3">
@@ -333,29 +407,18 @@ export const Dashboard: React.FC = () => {
               </svg>
             </div>
             <h3 className="font-semibold text-lg text-[#798283]">
-              Resumen de Actividad
+              Resumen de Órdenes
             </h3>
+            {!isLoading && orderStats && (
+              <span className="ml-2 text-sm font-normal text-[#798283]/70">
+                ({orderStats.total || 0} total)
+              </span>
+            )}
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
-              <p className="text-2xl font-bold text-[#D42B22]">12</p>
-              <p className="text-sm text-[#798283] mt-1">Órdenes Pendientes</p>
-            </div>
-            <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
-              <p className="text-2xl font-bold text-[#798283]">8</p>
-              <p className="text-sm text-[#798283] mt-1">En Tránsito</p>
-            </div>
-            <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
-              <p className="text-2xl font-bold text-green-600">3</p>
-              <p className="text-sm text-[#798283] mt-1">Entregadas Hoy</p>
-            </div>
-            <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
-              <p className="text-2xl font-bold text-orange-500">1</p>
-              <p className="text-sm text-[#798283] mt-1">Con Problemas</p>
-            </div>
-          </div>
+          {renderActivitySummary()}
         </div>
 
+        {/* Entity Summary Section */}
         <div className="bg-white rounded-xl shadow-sm border border-[#798283]/10 p-6 hover:shadow-md transition-shadow duration-200 mt-6">
           <div className="flex items-center mb-6">
             <div className="h-10 w-10 bg-[#EFF4F9] rounded-lg flex items-center justify-center mr-3">
@@ -377,24 +440,7 @@ export const Dashboard: React.FC = () => {
               Resumen de Entidades
             </h3>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
-              <p className="text-2xl font-bold text-blue-600">15</p>
-              <p className="text-sm text-[#798283] mt-1">Clientes Activos</p>
-            </div>
-            <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
-              <p className="text-2xl font-bold text-purple-600">8</p>
-              <p className="text-sm text-[#798283] mt-1">Embarcadores</p>
-            </div>
-            <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
-              <p className="text-2xl font-bold text-indigo-600">12</p>
-              <p className="text-sm text-[#798283] mt-1">Carriers</p>
-            </div>
-            <div className="text-center p-4 bg-[#EFF4F9] rounded-lg">
-              <p className="text-2xl font-bold text-teal-600">42</p>
-              <p className="text-sm text-[#798283] mt-1">Direcciones</p>
-            </div>
-          </div>
+          {renderEntitySummary()}
         </div>
 
         <div className="mt-8 text-center">

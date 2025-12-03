@@ -18,6 +18,7 @@ import { UpdateCarrierDto } from '../dto/update-carrier.dto';
 import { CarriersFilterDto } from '../dto/carriers-filter.dto';
 import { CarrierResponseDto } from '../dto/carrier-response.dto';
 import { JwtGuard } from 'src/auth/guards/jwt.guard';
+import { CarrierStatsDto } from '../dto/carrier-stats.dto';
 
 @Controller('api/carriers')
 @UseGuards(JwtGuard)
@@ -65,6 +66,13 @@ export class CarriersController {
       limit,
       totalPages,
     };
+  }
+
+  @Get('stats')
+  async getStats(@Request() req): Promise<CarrierStatsDto> {
+    const tenantId = this.getTenantId(req);
+    this.logger.log(`Fetching carrier stats for tenant: ${tenantId}`);
+    return this.carriersService.getStats(tenantId);
   }
 
   @Get(':id')

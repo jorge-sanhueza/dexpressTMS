@@ -11,6 +11,7 @@ import { UpdateEmbarcadorDto } from '../dto/update-embarcador.dto';
 import { EmbarcadoresFilterDto } from '../dto/embarcadores-filter.dto';
 import { EmbarcadorResponseDto } from '../dto/embarcador-response.dto';
 import { TipoEntidad } from '@prisma/client';
+import { ShipperStatsDto } from '../dto/embarcadores-stats.dto';
 
 @Injectable()
 export class EmbarcadoresService {
@@ -406,13 +407,43 @@ export class EmbarcadoresService {
               },
             },
           },
-          entidad: true, // NEW: Include entidad relation
+          entidad: true,
         },
       });
 
       return embarcador ? new EmbarcadorResponseDto(embarcador) : null;
     } catch (error) {
       this.logger.error(`Error finding embarcador by RUT ${rut}:`, error);
+      throw error;
+    }
+  }
+  async getStats(tenantId: string): Promise<ShipperStatsDto> {
+    try {
+      const total = await this.prisma.embarcador.count({
+        where: { tenantId },
+      });
+
+      const activos = await this.prisma.embarcador.count({
+        where: {
+          tenantId,
+          activo: true,
+        },
+      });
+
+      const inactivos = await this.prisma.embarcador.count({
+        where: {
+          tenantId,
+          activo: false,
+        },
+      });
+
+      return {
+        total,
+        activos,
+        inactivos,
+      };
+    } catch (error) {
+      this.logger.error('Error fetching shipper stats:', error);
       throw error;
     }
   }

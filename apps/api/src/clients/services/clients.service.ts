@@ -11,6 +11,7 @@ import { UpdateClientDto } from '../dto/update-client.dto';
 import { ClientsFilterDto } from '../dto/clients-filter.dto';
 import { ClientResponseDto } from '../dto/client-response.dto';
 import { TipoEntidad } from '@prisma/client';
+import { ClientStatsDto } from '../dto/client-stats.dto';
 
 @Injectable()
 export class ClientsService {
@@ -380,6 +381,41 @@ export class ClientsService {
       return client ? new ClientResponseDto(client) : null;
     } catch (error) {
       this.logger.error(`Error finding client by RUT ${rut}:`, error);
+      throw error;
+    }
+  }
+
+  // In your ClientsService, add this method:
+  async getStats(tenantId: string): Promise<ClientStatsDto> {
+    try {
+      // Get total count
+      const total = await this.prisma.cliente.count({
+        where: { tenantId },
+      });
+
+      // Get active count
+      const activos = await this.prisma.cliente.count({
+        where: {
+          tenantId,
+          activo: true,
+        },
+      });
+
+      // Get inactive count
+      const inactivos = await this.prisma.cliente.count({
+        where: {
+          tenantId,
+          activo: false,
+        },
+      });
+
+      return {
+        total,
+        activos,
+        inactivos,
+      };
+    } catch (error) {
+      this.logger.error('Error fetching client stats:', error);
       throw error;
     }
   }

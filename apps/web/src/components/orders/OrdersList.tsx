@@ -26,6 +26,7 @@ import {
 import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { useCompositeError } from "@/hooks/useErrorHandling";
+
 import {
   Select,
   SelectContent,
@@ -656,7 +657,7 @@ export const OrdersList: React.FC = () => {
           <TabsContent value="stats">
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card>
+              <Card className="bg-white">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg text-[#798283]">
                     Total Órdenes
@@ -669,7 +670,7 @@ export const OrdersList: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-white">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg text-[#798283]">
                     Pendientes
@@ -682,7 +683,7 @@ export const OrdersList: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-white">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg text-[#798283]">
                     Planificadas
@@ -695,7 +696,7 @@ export const OrdersList: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-white">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg text-[#798283]">
                     En Transporte
@@ -708,7 +709,7 @@ export const OrdersList: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-white">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg text-[#798283]">
                     Entregadas
@@ -721,7 +722,7 @@ export const OrdersList: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-white">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg text-[#798283]">
                     Canceladas

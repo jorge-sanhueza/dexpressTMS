@@ -10,6 +10,7 @@ import { UpdateDireccionDto } from '../dto/update-direccion.dto';
 import { DireccionesFilterDto } from '../dto/direcciones-filter.dto';
 import { DireccionResponseDto } from '../dto/direccion-response.dto';
 import { OrigenDireccion } from '@prisma/client';
+import { AddressStatsDto } from '../dto/direcciones-stats.dto';
 
 @Injectable()
 export class DireccionesService {
@@ -404,6 +405,18 @@ export class DireccionesService {
         `Error incrementing frequency for direccion ${id}:`,
         error,
       );
+      throw error;
+    }
+  }
+  async getStats(tenantId: string): Promise<AddressStatsDto> {
+    try {
+      const total = await this.prisma.direccion.count({
+        where: { tenantId },
+      });
+
+      return { total };
+    } catch (error) {
+      this.logger.error('Error fetching address stats:', error);
       throw error;
     }
   }

@@ -18,6 +18,7 @@ import { UpdateDireccionDto } from '../dto/update-direccion.dto';
 import { DireccionesFilterDto } from '../dto/direcciones-filter.dto';
 import { DireccionResponseDto } from '../dto/direccion-response.dto';
 import { JwtGuard } from 'src/auth/guards/jwt.guard';
+import { AddressStatsDto } from '../dto/direcciones-stats.dto';
 
 @Controller('api/direcciones')
 @UseGuards(JwtGuard)
@@ -60,6 +61,13 @@ export class DireccionesController {
       page: filter.page || 1,
       limit: filter.limit || 10,
     };
+  }
+
+  @Get('stats')
+  async getStats(@Request() req): Promise<AddressStatsDto> {
+    const tenantId = this.getTenantId(req);
+    this.logger.log(`Fetching address stats for tenant: ${tenantId}`);
+    return this.direccionesService.getStats(tenantId);
   }
 
   @Get(':id')
