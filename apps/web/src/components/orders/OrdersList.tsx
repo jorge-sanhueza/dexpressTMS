@@ -35,21 +35,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { CalendarIcon, Download, Filter, PlusCircle } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { Download, Filter, PlusCircle } from "lucide-react";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { OrderDetailsModal } from "./OrderDetailsModal"; // Add this import
+import { OrderDetailsModal } from "./OrderDetailsModal";
+import { DatePicker } from "../DatePicker";
 
 export const OrdersList: React.FC = () => {
   const navigate = useNavigate();
@@ -64,7 +57,7 @@ export const OrdersList: React.FC = () => {
   const [fechaHasta, setFechaHasta] = useState<Date | undefined>(undefined);
   const [viewMode, setViewMode] = useState<"list" | "stats">("list");
   const [showFilters, setShowFilters] = useState(false);
-  const [viewingOrder, setViewingOrder] = useState<Order | null>(null); // Add this state
+  const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -408,70 +401,18 @@ export const OrdersList: React.FC = () => {
                     </div>
 
                     {/* Date Range - From */}
-                    <div>
-                      <Label htmlFor="fecha-desde" className="text-[#798283]">
-                        Fecha desde
-                      </Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !fechaDesde && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {fechaDesde ? (
-                              format(fechaDesde, "PPP", { locale: es })
-                            ) : (
-                              <span>Seleccionar fecha</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={fechaDesde}
-                            onSelect={setFechaDesde}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                    <DatePicker
+                      label="Fecha desde"
+                      date={fechaDesde}
+                      onSelect={setFechaDesde}
+                    />
 
                     {/* Date Range - To */}
-                    <div>
-                      <Label htmlFor="fecha-hasta" className="text-[#798283]">
-                        Fecha hasta
-                      </Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !fechaHasta && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {fechaHasta ? (
-                              format(fechaHasta, "PPP", { locale: es })
-                            ) : (
-                              <span>Seleccionar fecha</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={fechaHasta}
-                            onSelect={setFechaHasta}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                    <DatePicker
+                      label="Fecha hasta"
+                      date={fechaHasta}
+                      onSelect={setFechaHasta}
+                    />
                   </div>
 
                   {/* Active filters display and Clear Filters button */}

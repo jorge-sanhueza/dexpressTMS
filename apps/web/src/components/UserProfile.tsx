@@ -6,6 +6,8 @@ export const UserProfile: React.FC = () => {
   const { user, tenant, roles, logout } = useAuthStore();
   const navigate = useNavigate();
 
+  console.log(user)
+
   if (!user) return null;
 
   const toTitleCase = (str: string): string => {
@@ -285,7 +287,7 @@ export const UserProfile: React.FC = () => {
                       Tipo de cuenta
                     </p>
                     <p className="font-medium text-[#798283]">
-                      {toTitleCase(user.profile_type)}
+                      {toTitleCase(user.profile_name)}
                     </p>
                   </div>
                 </div>
@@ -333,7 +335,7 @@ export const UserProfile: React.FC = () => {
               <div className="space-y-2">
                 <p className="text-sm text-[#798283]/70">Rol principal</p>
                 <p className="font-medium text-[#798283]">
-                  {user.profile_type}
+                  {user.profile_name}
                 </p>
               </div>
             </div>

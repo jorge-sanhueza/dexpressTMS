@@ -4,7 +4,7 @@ export interface AuthUser {
   name: string;
   tenant_id: string;
   profile_id: string;
-  profile_type: string;
+  profile_name: string;
   permissions: string[];
 }
 
