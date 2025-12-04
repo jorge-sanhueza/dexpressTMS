@@ -16,6 +16,11 @@ export interface Entidad {
   direccion?: string;
 }
 
+export type EntidadSelect = Pick<
+  Entidad,
+  "id" | "nombre" | "rut" | "tipoEntidad" | "contacto" | "telefono"
+>;
+
 export interface EntidadesResponse {
   entidades: Entidad[];
   total: number;

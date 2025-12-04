@@ -4,6 +4,8 @@ import type {
   UpdateOrderDto,
   OrderStatusUpdateDto,
   OrdersFilter,
+  UpdateOrderResponse,
+  CreateOrderResponse,
 } from "@/types/order";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
@@ -48,8 +50,9 @@ export const useCreateOrder = () => {
   return useMutation({
     mutationFn: (orderData: CreateOrderDto) =>
       ordersService.createOrder(orderData),
-    onSuccess: (data) => {
+    onSuccess: (data: CreateOrderResponse) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["order", data.order.id] });
       queryClient.invalidateQueries({ queryKey: ["order-stats"] });
       toast.success(data.message || "Orden creada exitosamente");
     },
@@ -70,7 +73,7 @@ export const useUpdateOrder = () => {
       id: string;
       orderData: UpdateOrderDto;
     }) => ordersService.updateOrder(id, orderData),
-    onSuccess: (data) => {
+    onSuccess: (data: UpdateOrderResponse) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["order", data.order.id] });
       queryClient.invalidateQueries({ queryKey: ["order-stats"] });
@@ -93,7 +96,7 @@ export const useUpdateOrderStatus = () => {
       id: string;
       statusData: OrderStatusUpdateDto;
     }) => ordersService.updateOrderStatus(id, statusData),
-    onSuccess: (data) => {
+    onSuccess: (data: UpdateOrderResponse) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["order", data.order.id] });
       queryClient.invalidateQueries({ queryKey: ["order-stats"] });
@@ -111,12 +114,31 @@ export const useCancelOrder = () => {
   return useMutation({
     mutationFn: (id: string) => ordersService.cancelOrder(id),
     onSuccess: (data) => {
+      console.log("Cancel success data:", data); // Add this
+
+      // SAFE ACCESS - check if data exists
+      if (!data) {
+        console.error("No data received");
+        toast.error("No response received");
+        return;
+      }
+
+      // Check if data has the expected structure
+      const orderId = data.order?.id || data.order.id; // Handle both formats
+
+      if (!orderId) {
+        console.error("No order ID found in response:", data);
+        toast.error("Invalid response format");
+        return;
+      }
+
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["order", data.order.id] });
+      queryClient.invalidateQueries({ queryKey: ["order", orderId] });
       queryClient.invalidateQueries({ queryKey: ["order-stats"] });
       toast.success(data.message || "Orden cancelada exitosamente");
     },
     onError: (error: Error) => {
+      console.error("Cancel error:", error);
       toast.error(error.message || "Error al cancelar la orden");
     },
   });
@@ -127,8 +149,10 @@ export const useDuplicateOrder = () => {
 
   return useMutation({
     mutationFn: (id: string) => ordersService.duplicateOrder(id),
-    onSuccess: (data) => {
+    onSuccess: (data: CreateOrderResponse) => {
+      // Note: CreateOrderResponse for duplicate
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["order", data.order.id] });
       queryClient.invalidateQueries({ queryKey: ["order-stats"] });
       toast.success(data.message || "Orden duplicada exitosamente");
     },

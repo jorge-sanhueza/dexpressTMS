@@ -14,6 +14,7 @@ import { ContactosList } from "@/components/contactos/ContactosList";
 import { TipoCargaList } from "@/components/orders/TipoCargaList";
 import { TipoServicioList } from "@/components/orders/TipoServicioList";
 import { OrdersList } from "@/components/orders/OrdersList";
+import { EditOrderForm } from "@/components/orders/EditOrder";
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -106,6 +107,16 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/ordenes/editar/:id"
+        element={
+          <ProtectedRoute>
+            <EditOrderForm />
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/tipos-carga"
         element={

@@ -11,6 +11,7 @@ import {
   Request,
   Logger,
   ParseUUIDPipe,
+  Patch,
 } from '@nestjs/common';
 import { OrdersService } from '../services/orders.service';
 import { CreateOrderDto } from '../dto/create-order.dto';
@@ -18,6 +19,7 @@ import { UpdateOrderDto } from '../dto/update-order.dto';
 import { OrdersFilterDto } from '../dto/orders-filter.dto';
 import { OrderResponseDto } from '../dto/order-response.dto';
 import { JwtGuard } from 'src/auth/guards/jwt.guard';
+import { OrderStatusUpdateDto } from '../dto/order-status-update.dto';
 
 @Controller('api/orders')
 @UseGuards(JwtGuard)
@@ -62,6 +64,76 @@ export class OrdersController {
     };
   }
 
+  // Update order status
+  @Patch(':id/status')
+  async updateStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() statusData: OrderStatusUpdateDto,
+    @Request() req,
+  ): Promise<{ message: string; order: OrderResponseDto }> {
+    const tenantId = this.getTenantId(req);
+    this.logger.log(`Updating status for order ${id} for tenant: ${tenantId}`);
+
+    const order = await this.ordersService.updateStatus(
+      id,
+      statusData,
+      tenantId,
+    );
+
+    return {
+      message: 'Order status updated successfully',
+      order: order,
+    };
+  }
+
+  // Cancel order
+  @Patch(':id/cancel')
+  async cancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req,
+  ): Promise<{ message: string; order: OrderResponseDto }> {
+    // Changed return type
+    const tenantId = this.getTenantId(req);
+    this.logger.log(`Cancelling order ${id} for tenant: ${tenantId}`);
+
+    const order = await this.ordersService.cancel(id, tenantId);
+
+    return {
+      message: 'Order cancelled successfully',
+      order: order,
+    };
+  }
+
+  // Duplicate order
+  @Post(':id/duplicate')
+  async duplicate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req,
+  ): Promise<{ message: string; order: OrderResponseDto }> {
+    const tenantId = this.getTenantId(req);
+    this.logger.log(`Duplicating order ${id} for tenant: ${tenantId}`);
+
+    const order = await this.ordersService.duplicate(id, tenantId);
+
+    return {
+      message: 'Order duplicated successfully',
+      order: order,
+    };
+  }
+
+  @Get('check-ot/:numeroOt')
+  async checkOtNumber(
+    @Param('numeroOt') numeroOt: string,
+    @Request() req,
+  ): Promise<{ available: boolean }> {
+    const tenantId = this.getTenantId(req);
+    this.logger.log(
+      `Checking OT number availability: ${numeroOt} for tenant: ${tenantId}`,
+    );
+
+    return this.ordersService.checkOtNumberAvailability(numeroOt, tenantId);
+  }
+
   @Get('stats')
   async getStats(@Request() req): Promise<{
     total: number;
@@ -86,16 +158,20 @@ export class OrdersController {
     return this.ordersService.findOne(id, tenantId);
   }
 
-  // In orders.controller.ts, add this method:
-
   @Post()
   async create(
     @Body() createOrderDto: CreateOrderDto,
     @Request() req,
-  ): Promise<OrderResponseDto> {
+  ): Promise<{ message: string; order: OrderResponseDto }> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Creating order for tenant: ${tenantId}`);
-    return this.ordersService.create(createOrderDto, tenantId);
+
+    const order = await this.ordersService.create(createOrderDto, tenantId);
+
+    return {
+      message: 'Order created successfully',
+      order: order,
+    };
   }
 
   @Put(':id')
@@ -103,10 +179,16 @@ export class OrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateOrderDto: UpdateOrderDto,
     @Request() req,
-  ): Promise<OrderResponseDto> {
+  ): Promise<{ message: string; order: OrderResponseDto }> {
     const tenantId = this.getTenantId(req);
     this.logger.log(`Updating order ${id} for tenant: ${tenantId}`);
-    return this.ordersService.update(id, updateOrderDto, tenantId);
+
+    const order = await this.ordersService.update(id, updateOrderDto, tenantId);
+
+    return {
+      message: 'Order updated successfully',
+      order: order,
+    };
   }
 
   @Delete(':id')
@@ -114,9 +196,10 @@ export class OrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Request() req,
   ): Promise<{ message: string }> {
+    // Note: no order in response for DELETE
     const tenantId = this.getTenantId(req);
-    this.logger.log(`Cancelling order ${id} for tenant: ${tenantId}`);
+    this.logger.log(`Deleting order ${id} for tenant: ${tenantId}`);
     await this.ordersService.remove(id, tenantId);
-    return { message: 'Order cancelled successfully' };
+    return { message: 'Order deleted successfully' };
   }
 }

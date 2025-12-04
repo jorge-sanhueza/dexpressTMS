@@ -18,9 +18,21 @@ class OrdersService {
   private async handleApiResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || `API error: ${response.statusText}`);
+      console.log("Error response data:", errorData);
+
+      const errorMessage =
+        errorData.error?.message ||
+        errorData.message ||
+        `API error: ${response.statusText}`;
+
+      throw new Error(errorMessage);
     }
-    return response.json();
+
+    // Parse successful response
+    const data = await response.json();
+    console.log("Success response data:", data); // Add this for debugging
+
+    return data;
   }
 
   async getOrders(filter: OrdersFilter = {}): Promise<OrdersResponse> {
@@ -115,8 +127,16 @@ class OrdersService {
 
   async cancelOrder(id: string): Promise<UpdateOrderResponse> {
     try {
+      console.log(`Cancelling order ${id}...`);
       const response = await apiClient.patch(`${this.baseUrl}/${id}/cancel`);
-      return this.handleApiResponse<UpdateOrderResponse>(response);
+      console.log("Cancel response:", response);
+
+      const data = await this.handleApiResponse<UpdateOrderResponse>(response);
+      console.log("Parsed cancel data:", data);
+      console.log("Order in response:", data.order);
+      console.log("Order ID:", data.order?.id);
+
+      return data;
     } catch (error) {
       console.error("Error cancelling order:", error);
       throw error;
@@ -156,6 +176,20 @@ class OrdersService {
       return response.blob();
     } catch (error) {
       console.error("Error exporting orders:", error);
+      throw error;
+    }
+  }
+
+  async checkOtNumberAvailability(
+    numeroOt: string
+  ): Promise<{ available: boolean }> {
+    try {
+      const response = await apiClient.get(
+        `${this.baseUrl}/check-ot/${encodeURIComponent(numeroOt)}`
+      );
+      return this.handleApiResponse<{ available: boolean }>(response);
+    } catch (error) {
+      console.error("Error checking OT number:", error);
       throw error;
     }
   }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
-import type { CreateOrderDto } from "../../types/order";
+import type { UpdateOrderDto } from "../../types/order";
 import { ordersService } from "@/services/orderService";
 import { clientsService } from "@/services/clientsService";
 import { direccionesService } from "@/services/direccionesService";
@@ -9,7 +9,8 @@ import { tipoCargaService } from "@/services/tipoCargaService";
 import { tipoServicioService } from "@/services/tipoServicioService";
 import { EntidadSelect } from "../EntidadSelect";
 import type { Entidad } from "@/services/entidadesService";
-import { useQueryClient } from "@tanstack/react-query";
+import { useEntidad } from "@/hooks/useEntidades";
+import { useOrder, useUpdateOrder } from "@/hooks/useOrders";
 import { DatePicker } from "../DatePicker";
 
 interface FormData {
@@ -32,16 +33,26 @@ interface FormData {
   observaciones: string;
 }
 
-export const CreateOrderForm: React.FC = () => {
+export const EditOrderForm: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { tenant } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const queryClient = useQueryClient();
 
-  // State for OT number availability
+  // Use the existing order hook
+  const {
+    data: orderData,
+    isLoading: orderLoading,
+    error: orderError,
+  } = useOrder(id || "");
+
+  const updateOrderMutation = useUpdateOrder();
+
+  // State for OT number availability (skip check for same number)
+  const [originalNumeroOt, setOriginalNumeroOt] = useState<string>("");
   const [otNumberAvailable, setOtNumberAvailable] = useState<boolean | null>(
     null
   );
@@ -60,10 +71,16 @@ export const CreateOrderForm: React.FC = () => {
   const [selectedDestinatario, setSelectedDestinatario] =
     useState<Entidad | null>(null);
 
+  // Date states for DatePicker
+  const [fechaDate, setFechaDate] = useState<Date | undefined>(undefined);
+  const [fechaEntregaEstimadaDate, setFechaEntregaEstimadaDate] = useState<
+    Date | undefined
+  >(undefined);
+
   const [formData, setFormData] = useState<FormData>({
     clienteId: "",
     numeroOt: "",
-    fecha: new Date().toISOString().split("T")[0],
+    fecha: "",
     fechaEntregaEstimada: "",
     remitenteId: "",
     destinatarioId: "",
@@ -80,19 +97,106 @@ export const CreateOrderForm: React.FC = () => {
     observaciones: "",
   });
 
-  // Derived states for DatePicker components
-  const [fechaDate, setFechaDate] = useState<Date | undefined>(new Date());
-  const [fechaEntregaEstimadaDate, setFechaEntregaEstimadaDate] = useState<
-    Date | undefined
-  >(undefined);
+  const { data: remitenteFullData } = useEntidad(formData.remitenteId);
+  const { data: destinatarioFullData } = useEntidad(formData.destinatarioId);
 
+  // Load order data when it's available
+  useEffect(() => {
+    if (orderData) {
+      console.log("Loading order data:", orderData);
+
+      // Store original OT number for validation
+      setOriginalNumeroOt(orderData.numeroOt);
+
+      // Set form data from order
+      setFormData({
+        clienteId: orderData.clienteId || "",
+        numeroOt: orderData.numeroOt || "",
+        fecha: orderData.fecha
+          ? new Date(orderData.fecha).toISOString().split("T")[0]
+          : "",
+        fechaEntregaEstimada: orderData.fechaEntregaEstimada
+          ? new Date(orderData.fechaEntregaEstimada).toISOString().split("T")[0]
+          : "",
+        remitenteId: orderData.remitenteId || "",
+        destinatarioId: orderData.destinatarioId || "",
+        direccionOrigenId: orderData.direccionOrigenId || "",
+        direccionDestinoId: orderData.direccionDestinoId || "",
+        tipoCargaId: orderData.tipoCargaId || "",
+        tipoServicioId: orderData.tipoServicioId || "",
+        tipoTarifa: orderData.tipoTarifa || "PESO_VOLUMEN",
+        pesoTotalKg: orderData.pesoTotalKg?.toString() || "",
+        volumenTotalM3: orderData.volumenTotalM3?.toString() || "",
+        altoCm: orderData.altoCm?.toString() || "",
+        largoCm: orderData.largoCm?.toString() || "",
+        anchoCm: orderData.anchoCm?.toString() || "",
+        observaciones: orderData.observaciones || "",
+      });
+
+      // Set dates for DatePicker
+      setFechaDate(orderData.fecha ? new Date(orderData.fecha) : undefined);
+      setFechaEntregaEstimadaDate(
+        orderData.fechaEntregaEstimada
+          ? new Date(orderData.fechaEntregaEstimada)
+          : undefined
+      );
+
+      // Set entidad selections if data is available
+      if (orderData.remitente) {
+        setSelectedRemitente({
+          id: orderData.remitente.id,
+          nombre: orderData.remitente.nombre,
+          rut: orderData.remitente.rut,
+          tipoEntidad: "REMITENTE",
+          contacto: orderData.remitente.contacto || "",
+          telefono: orderData.remitente.telefono || "",
+          email: "",
+          direccion: "",
+          activo: true,
+          tenantId: tenant?.id || "unknown-tenant",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+
+      if (orderData.destinatario) {
+        setSelectedDestinatario({
+          id: orderData.destinatario.id,
+          nombre: orderData.destinatario.nombre,
+          rut: orderData.destinatario.rut,
+          tipoEntidad: "DESTINATARIO",
+          contacto: orderData.destinatario.contacto || "",
+          telefono: orderData.destinatario.telefono || "",
+          email: "",
+          direccion: "",
+          activo: true,
+          tenantId: tenant?.id || "unknown-tenant",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+    }
+  }, [orderData]);
+
+  useEffect(() => {
+    if (remitenteFullData) {
+      setSelectedRemitente(remitenteFullData);
+    }
+  }, [remitenteFullData]);
+
+  useEffect(() => {
+    if (destinatarioFullData) {
+      setSelectedDestinatario(destinatarioFullData);
+    }
+  }, [destinatarioFullData]);
+
+  // Load dropdown data
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
         setDataLoading(true);
         setError(null);
 
-        // Fetch all data in parallel for better performance
         const [clientsData, addressesData, cargaTypesData, serviceTypesData] =
           await Promise.all([
             clientsService.getClients(),
@@ -116,11 +220,17 @@ export const CreateOrderForm: React.FC = () => {
     fetchDropdownData();
   }, []);
 
-  // Check OT number availability when it changes
+  // Check OT number availability when it changes (only if different from original)
   useEffect(() => {
     const checkOtNumber = async () => {
       if (!formData.numeroOt || formData.numeroOt.length < 3) {
         setOtNumberAvailable(null);
+        return;
+      }
+
+      // Skip check if it's the same as original
+      if (formData.numeroOt === originalNumeroOt) {
+        setOtNumberAvailable(true);
         return;
       }
 
@@ -144,7 +254,7 @@ export const CreateOrderForm: React.FC = () => {
     };
 
     checkOtNumber();
-  }, [formData.numeroOt]);
+  }, [formData.numeroOt, originalNumeroOt]);
 
   // Update formData when date pickers change
   useEffect(() => {
@@ -261,16 +371,25 @@ export const CreateOrderForm: React.FC = () => {
         );
       }
 
-      // 2. Validate origin and destination are different
+      // 2. Validate OT number availability (if changed)
+      if (
+        formData.numeroOt !== originalNumeroOt &&
+        otNumberAvailable === false
+      ) {
+        throw new Error(
+          "El número de OT ya está en uso. Por favor use un número diferente."
+        );
+      }
+
+      // 3. Validate origin and destination are different
       if (formData.direccionOrigenId === formData.direccionDestinoId) {
         throw new Error(
           "La dirección de origen y destino no pueden ser la misma"
         );
       }
 
-      // 3. Validate that remitente and destinatario are different (optional but recommended)
+      // 4. Validate that remitente and destinatario are different (optional but recommended)
       if (formData.remitenteId === formData.destinatarioId) {
-        // Ask for confirmation or show warning
         const confirmed = window.confirm(
           "El remitente y destinatario son la misma entidad. ¿Está seguro de continuar?"
         );
@@ -280,12 +399,11 @@ export const CreateOrderForm: React.FC = () => {
         }
       }
 
-      // 4. Validate fechaEntregaEstimada if provided
+      // 5. Validate fechaEntregaEstimada if provided
       if (formData.fechaEntregaEstimada) {
         const fecha = new Date(formData.fecha);
         const fechaEntregaEstimada = new Date(formData.fechaEntregaEstimada);
 
-        // Reset times to compare only dates
         fecha.setHours(0, 0, 0, 0);
         fechaEntregaEstimada.setHours(0, 0, 0, 0);
 
@@ -295,7 +413,6 @@ export const CreateOrderForm: React.FC = () => {
           );
         }
 
-        // Optional: Add maximum date limit (e.g., not more than 1 year in the future)
         const maxDate = new Date(fecha);
         maxDate.setFullYear(maxDate.getFullYear() + 1);
 
@@ -310,14 +427,14 @@ export const CreateOrderForm: React.FC = () => {
         }
       }
 
-      // 5. Validate measurements based on rate type
+      // 6. Validate measurements based on rate type
       const pesoTotalKg = parseFloat(formData.pesoTotalKg) || 0;
       const volumenTotalM3 = parseFloat(formData.volumenTotalM3) || 0;
       const altoCm = parseFloat(formData.altoCm) || 0;
       const largoCm = parseFloat(formData.largoCm) || 0;
       const anchoCm = parseFloat(formData.anchoCm) || 0;
 
-      // 6. For "PESO_VOLUMEN" rate type, require at least weight or volume
+      // 7. For "PESO_VOLUMEN" rate type, require at least weight or volume
       if (formData.tipoTarifa === "PESO_VOLUMEN") {
         if (pesoTotalKg <= 0 && volumenTotalM3 <= 0) {
           throw new Error(
@@ -326,104 +443,69 @@ export const CreateOrderForm: React.FC = () => {
         }
       }
 
-      // 7. Validate that if any dimension is provided, all should be valid
+      // 8. Validate that if any dimension is provided, all should be valid
       const dimensionsProvided = altoCm > 0 || largoCm > 0 || anchoCm > 0;
       if (dimensionsProvided) {
-        if (altoCm <= 0) {
+        if (altoCm <= 0)
           throw new Error(
             "Si proporciona dimensiones, el Alto (cm) debe ser mayor a 0"
           );
-        }
-        if (largoCm <= 0) {
+        if (largoCm <= 0)
           throw new Error(
             "Si proporciona dimensiones, el Largo (cm) debe ser mayor a 0"
           );
-        }
-        if (anchoCm <= 0) {
+        if (anchoCm <= 0)
           throw new Error(
             "Si proporciona dimensiones, el Ancho (cm) debe ser mayor a 0"
           );
-        }
       }
 
-      // 8. Validate weight and volume are positive if provided
-      if (pesoTotalKg < 0) {
+      // 9. Validate weight and volume are positive if provided
+      if (pesoTotalKg < 0)
         throw new Error("El Peso Total (kg) debe ser un valor positivo");
-      }
-
-      if (volumenTotalM3 < 0) {
+      if (volumenTotalM3 < 0)
         throw new Error("El Volumen (m³) debe ser un valor positivo");
-      }
-
-      // 9. If both weight and volume are provided, ensure they're reasonable
-      if (pesoTotalKg > 0 && volumenTotalM3 > 0) {
-        // Basic density check (kg/m³) - typical range for most goods
-        const density = pesoTotalKg / volumenTotalM3;
-        if (density < 10 || density > 10000) {
-          console.warn("Density appears outside typical range:", density);
-          // Optionally show a warning but don't block
-        }
-      }
 
       // 10. Auto-calculate volume from dimensions if not provided but dimensions are
       let finalVolumenTotalM3 = volumenTotalM3;
       if (volumenTotalM3 <= 0 && dimensionsProvided) {
-        // Convert cm to m and calculate volume
         finalVolumenTotalM3 = (altoCm * largoCm * anchoCm) / 1000000; // cm³ to m³
       }
 
-      // Prepare the order data
-      const orderData: CreateOrderDto = {
-        // Basic information
+      // Prepare the update data
+      const updateData: UpdateOrderDto = {
         clienteId: formData.clienteId,
         numeroOt: formData.numeroOt,
         fecha: new Date(formData.fecha),
         fechaEntregaEstimada: formData.fechaEntregaEstimada
           ? new Date(formData.fechaEntregaEstimada)
           : undefined,
-
-        // Status and type
-        estado: "PENDIENTE",
-        tipoTarifa: formData.tipoTarifa as any,
-
-        // Parties
         remitenteId: formData.remitenteId,
         destinatarioId: formData.destinatarioId,
         direccionOrigenId: formData.direccionOrigenId,
         direccionDestinoId: formData.direccionDestinoId,
-
-        // Service details
         tipoCargaId: formData.tipoCargaId,
         tipoServicioId: formData.tipoServicioId,
-
-        // Measurements - use validated values
+        tipoTarifa: formData.tipoTarifa as any,
         pesoTotalKg: pesoTotalKg > 0 ? pesoTotalKg : undefined,
         volumenTotalM3:
           finalVolumenTotalM3 > 0 ? finalVolumenTotalM3 : undefined,
         altoCm: altoCm > 0 ? altoCm : undefined,
         largoCm: largoCm > 0 ? largoCm : undefined,
         anchoCm: anchoCm > 0 ? anchoCm : undefined,
-
-        // Additional info
         observaciones: formData.observaciones || undefined,
       };
 
-      await ordersService.createOrder(orderData);
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["orderStats"] });
-      navigate("/ordenes");
+      // Call the update mutation
+      if (id) {
+        await updateOrderMutation.mutateAsync({ id, orderData: updateData });
+        navigate("/ordenes");
+      }
     } catch (err) {
       if (err instanceof Error) {
-        // Check for OT number conflict specifically
-        if (err.message.includes("Ya existe una orden con este número de OT")) {
-          setError(
-            "El número de OT ya está en uso. Por favor use un número diferente."
-          );
-        } else {
-          setError(err.message);
-        }
+        setError(err.message);
       } else {
-        setError("Error creating order");
+        setError("Error updating order");
       }
     } finally {
       setLoading(false);
@@ -495,6 +577,43 @@ export const CreateOrderForm: React.FC = () => {
     { id: "EQUIPO", nombre: "Por Equipo" },
   ];
 
+  // Loading states
+  if (orderLoading || dataLoading) {
+    return (
+      <div className="min-h-screen bg-[#EFF4F9] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D42B22] mx-auto"></div>
+          <p className="mt-4 text-[#798283]">Cargando datos de la orden...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error states
+  if (orderError) {
+    return (
+      <div className="min-h-screen bg-[#EFF4F9]">
+        <nav className="bg-white shadow-lg border-b border-[#798283]/20">
+          {/* Same nav as CreateOrderForm */}
+        </nav>
+        <main className="max-w-4xl mx-auto py-8 px-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="text-xl font-bold text-red-800 mb-2">Error</h2>
+            <p className="text-red-700">
+              No se pudo cargar la orden: {orderError.message}
+            </p>
+            <button
+              onClick={() => navigate("/ordenes")}
+              className="mt-4 px-4 py-2 bg-[#798283] text-white rounded-lg hover:bg-[#5a6b6c] transition-colors"
+            >
+              Volver a la lista
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#EFF4F9]">
       <nav className="bg-white shadow-lg border-b border-[#798283]/20">
@@ -512,7 +631,7 @@ export const CreateOrderForm: React.FC = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                   />
                 </svg>
               </div>
@@ -537,11 +656,10 @@ export const CreateOrderForm: React.FC = () => {
         <div className="px-4 sm:px-0">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-[#798283] mb-2">
-              Crear Nueva Orden
+              Editar Orden: {orderData?.codigo || orderData?.numeroOt}
             </h2>
             <p className="text-[#798283]/70 text-lg">
-              Complete la información requerida para crear una nueva orden de
-              transporte.
+              Modifique la información de la orden de transporte.
             </p>
           </div>
 
@@ -627,11 +745,18 @@ export const CreateOrderForm: React.FC = () => {
                         Este número de OT ya está en uso. Por favor use otro.
                       </p>
                     )}
-                    {otNumberAvailable === true && (
-                      <p className="mt-1 text-sm text-green-600">
-                        ✓ Número de OT disponible
-                      </p>
-                    )}
+                    {otNumberAvailable === true &&
+                      formData.numeroOt === originalNumeroOt && (
+                        <p className="mt-1 text-sm text-green-600">
+                          ✓ Número de OT original
+                        </p>
+                      )}
+                    {otNumberAvailable === true &&
+                      formData.numeroOt !== originalNumeroOt && (
+                        <p className="mt-1 text-sm text-green-600">
+                          ✓ Número de OT disponible
+                        </p>
+                      )}
                   </div>
                 </div>
 
@@ -999,10 +1124,14 @@ export const CreateOrderForm: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={loading || dataLoading}
+                disabled={
+                  loading || dataLoading || updateOrderMutation.isPending
+                }
                 className="px-6 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-[#D42B22] hover:bg-[#B3251E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D42B22] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
-                {loading ? "Creando..." : "Crear Orden"}
+                {loading || updateOrderMutation.isPending
+                  ? "Guardando..."
+                  : "Guardar Cambios"}
               </button>
             </div>
           </form>

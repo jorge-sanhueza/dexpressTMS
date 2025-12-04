@@ -771,7 +771,12 @@ export class OrdersService {
       });
 
       this.logger.log(`Order ${id} cancelled`);
-      return new OrderResponseDto(order);
+      const responseDto = new OrderResponseDto(order);
+      console.log(
+        'Sending cancel response:',
+        JSON.stringify(responseDto, null, 2),
+      );
+      return responseDto;
     } catch (error) {
       this.logger.error(`Error cancelling order ${id}:`, error);
       throw error;
@@ -864,6 +869,29 @@ export class OrdersService {
       return new OrderResponseDto(order);
     } catch (error) {
       this.logger.error(`Error duplicating order ${id}:`, error);
+      throw error;
+    }
+  }
+
+  async checkOtNumberAvailability(
+    numeroOt: string,
+    tenantId: string,
+  ): Promise<{ available: boolean }> {
+    try {
+      // Check if order number (numeroOt) already exists for this tenant
+      const existingOrder = await this.prisma.orden.findFirst({
+        where: {
+          numeroOt,
+          tenantId,
+        },
+      });
+
+      return { available: !existingOrder };
+    } catch (error) {
+      this.logger.error(
+        `Error checking OT number availability for ${numeroOt}:`,
+        error,
+      );
       throw error;
     }
   }
