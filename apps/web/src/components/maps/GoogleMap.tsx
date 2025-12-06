@@ -1,5 +1,6 @@
 /// <reference types="google.maps" />
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { Loader2, MapPin } from "lucide-react";
 
 interface GoogleMapProps {
   latitud: number;
@@ -8,6 +9,8 @@ interface GoogleMapProps {
   className?: string;
   zoom?: number;
   height?: string;
+  mapTypeControl?: boolean;
+  streetViewControl?: boolean;
 }
 
 // Global script loading state
@@ -21,6 +24,8 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
   className = "",
   zoom = 15,
   height = "300px",
+  mapTypeControl = false,
+  streetViewControl = false,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,19 +33,17 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
   const [shouldLoad, setShouldLoad] = useState(false);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markerInstanceRef = useRef<google.maps.Marker | null>(null);
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
 
-  const loadGoogleMaps = (): Promise<void> => {
-    // If already loaded, return resolved promise
+  const loadGoogleMaps = useCallback((): Promise<void> => {
     if (window.google?.maps) {
       return Promise.resolve();
     }
 
-    // If loading in progress, return the existing promise
     if (googleMapsLoadPromise) {
       return googleMapsLoadPromise;
     }
 
-    // Create new loading promise
     googleMapsLoadPromise = new Promise((resolve, reject) => {
       const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
       if (!apiKey) {
@@ -48,13 +51,11 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
         return;
       }
 
-      // Check if script already exists
       const existingScript = document.querySelector(
         'script[src*="maps.googleapis.com/maps/api/js"]'
       );
 
       if (existingScript) {
-        // Script exists but not loaded yet, wait for it
         const checkLoaded = setInterval(() => {
           if (window.google?.maps) {
             clearInterval(checkLoaded);
@@ -62,15 +63,13 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
           }
         }, 100);
 
-        // Timeout after 10 seconds
         setTimeout(() => {
           clearInterval(checkLoaded);
-          reject(new Error("Timeout loading existing Google Maps script"));
+          reject(new Error("Timeout loading Google Maps"));
         }, 10000);
         return;
       }
 
-      // Create and load new script
       googleMapsScript = document.createElement("script");
       googleMapsScript.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
       googleMapsScript.async = true;
@@ -92,60 +91,90 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
     });
 
     return googleMapsLoadPromise;
-  };
+  }, []);
 
-  const loadMap = () => {
+  const initializeMap = useCallback(async () => {
+    if (!mapContainerRef.current || !window.google?.maps) {
+      setError("Map container or Google Maps not available");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // Create map instance with optimized options
+      mapInstanceRef.current = new google.maps.Map(mapContainerRef.current, {
+        center: { lat: latitud, lng: longitud },
+        zoom: zoom,
+        mapTypeControl: mapTypeControl,
+        streetViewControl: streetViewControl,
+        fullscreenControl: true,
+        zoomControl: true,
+        gestureHandling: "cooperative",
+        styles: [
+          {
+            featureType: "poi.business",
+            stylers: [{ visibility: "off" }],
+          },
+          {
+            featureType: "transit",
+            elementType: "labels.icon",
+            stylers: [{ visibility: "off" }],
+          },
+        ],
+      });
+
+      // Create marker with custom icon
+      markerInstanceRef.current = new google.maps.Marker({
+        map: mapInstanceRef.current,
+        position: { lat: latitud, lng: longitud },
+        title: direccionTexto || "Ubicación",
+        animation: google.maps.Animation.DROP,
+      });
+
+      // Add info window if address provided
+      if (direccionTexto) {
+        infoWindowRef.current = new google.maps.InfoWindow({
+          content: `<div class="p-2"><strong>Ubicación</strong><br/>${direccionTexto}</div>`,
+        });
+
+        markerInstanceRef.current.addListener("click", () => {
+          infoWindowRef.current?.open(
+            mapInstanceRef.current!,
+            markerInstanceRef.current!
+          );
+        });
+      }
+
+      setIsLoading(false);
+    } catch (err) {
+      console.error("Error initializing map:", err);
+      setError(err instanceof Error ? err.message : "Error creating map");
+      setIsLoading(false);
+    }
+  }, [
+    latitud,
+    longitud,
+    direccionTexto,
+    zoom,
+    mapTypeControl,
+    streetViewControl,
+  ]);
+
+  const loadMap = useCallback(async () => {
     if (shouldLoad) return;
+
     setShouldLoad(true);
     setIsLoading(true);
     setError(null);
-  };
 
-  useEffect(() => {
-    if (!shouldLoad || !isLoading) return;
-
-    const initializeMap = async () => {
-      if (!mapContainerRef.current) {
-        setError("Map container not available");
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        // Load Google Maps (only once globally)
-        await loadGoogleMaps();
-
-        if (!mapContainerRef.current || !window.google?.maps) {
-          setError("Map container or Google Maps not available");
-          setIsLoading(false);
-          return;
-        }
-
-        // Create map instance
-        mapInstanceRef.current = new google.maps.Map(mapContainerRef.current, {
-          center: { lat: latitud, lng: longitud },
-          zoom: zoom,
-          mapTypeControl: false,
-          streetViewControl: false,
-        });
-
-        // Use classic Marker (simpler and works fine)
-        markerInstanceRef.current = new google.maps.Marker({
-          map: mapInstanceRef.current,
-          position: { lat: latitud, lng: longitud },
-          title: direccionTexto || "Ubicación",
-        });
-
-        setIsLoading(false);
-      } catch (err) {
-        console.error("Error initializing map:", err);
-        setError(err instanceof Error ? err.message : "Error creating map");
-        setIsLoading(false);
-      }
-    };
-
-    initializeMap();
-  }, [shouldLoad, isLoading, latitud, longitud, direccionTexto, zoom]);
+    try {
+      await loadGoogleMaps();
+      await initializeMap();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error loading map");
+      setIsLoading(false);
+    }
+  }, [shouldLoad, loadGoogleMaps, initializeMap]);
 
   // Cleanup
   useEffect(() => {
@@ -153,47 +182,35 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
       if (markerInstanceRef.current) {
         markerInstanceRef.current.setMap(null);
       }
+      if (infoWindowRef.current) {
+        infoWindowRef.current.close();
+      }
     };
   }, []);
 
   const handleRetry = () => {
-    setShouldLoad(false);
     setError(null);
-    setTimeout(() => {
-      setShouldLoad(true);
-      setIsLoading(true);
-    }, 100);
+    loadMap();
   };
 
   if (!shouldLoad) {
     return (
       <div
-        className={`flex items-center justify-center bg-gray-100 rounded-lg border border-[#798283]/20 ${className} cursor-pointer hover:bg-gray-200 transition-colors`}
+        className={`relative bg-gray-50 rounded-lg border border-[#798283]/20 ${className} cursor-pointer hover:bg-gray-100 transition-colors`}
         style={{ height }}
         onClick={loadMap}
       >
-        <div className="text-center text-[#798283]/70">
-          <svg
-            className="w-8 h-8 mx-auto mb-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-            />
-          </svg>
-          <p className="text-sm">Ver en mapa</p>
-          <p className="text-xs mt-1">Haz clic para cargar</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-[#798283]/70">
+          <div className="relative">
+            <MapPin className="w-12 h-12 mx-auto mb-3 opacity-60" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-8 w-8 border-2 border-[#798283]/30 border-t-[#D42B22] rounded-full animate-spin"></div>
+            </div>
+          </div>
+          <p className="text-sm font-medium">Ver en mapa</p>
+          <p className="text-xs mt-1 px-4 text-center">
+            Haz clic para cargar la ubicación
+          </p>
         </div>
       </div>
     );
@@ -209,19 +226,33 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-80 z-10 rounded-lg">
           <div className="text-center text-[#798283]/70">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#D42B22] mx-auto mb-2"></div>
-            <p className="text-sm">Cargando mapa...</p>
+            <div className="relative">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-[#D42B22]" />
+            </div>
+            <p className="text-sm font-medium">Cargando mapa...</p>
+            <p className="text-xs mt-1">Por favor espera</p>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-80 z-10 rounded-lg">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 bg-opacity-80 z-10 rounded-lg">
           <div className="text-center text-[#798283]/70">
-            <p className="text-sm">{error}</p>
+            <div className="w-12 h-12 mx-auto mb-3 text-red-500">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.218 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+            </div>
+            <p className="text-sm font-medium mb-2">Error al cargar el mapa</p>
+            <p className="text-xs mb-4 max-w-xs">{error}</p>
             <button
               onClick={handleRetry}
-              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              className="px-4 py-2 bg-[#D42B22] text-white rounded hover:bg-[#B3251E] text-sm transition-colors"
             >
               Reintentar
             </button>

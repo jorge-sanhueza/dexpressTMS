@@ -1,5 +1,8 @@
 import { direccionesService } from "@/services/direccionesService";
-import type { CreateDireccionDto, UpdateDireccionDto } from "@/types/direccion";
+import type {
+  CreateDireccionDto,
+  UpdateDireccionDto,
+} from "@/types/direccion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export interface UseDireccionesFilters {
@@ -55,9 +58,9 @@ export const useUpdateDireccion = () => {
       id: string;
       direccionData: UpdateDireccionDto;
     }) => direccionesService.updateDireccion(id, direccionData),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["direcciones"] });
-      queryClient.invalidateQueries({ queryKey: ["direccion"] });
+      queryClient.invalidateQueries({ queryKey: ["direccion", variables.id] });
     },
   });
 };
@@ -85,5 +88,31 @@ export const useActivePrincipales = () => {
   return useQuery({
     queryKey: ["direcciones", "principales", "activas"],
     queryFn: () => direccionesService.getActivePrincipales(),
+  });
+};
+
+// New hook for geocoding
+export const useGeocodeAddress = () => {
+  return useMutation({
+    mutationFn: ({
+      direccionTexto,
+      comunaId,
+    }: {
+      direccionTexto: string;
+      comunaId?: string;
+    }) => direccionesService.geocodeAddress(direccionTexto, comunaId),
+  });
+};
+
+// New hook for reverse geocoding
+export const useReverseGeocode = () => {
+  return useMutation({
+    mutationFn: ({
+      latitud,
+      longitud,
+    }: {
+      latitud: number;
+      longitud: number;
+    }) => direccionesService.reverseGeocode(latitud, longitud),
   });
 };

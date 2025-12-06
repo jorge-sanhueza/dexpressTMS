@@ -10,431 +10,293 @@ import { ContactosFilterDto } from '../dto/contactos-filter.dto';
 import { CreateContactoDto } from '../dto/create-contacto.dto';
 import { UpdateContactoDto } from '../dto/update-contacto.dto';
 import { ContactoResponseDto } from '../dto/contacto-response.dto';
-import { TipoEntidad } from '@prisma/client';
+import { TipoEntidad, Prisma } from '@prisma/client';
 
 @Injectable()
 export class ContactosService {
   private readonly logger = new Logger(ContactosService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  // Helper for consistent include pattern
-  private getContactoInclude() {
-    return {
-      entidad: {
-        select: {
-          id: true,
-          nombre: true,
-          rut: true,
-          tipoEntidad: true,
+  // Reusable include for consistent relations
+  private readonly contactoInclude = {
+    entidad: {
+      select: {
+        id: true,
+        nombre: true,
+        rut: true,
+        tipoEntidad: true,
+      },
+    },
+    comuna: {
+      include: {
+        provincia: {
+          include: { region: true },
         },
       },
-      comuna: {
-        include: {
-          provincia: {
-            include: {
-              region: true,
-            },
-          },
-        },
-      },
-    };
+    },
+  } satisfies Prisma.ContactoInclude;
+
+  // Build dynamic WHERE clause
+  private buildWhereClause(filter: ContactosFilterDto, tenantId: string) {
+    const where: Prisma.ContactoWhereInput = { tenantId };
+
+    if (filter.search) {
+      const search = filter.search.trim();
+      where.OR = [
+        { nombre: { contains: search, mode: 'insensitive' } },
+        { rut: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { cargo: { contains: search, mode: 'insensitive' } },
+        { contacto: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (filter.activo !== undefined) {
+      where.activo = Boolean(filter.activo);
+    }
+
+    if (filter.esPersonaNatural !== undefined) {
+      where.esPersonaNatural = Boolean(filter.esPersonaNatural);
+    }
+
+    if (filter.entidadId) {
+      where.entidadId = filter.entidadId;
+    }
+
+    return where;
   }
 
-  // Helper to prepare contacto data for Prisma
-  private prepareContactoData(
-    createContactoDto: CreateContactoDto,
-    tenantId: string,
-    entidadId: string,
-  ) {
-    return {
-      nombre: createContactoDto.nombre,
-      rut: createContactoDto.rut,
-      email: createContactoDto.email || null,
-      telefono: createContactoDto.telefono || null,
-      direccion: createContactoDto.direccion || null,
-      cargo: createContactoDto.cargo || null,
-      contacto: createContactoDto.contacto,
-      esPersonaNatural: createContactoDto.esPersonaNatural ?? true,
-      activo: true,
-      comunaId: createContactoDto.comunaId,
-      entidadId: entidadId,
-      tenantId,
+  // Shared fields to sync between contacto and entidad
+  private getSyncFields(dto: CreateContactoDto | UpdateContactoDto) {
+    const fields = {
+      nombre: 'nombre' in dto ? dto.nombre : undefined,
+      rut: 'rut' in dto ? dto.rut : undefined,
+      email: 'email' in dto ? (dto.email ?? '') : undefined,
+      telefono: 'telefono' in dto ? (dto.telefono ?? '') : undefined,
+      direccion: 'direccion' in dto ? dto.direccion : undefined,
+      comunaId: 'comunaId' in dto ? dto.comunaId : undefined,
     };
-  }
-
-  // Helper to prepare update data for Prisma
-  private prepareUpdateData(updateContactoDto: UpdateContactoDto) {
-    const data: any = {};
-
-    if (updateContactoDto.nombre !== undefined)
-      data.nombre = updateContactoDto.nombre;
-    if (updateContactoDto.rut !== undefined) data.rut = updateContactoDto.rut;
-    if (updateContactoDto.email !== undefined)
-      data.email = updateContactoDto.email;
-    if (updateContactoDto.telefono !== undefined)
-      data.telefono = updateContactoDto.telefono;
-    if (updateContactoDto.direccion !== undefined)
-      data.direccion = updateContactoDto.direccion;
-    if (updateContactoDto.cargo !== undefined)
-      data.cargo = updateContactoDto.cargo;
-    if (updateContactoDto.contacto !== undefined)
-      data.contacto = updateContactoDto.contacto;
-    if (updateContactoDto.esPersonaNatural !== undefined)
-      data.esPersonaNatural = updateContactoDto.esPersonaNatural;
-    if (updateContactoDto.activo !== undefined)
-      data.activo = updateContactoDto.activo;
-    if (updateContactoDto.comunaId !== undefined)
-      data.comunaId = updateContactoDto.comunaId;
-
-    return data;
+    return Object.fromEntries(
+      Object.entries(fields).filter(([, v]) => v !== undefined),
+    );
   }
 
   async findAll(
     filter: ContactosFilterDto,
     tenantId: string,
   ): Promise<{ contactos: ContactoResponseDto[]; total: number }> {
-    try {
-      const {
-        search,
-        activo,
-        esPersonaNatural,
-        entidadId,
-        page = 1,
-        limit = 10,
-      } = filter;
+    const page = Math.max(1, parseInt(String(filter.page ?? 1), 10));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(String(filter.limit ?? 10), 10)),
+    );
+    const skip = (page - 1) * limit;
 
-      const pageNumber = typeof page === 'string' ? parseInt(page, 10) : page;
-      const limitNumber =
-        typeof limit === 'string' ? parseInt(limit, 10) : limit;
-      const skip = (pageNumber - 1) * limitNumber;
+    const where = this.buildWhereClause(filter, tenantId);
 
-      const where: any = {
-        tenantId,
-      };
+    const [contactos, total] = await this.prisma.$transaction([
+      this.prisma.contacto.findMany({
+        where,
+        include: this.contactoInclude,
+        skip,
+        take: limit,
+        orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
+      }),
+      this.prisma.contacto.count({ where }),
+    ]);
 
-      // Search filter
-      if (search) {
-        where.OR = [
-          { nombre: { contains: search, mode: 'insensitive' } },
-          { rut: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-          { direccion: { contains: search, mode: 'insensitive' } },
-          { cargo: { contains: search, mode: 'insensitive' } },
-          { contacto: { contains: search, mode: 'insensitive' } },
-        ];
-      }
-
-      // Active filter
-      if (activo !== undefined) {
-        where.activo = typeof activo === 'string' ? activo === 'true' : activo;
-      }
-
-      // Person type filter
-      if (esPersonaNatural !== undefined) {
-        where.esPersonaNatural =
-          typeof esPersonaNatural === 'string'
-            ? esPersonaNatural === 'true'
-            : esPersonaNatural;
-      }
-
-      // Entidad filter
-      if (entidadId) {
-        where.entidadId = entidadId;
-      }
-
-      const [contactos, total] = await this.prisma.$transaction([
-        this.prisma.contacto.findMany({
-          where,
-          include: this.getContactoInclude(),
-          skip,
-          take: limitNumber,
-          orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
-        }),
-        this.prisma.contacto.count({ where }),
-      ]);
-
-      return {
-        contactos: contactos.map(
-          (contacto) => new ContactoResponseDto(contacto),
-        ),
-        total,
-      };
-    } catch (error) {
-      this.logger.error('Error fetching contactos:', error);
-      throw error;
-    }
+    return {
+      contactos: contactos.map((c) => new ContactoResponseDto(c)),
+      total,
+    };
   }
 
   async findOne(id: string, tenantId: string): Promise<ContactoResponseDto> {
-    try {
-      const contacto = await this.prisma.contacto.findFirst({
-        where: {
-          id,
-          tenantId,
-        },
-        include: this.getContactoInclude(),
-      });
+    const contacto = await this.prisma.contacto.findFirst({
+      where: { id, tenantId },
+      include: this.contactoInclude,
+    });
 
-      if (!contacto) {
-        throw new NotFoundException('Contacto not found');
-      }
+    if (!contacto) throw new NotFoundException('No se encontró el contacto');
 
-      return new ContactoResponseDto(contacto);
-    } catch (error) {
-      this.logger.error(`Error fetching contacto ${id}:`, error);
-      throw error;
-    }
+    return new ContactoResponseDto(contacto);
   }
 
   async create(
-    createContactoDto: CreateContactoDto,
+    dto: CreateContactoDto,
     tenantId: string,
   ): Promise<ContactoResponseDto> {
-    try {
-      // Check if RUT already exists for this tenant
-      const existingContacto = await this.prisma.contacto.findFirst({
-        where: {
-          rut: createContactoDto.rut,
-          tenantId,
-        },
+    if (dto.rut) {
+      const exists = await this.prisma.contacto.findFirst({
+        where: { rut: dto.rut, tenantId },
       });
+      if (exists)
+        throw new ConflictException('Ya existe un contacto con este RUT');
+    }
 
-      if (existingContacto) {
-        throw new ConflictException('Contacto with this RUT already exists');
-      }
-
-      // Verify comuna exists
+    if (dto.comunaId) {
       const comuna = await this.prisma.comuna.findUnique({
-        where: { id: createContactoDto.comunaId },
+        where: { id: dto.comunaId },
       });
+      if (!comuna) throw new BadRequestException('ComunaId no es válido');
+    }
 
-      if (!comuna) {
-        throw new BadRequestException('Invalid comunaId');
-      }
+    const syncData = this.getSyncFields(dto);
 
-      // Create entidad automatically for the contacto
-      const entidad = await this.prisma.entidad.create({
+    return this.prisma.$transaction(async (tx) => {
+      const entidad = await tx.entidad.create({
         data: {
-          nombre: createContactoDto.nombre,
-          rut: createContactoDto.rut,
+          nombre: dto.nombre,
+          rut: dto.rut ?? '',
+          email: dto.email ?? '',
+          telefono: dto.telefono ?? '',
+          direccion: dto.direccion ?? '',
+          comunaId: dto.comunaId ?? null,
           tipoEntidad: TipoEntidad.PERSONA,
-          comunaId: createContactoDto.comunaId,
-          contacto: createContactoDto.contacto,
-          email: createContactoDto.email || '',
-          telefono: createContactoDto.telefono || '',
-          direccion: createContactoDto.direccion || null,
+          contacto: dto.contacto,
           esPersona: true,
           activo: true,
           tenantId,
         },
       });
 
-      this.logger.log(`Entidad created for contacto: ${entidad.id}`);
-
-      const contactoData = this.prepareContactoData(
-        createContactoDto,
-        tenantId,
-        entidad.id,
-      );
-
-      const contacto = await this.prisma.contacto.create({
-        data: contactoData,
-        include: this.getContactoInclude(),
+      const contacto = await tx.contacto.create({
+        data: {
+          ...dto,
+          email: dto.email ?? null,
+          telefono: dto.telefono ?? null,
+          direccion: dto.direccion ?? null,
+          cargo: dto.cargo ?? null,
+          esPersonaNatural: dto.esPersonaNatural ?? true,
+          activo: true,
+          entidadId: entidad.id,
+          tenantId,
+        },
+        include: this.contactoInclude,
       });
 
-      this.logger.log(`Contacto created successfully: ${contacto.rut}`);
+      this.logger.log(
+        `Contacto y entidad: ${contacto.id} / ${entidad.id} creados exitosamente`,
+      );
       return new ContactoResponseDto(contacto);
-    } catch (error) {
-      this.logger.error('Error creating contacto:', error);
-      throw error;
-    }
+    });
   }
 
   async update(
     id: string,
-    updateContactoDto: UpdateContactoDto,
+    dto: UpdateContactoDto,
     tenantId: string,
   ): Promise<ContactoResponseDto> {
-    try {
-      // Verify contacto exists and belongs to tenant
-      const existingContacto = await this.prisma.contacto.findFirst({
-        where: { id, tenantId },
-        include: { entidad: true }, // Include entidad to update it too
+    const contacto = await this.prisma.contacto.findFirst({
+      where: { id, tenantId },
+      include: { entidad: true },
+    });
+
+    if (!contacto) throw new NotFoundException('No se encontró el contacto');
+
+    // RUT uniqueness check
+    if (dto.rut && dto.rut !== contacto.rut) {
+      const duplicate = await this.prisma.contacto.findFirst({
+        where: { rut: dto.rut, tenantId, id: { not: id } },
       });
+      if (duplicate)
+        throw new ConflictException('Ya existe un contacto con este RUT');
+    }
 
-      if (!existingContacto) {
-        throw new NotFoundException('Contacto not found');
-      }
+    // Validate comuna if provided
+    if (dto.comunaId) {
+      const comuna = await this.prisma.comuna.findUnique({
+        where: { id: dto.comunaId },
+      });
+      if (!comuna) throw new BadRequestException('comunaId no es válido');
+    }
 
-      // Check for RUT conflict if RUT is being updated
-      if (
-        updateContactoDto.rut &&
-        updateContactoDto.rut !== existingContacto.rut
-      ) {
-        const duplicateContacto = await this.prisma.contacto.findFirst({
-          where: {
-            rut: updateContactoDto.rut,
-            tenantId,
-            id: { not: id },
-          },
-        });
+    const syncData = this.getSyncFields(dto);
 
-        if (duplicateContacto) {
-          throw new ConflictException(
-            'Another contacto with this RUT already exists',
-          );
-        }
-      }
-
-      // Verify comuna exists if comunaId is being updated
-      if (updateContactoDto.comunaId) {
-        const comuna = await this.prisma.comuna.findUnique({
-          where: { id: updateContactoDto.comunaId },
-        });
-
-        if (!comuna) {
-          throw new BadRequestException('Invalid comunaId');
-        }
-      }
-
-      const updateData = this.prepareUpdateData(updateContactoDto);
-
-      // Use transaction to update both contacto and entidad
-      const [contacto] = await this.prisma.$transaction([
-        this.prisma.contacto.update({
+    return this.prisma.$transaction(async (tx) => {
+      const [updatedContacto] = await Promise.all([
+        tx.contacto.update({
           where: { id },
-          data: updateData,
-          include: this.getContactoInclude(),
-        }),
-        // Also update the associated entidad with the same data
-        this.prisma.entidad.update({
-          where: { id: existingContacto.entidadId },
           data: {
-            nombre:
-              updateContactoDto.nombre !== undefined
-                ? updateContactoDto.nombre
-                : undefined,
-            rut:
-              updateContactoDto.rut !== undefined
-                ? updateContactoDto.rut
-                : undefined,
-            email:
-              updateContactoDto.email !== undefined
-                ? updateContactoDto.email
-                : undefined,
-            telefono:
-              updateContactoDto.telefono !== undefined
-                ? updateContactoDto.telefono
-                : undefined,
-            direccion:
-              updateContactoDto.direccion !== undefined
-                ? updateContactoDto.direccion
-                : undefined,
-            comunaId:
-              updateContactoDto.comunaId !== undefined
-                ? updateContactoDto.comunaId
-                : undefined,
+            ...dto,
+            email: dto.email ?? undefined,
+            telefono: dto.telefono ?? undefined,
+            direccion: dto.direccion ?? undefined,
+            cargo: dto.cargo ?? undefined,
+          },
+          include: this.contactoInclude,
+        }),
+        tx.entidad.update({
+          where: { id: contacto.entidadId },
+          data: {
+            ...syncData,
+            // Only update these if explicitly provided
+            contacto: dto.contacto,
           },
         }),
       ]);
 
-      this.logger.log(`Contacto updated successfully: ${contacto.rut}`);
-      return new ContactoResponseDto(contacto);
-    } catch (error) {
-      this.logger.error(`Error updating contacto ${id}:`, error);
-      throw error;
-    }
+      this.logger.log(`Contacto y entidad: ${id} actualizados exitosamente`);
+      return new ContactoResponseDto(updatedContacto);
+    });
   }
 
   async remove(id: string, tenantId: string): Promise<{ message: string }> {
-    try {
-      // Verify contacto exists and belongs to tenant
-      const existingContacto = await this.prisma.contacto.findFirst({
-        where: { id, tenantId },
-      });
+    const contacto = await this.prisma.contacto.findFirst({
+      where: { id, tenantId },
+      select: { id: true, entidadId: true },
+    });
 
-      if (!existingContacto) {
-        throw new NotFoundException('Contacto not found');
-      }
+    if (!contacto) throw new NotFoundException('No se encontró el contacto');
 
-      // Check if contacto is used in retiros
-      const retirosCount = await this.prisma.retiro.count({
-        where: {
-          contactoRetiroId: id,
-        },
-      });
+    const usedInRetiros = await this.prisma.retiro.count({
+      where: { contactoRetiroId: id },
+    });
 
-      if (retirosCount > 0) {
-        throw new BadRequestException(
-          'Cannot deactivate contacto that is associated with retiros. Please update the retiros first.',
-        );
-      }
-
-      // Use transaction to deactivate both contacto and entidad
-      await this.prisma.$transaction([
-        // Soft delete contacto
-        this.prisma.contacto.update({
-          where: { id },
-          data: { activo: false },
-        }),
-        // Also deactivate the associated entidad
-        this.prisma.entidad.update({
-          where: { id: existingContacto.entidadId },
-          data: { activo: false },
-        }),
-      ]);
-
-      this.logger.log(`Contacto ${id} deactivated`);
-      return { message: 'Contacto deactivated successfully' };
-    } catch (error) {
-      this.logger.error(`Error deactivating contacto ${id}:`, error);
-      throw error;
+    if (usedInRetiros > 0) {
+      throw new BadRequestException(
+        'No se puede desactivar el contacto dado que se encuentra asociado a un retiro. Debe actualizar el retiro primero.',
+      );
     }
+
+    await this.prisma.$transaction([
+      this.prisma.contacto.update({
+        where: { id },
+        data: { activo: false },
+      }),
+      this.prisma.entidad.update({
+        where: { id: contacto.entidadId },
+        data: { activo: false },
+      }),
+    ]);
+
+    this.logger.log(`Se ha desactivado el contacto y entidad: ${id}`);
+    return { message: 'Contacto desactivado exitosamente' };
   }
 
   async findByRut(
     rut: string,
     tenantId: string,
   ): Promise<ContactoResponseDto | null> {
-    try {
-      const contacto = await this.prisma.contacto.findFirst({
-        where: {
-          rut,
-          tenantId,
-        },
-        include: this.getContactoInclude(),
-      });
+    const contacto = await this.prisma.contacto.findFirst({
+      where: { rut, tenantId },
+      include: this.contactoInclude,
+    });
 
-      return contacto ? new ContactoResponseDto(contacto) : null;
-    } catch (error) {
-      this.logger.error(`Error finding contacto by RUT ${rut}:`, error);
-      throw error;
-    }
+    return contacto ? new ContactoResponseDto(contacto) : null;
   }
 
   async findByEntidad(
     entidadId: string,
     tenantId: string,
   ): Promise<ContactoResponseDto[]> {
-    try {
-      const contactos = await this.prisma.contacto.findMany({
-        where: {
-          entidadId,
-          tenantId,
-          activo: true,
-        },
-        include: this.getContactoInclude(),
-        orderBy: { nombre: 'asc' },
-      });
+    const contactos = await this.prisma.contacto.findMany({
+      where: { entidadId, tenantId, activo: true },
+      include: this.contactoInclude,
+      orderBy: { nombre: 'asc' },
+    });
 
-      return contactos.map((contacto) => new ContactoResponseDto(contacto));
-    } catch (error) {
-      this.logger.error(
-        `Error fetching contactos for entidad ${entidadId}:`,
-        error,
-      );
-      throw error;
-    }
+    return contactos.map((c) => new ContactoResponseDto(c));
   }
 }

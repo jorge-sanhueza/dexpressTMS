@@ -61,7 +61,7 @@ export class ClientsService {
                 provincia: true,
               },
             },
-            entidad: true, // NEW: Include entidad relation
+            entidad: true,
           },
           skip,
           take: limitNumber,
@@ -94,7 +94,7 @@ export class ClientsService {
               provincia: true,
             },
           },
-          entidad: true, // NEW: Include entidad relation
+          entidad: true,
         },
       });
 
@@ -158,7 +158,7 @@ export class ClientsService {
             direccion: createClientDto.direccion,
             comunaId: createClientDto.comunaId,
             esPersona: createClientDto.esPersona ?? false,
-            tipoEntidad: TipoEntidad.CLIENTE, // Update type if needed
+            tipoEntidad: TipoEntidad.CLIENTE,
             activo: true, // Reactivate if was inactive
           },
         });
@@ -209,7 +209,7 @@ export class ClientsService {
               provincia: true,
             },
           },
-          entidad: true, // NEW: Include entidad relation
+          entidad: true, // Include entidad to check if it exists
         },
       });
 
@@ -231,7 +231,7 @@ export class ClientsService {
       const existingClient = await this.prisma.cliente.findFirst({
         where: { id, tenantId },
         include: {
-          entidad: true, // NEW: Include entidad to check if it exists
+          entidad: true, // Include entidad to check if it exists
         },
       });
 
@@ -267,7 +267,7 @@ export class ClientsService {
         }
       }
 
-      // NEW: Also update the linked Entidad if it exists
+      // Also update the linked Entidad if it exists
       if (existingClient.entidadId) {
         await this.prisma.entidad.update({
           where: {
@@ -309,7 +309,7 @@ export class ClientsService {
               provincia: true,
             },
           },
-          entidad: true, // NEW: Include entidad relation
+          entidad: true, // Include entidad relation
         },
       });
 
@@ -332,7 +332,7 @@ export class ClientsService {
         throw new NotFoundException('Client not found');
       }
 
-      // NEW: Use transaction to deactivate both Cliente and Entidad
+      // Use transaction to deactivate both Cliente and Entidad
       await this.prisma.$transaction([
         // Soft delete cliente
         this.prisma.cliente.update({
@@ -374,7 +374,7 @@ export class ClientsService {
               provincia: true,
             },
           },
-          entidad: true, // NEW: Include entidad relation
+          entidad: true, // Include entidad relation
         },
       });
 
@@ -385,7 +385,6 @@ export class ClientsService {
     }
   }
 
-  // In your ClientsService, add this method:
   async getStats(tenantId: string): Promise<ClientStatsDto> {
     try {
       // Get total count

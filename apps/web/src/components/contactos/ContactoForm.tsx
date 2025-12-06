@@ -41,7 +41,7 @@ export const ContactoForm: React.FC<ContactoFormProps> = ({
     reset,
   } = useForm<CreateContactoData & { comuna?: Comuna | null }>({
     defaultValues: {
-      esPersonaNatural: true,
+      esPersonaNatural: false,
     },
   });
 

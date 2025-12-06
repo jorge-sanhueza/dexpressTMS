@@ -164,7 +164,7 @@ export const RolesTable: React.FC<RolesTableProps> = React.memo(
                   Editar
                 </Button>
               )}
-              {canDelete && role.codigo !== "admin_access" && (
+              {canDelete && role.codigo !== "admin_access" && role.activo && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button

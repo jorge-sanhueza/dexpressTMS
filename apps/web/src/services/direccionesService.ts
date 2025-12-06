@@ -4,6 +4,7 @@ import type {
   Direccion,
   DireccionesFilter,
   DireccionesResponse,
+  GeocodingResponse,
 } from "../types/direccion";
 import { API_BASE } from "./apiConfig";
 import { apiClient } from "../lib/api-client";
@@ -56,7 +57,14 @@ class DireccionesService {
 
   async createDireccion(direccionData: CreateDireccionDto): Promise<Direccion> {
     try {
-      const response = await apiClient.post(this.baseUrl, direccionData);
+      // Set default values
+      const dataWithDefaults = {
+        ...direccionData,
+        frecuencia: direccionData.frecuencia || 1,
+        origen: direccionData.origen || "MANUAL",
+      };
+
+      const response = await apiClient.post(this.baseUrl, dataWithDefaults);
       return this.handleApiResponse<Direccion>(response);
     } catch (error) {
       console.error("Error creating direccion:", error);
@@ -116,14 +124,91 @@ class DireccionesService {
 
   async incrementFrequency(id: string): Promise<void> {
     try {
-      // Note: This would need a separate endpoint in your backend
-      // For now, we'll handle frequency updates during usage
       await this.updateDireccion(id, {
-        frecuencia: { increment: 1 } as any, // This will be handled by the update
+        frecuencia: { increment: 1 } as any,
       });
     } catch (error) {
       console.error("Error incrementing frequency:", error);
       throw error;
+    }
+  }
+
+  // New method to geocode an address
+  async geocodeAddress(
+    direccionTexto: string,
+    comunaId?: string
+  ): Promise<GeocodingResponse> {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append("direccion", direccionTexto);
+      if (comunaId) queryParams.append("comunaId", comunaId);
+
+      const response = await apiClient.get(
+        `${this.baseUrl}/geocode?${queryParams.toString()}`
+      );
+      return this.handleApiResponse<GeocodingResponse>(response);
+    } catch (error) {
+      console.error("Error geocoding address:", error);
+      throw error;
+    }
+  }
+
+  // New method to reverse geocode coordinates
+  async reverseGeocode(
+    latitud: number,
+    longitud: number
+  ): Promise<GeocodingResponse> {
+    try {
+      const response = await apiClient.get(
+        `${this.baseUrl}/reverse-geocode?latitud=${latitud}&longitud=${longitud}`
+      );
+      return this.handleApiResponse<GeocodingResponse>(response);
+    } catch (error) {
+      console.error("Error reverse geocoding:", error);
+      throw error;
+    }
+  }
+
+  async getCoordinatesFromAddress(
+    address: string,
+    comunaId?: string
+  ): Promise<{ latitud: number; longitud: number; address?: string }> {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append("address", address);
+      if (comunaId) queryParams.append("comunaId", comunaId);
+
+      // This would call your backend which integrates with Google Maps API
+      const response = await apiClient.get(
+        `${this.baseUrl}/geocode?${queryParams}`
+      );
+      return this.handleApiResponse<{
+        latitud: number;
+        longitud: number;
+        address?: string;
+      }>(response);
+    } catch (error) {
+      console.error("Error getting coordinates:", error);
+      throw error;
+    }
+  }
+
+  async validateCoordinates(
+    latitud: number,
+    longitud: number
+  ): Promise<boolean> {
+    try {
+      const response = await apiClient.get(
+        `${this.baseUrl}/validate-coordinates?latitud=${latitud}&longitud=${longitud}`
+      );
+      const result = await this.handleApiResponse<{
+        valid: boolean;
+        address?: string;
+      }>(response);
+      return result.valid;
+    } catch (error) {
+      console.error("Error validating coordinates:", error);
+      return false;
     }
   }
 }

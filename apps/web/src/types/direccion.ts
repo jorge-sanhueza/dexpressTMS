@@ -87,3 +87,14 @@ export interface DireccionesResponse {
   limit: number;
   totalPages: number;
 }
+
+export interface Coordinates {
+  latitud: number;
+  longitud: number;
+}
+
+export interface GeocodingResponse {
+  latitud: number;
+  longitud: number;
+  direccionFormateada: string;
+}

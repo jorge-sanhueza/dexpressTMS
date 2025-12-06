@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { ContactoDetailsModal } from "./ContactoDetailsModal";
 
 export const ContactosList: React.FC = () => {
   // ========== STATE HOOKS ==========
@@ -63,6 +64,7 @@ export const ContactosList: React.FC = () => {
     contactoId: null,
     contactoName: "",
   });
+  const [viewingContacto, setViewingContacto] = useState<Contacto | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -245,8 +247,11 @@ export const ContactosList: React.FC = () => {
   };
 
   const handleView = (contacto: Contacto) => {
-    // You can implement a view modal similar to ClientViewModal
-    console.log("View contacto:", contacto);
+    setViewingContacto(contacto);
+  };
+
+  const handleCloseView = () => {
+    setViewingContacto(null);
   };
 
   // Activation/Deactivation handlers
@@ -589,6 +594,13 @@ export const ContactosList: React.FC = () => {
       </div>
 
       {/* Modals */}
+      {viewingContacto && (
+        <ContactoDetailsModal
+          contacto={viewingContacto}
+          isOpen={!!viewingContacto}
+          onClose={handleCloseView}
+        />
+      )}
       {isCreateModalOpen && (
         <ContactoForm
           onSubmit={handleCreateSubmit}

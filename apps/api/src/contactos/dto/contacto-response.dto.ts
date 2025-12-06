@@ -4,7 +4,7 @@ export class ContactoResponseDto {
   rut: string;
   email?: string;
   telefono?: string;
-  direccion?: string; // Added as optional
+  direccion?: string;
   cargo?: string;
   contacto?: string;
   esPersonaNatural: boolean;
@@ -21,7 +21,7 @@ export class ContactoResponseDto {
     nombre: string;
     rut: string;
     tipoEntidad: string;
-    direccion?: string; // Also add to entidad relation if needed
+    direccion?: string;
   };
 
   comuna?: {
@@ -43,7 +43,7 @@ export class ContactoResponseDto {
     this.rut = contacto.rut;
     this.email = contacto.email;
     this.telefono = contacto.telefono;
-    this.direccion = contacto.direccion; // Added
+    this.direccion = contacto.direccion;
     this.cargo = contacto.cargo;
     this.contacto = contacto.contacto;
     this.esPersonaNatural = contacto.esPersonaNatural;
