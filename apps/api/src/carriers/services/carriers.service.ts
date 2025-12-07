@@ -10,265 +10,248 @@ import { CreateCarrierDto } from '../dto/create-carrier.dto';
 import { UpdateCarrierDto } from '../dto/update-carrier.dto';
 import { CarriersFilterDto } from '../dto/carriers-filter.dto';
 import { CarrierResponseDto } from '../dto/carrier-response.dto';
-import { TipoEntidad } from '@prisma/client';
+import { TipoEntidad, Prisma } from '@prisma/client';
 import { CarrierStatsDto } from '../dto/carrier-stats.dto';
 
 @Injectable()
 export class CarriersService {
   private readonly logger = new Logger(CarriersService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
+
+  // Reusable include for consistent relations
+  private readonly carrierInclude = {
+    comuna: {
+      include: {
+        provincia: {
+          include: {
+            region: true,
+          },
+        },
+      },
+    },
+    equipos: {
+      where: { activo: true },
+      include: {
+        tipoEquipo: {
+          select: { id: true, nombre: true },
+        },
+        modeloTransporte: {
+          select: { id: true, nombre: true, tipoModelo: true },
+        },
+      },
+      orderBy: { nombre: 'asc' },
+    },
+    entidad: true,
+  } satisfies Prisma.CarrierInclude;
+
+  // Format RUT for consistency
+  private formatRut(rut: string): string {
+    const cleanRut = rut.replace(/[^0-9Kk]/g, '').toUpperCase();
+
+    if (cleanRut.length >= 2) {
+      const body = cleanRut.slice(0, -1);
+      const verifier = cleanRut.slice(-1);
+      return `${body}-${verifier}`;
+    }
+
+    return cleanRut;
+  }
+
+  // Build dynamic WHERE clause
+  private buildWhereClause(
+    filter: CarriersFilterDto,
+    tenantId: string,
+  ): Prisma.CarrierWhereInput {
+    const where: Prisma.CarrierWhereInput = { tenantId };
+
+    if (filter.search) {
+      const searchTerm = filter.search.trim();
+      where.OR = [
+        { nombre: { contains: searchTerm, mode: 'insensitive' } },
+        { razonSocial: { contains: searchTerm, mode: 'insensitive' } },
+        { rut: { contains: searchTerm, mode: 'insensitive' } },
+        { contacto: { contains: searchTerm, mode: 'insensitive' } },
+        { email: { contains: searchTerm, mode: 'insensitive' } },
+      ];
+    }
+
+    if (filter.activo !== undefined) {
+      where.activo = filter.activo;
+    }
+
+    if (filter.esPersona !== undefined) {
+      where.esPersona = filter.esPersona;
+    }
+
+    return where;
+  }
+
+  // Shared fields to sync between Carrier and Entidad
+  private getSyncFields(
+    dto: CreateCarrierDto | UpdateCarrierDto,
+    isPersona: boolean = false,
+  ) {
+    // Determine the correct name field based on esPersona
+    const nombre = dto.nombre || dto.razonSocial || '';
+    const razonSocial = !isPersona ? dto.razonSocial || nombre : null;
+
+    const fields: Record<string, any> = {
+      nombre: nombre,
+      razonSocial: razonSocial,
+      rut: 'rut' in dto && dto.rut ? this.formatRut(dto.rut) : undefined,
+      contacto: 'contacto' in dto ? dto.contacto : undefined,
+      email: 'email' in dto ? dto.email : undefined,
+      telefono: 'telefono' in dto ? dto.telefono : undefined,
+      direccion: 'direccion' in dto ? dto.direccion : undefined,
+      comunaId: 'comunaId' in dto ? dto.comunaId : undefined,
+      esPersona: 'esPersona' in dto ? dto.esPersona : undefined,
+      activo: 'activo' in dto ? dto.activo : undefined,
+    };
+
+    return Object.fromEntries(
+      Object.entries(fields).filter(([, v]) => v !== undefined),
+    );
+  }
 
   async findAll(
     filter: CarriersFilterDto,
     tenantId: string,
   ): Promise<{ carriers: CarrierResponseDto[]; total: number }> {
-    try {
-      const { search, activo, esPersona, page = 1, limit = 10 } = filter;
+    const page = filter.page ?? 1;
+    const limit = filter.limit ?? 10;
+    const skip = (page - 1) * limit;
 
-      const pageNumber = typeof page === 'string' ? parseInt(page, 10) : page;
-      const limitNumber =
-        typeof limit === 'string' ? parseInt(limit, 10) : limit;
-      const skip = (pageNumber - 1) * limitNumber;
+    const where = this.buildWhereClause(filter, tenantId);
 
-      const where: any = {
-        tenantId,
-      };
+    const [carriers, total] = await this.prisma.$transaction([
+      this.prisma.carrier.findMany({
+        where,
+        include: this.carrierInclude,
+        skip,
+        take: limit,
+        orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
+      }),
+      this.prisma.carrier.count({ where }),
+    ]);
 
-      // Search filter
-      if (search) {
-        where.OR = [
-          { nombre: { contains: search, mode: 'insensitive' } },
-          { razonSocial: { contains: search, mode: 'insensitive' } },
-          { rut: { contains: search, mode: 'insensitive' } },
-          { contacto: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ];
-      }
-
-      // Active filter
-      if (activo !== undefined) {
-        where.activo = typeof activo === 'string' ? activo === 'true' : activo;
-      }
-
-      // Person type filter
-      if (esPersona !== undefined) {
-        where.esPersona =
-          typeof esPersona === 'string' ? esPersona === 'true' : esPersona;
-      }
-
-      const [carriers, total] = await this.prisma.$transaction([
-        this.prisma.carrier.findMany({
-          where,
-          include: {
-            comuna: {
-              include: {
-                provincia: {
-                  include: {
-                    region: true,
-                  },
-                },
-              },
-            },
-            equipos: {
-              where: { activo: true },
-              include: {
-                tipoEquipo: {
-                  select: { id: true, nombre: true },
-                },
-                modeloTransporte: {
-                  select: { id: true, nombre: true, tipoModelo: true },
-                },
-              },
-              orderBy: { nombre: 'asc' },
-            },
-            entidad: true,
-          },
-          skip,
-          take: limitNumber,
-          orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
-        }),
-        this.prisma.carrier.count({ where }),
-      ]);
-
-      return {
-        carriers: carriers.map((carrier) => new CarrierResponseDto(carrier)),
-        total,
-      };
-    } catch (error) {
-      this.logger.error('Error fetching carriers:', error);
-      throw error;
-    }
+    return {
+      carriers: carriers.map((carrier) => new CarrierResponseDto(carrier)),
+      total,
+    };
   }
 
   async findOne(id: string, tenantId: string): Promise<CarrierResponseDto> {
-    try {
-      const carrier = await this.prisma.carrier.findFirst({
-        where: {
-          id,
-          tenantId,
-        },
-        include: {
-          comuna: {
-            include: {
-              provincia: {
-                include: {
-                  region: true,
-                },
-              },
-            },
-          },
-          equipos: {
-            where: { activo: true },
-            include: {
-              tipoEquipo: {
-                select: { id: true, nombre: true },
-              },
-              modeloTransporte: {
-                select: { id: true, nombre: true, tipoModelo: true },
-              },
-            },
-            orderBy: { nombre: 'asc' },
-          },
-          entidad: true,
-        },
-      });
+    const carrier = await this.prisma.carrier.findFirst({
+      where: { id, tenantId },
+      include: this.carrierInclude,
+    });
 
-      if (!carrier) {
-        throw new NotFoundException('Carrier not found');
-      }
-
-      return new CarrierResponseDto(carrier);
-    } catch (error) {
-      this.logger.error(`Error fetching carrier ${id}:`, error);
-      throw error;
+    if (!carrier) {
+      throw new NotFoundException('Carrier no encontrado');
     }
+
+    return new CarrierResponseDto(carrier);
   }
 
   async create(
     createCarrierDto: CreateCarrierDto,
     tenantId: string,
   ): Promise<CarrierResponseDto> {
-    try {
-      // Check if RUT already exists for this tenant in Carrier
-      const existingCarrier = await this.prisma.carrier.findFirst({
-        where: {
-          rut: createCarrierDto.rut,
-          tenantId,
-        },
-      });
+    // Format RUT
+    const formattedRut = this.formatRut(createCarrierDto.rut);
 
-      if (existingCarrier) {
-        throw new ConflictException('Carrier with this RUT already exists');
-      }
+    // Check RUT uniqueness in Carrier
+    const existingCarrier = await this.prisma.carrier.findFirst({
+      where: { rut: formattedRut, tenantId },
+    });
 
-      // Verify comuna exists
-      const comuna = await this.prisma.comuna.findUnique({
-        where: { id: createCarrierDto.comunaId },
-      });
+    if (existingCarrier) {
+      throw new ConflictException('Ya existe un carrier con este RUT');
+    }
 
-      if (!comuna) {
-        throw new BadRequestException('Invalid comunaId');
-      }
+    // Validate comuna
+    const comuna = await this.prisma.comuna.findUnique({
+      where: { id: createCarrierDto.comunaId },
+    });
 
-      // NEW: Check if Entidad already exists
-      const existingEntidad = await this.prisma.entidad.findFirst({
-        where: {
-          rut: createCarrierDto.rut,
-          tenantId,
-        },
+    if (!comuna) {
+      throw new BadRequestException('comunaId no es válido');
+    }
+
+    const esPersona = createCarrierDto.esPersona ?? false;
+    const syncData = this.getSyncFields(createCarrierDto, esPersona);
+
+    return this.prisma.$transaction(async (tx) => {
+      // Try to find existing Entidad
+      const existingEntidad = await tx.entidad.findFirst({
+        where: { rut: formattedRut, tenantId },
       });
 
       let entidadId: string;
 
       if (existingEntidad) {
-        // Update existing Entidad to ensure data consistency
-        await this.prisma.entidad.update({
+        // Update existing Entidad with sync data
+        await tx.entidad.update({
           where: { id: existingEntidad.id },
           data: {
-            nombre: createCarrierDto.nombre || createCarrierDto.razonSocial,
-            razonSocial: createCarrierDto.razonSocial,
-            contacto: createCarrierDto.contacto,
-            email: createCarrierDto.email,
-            telefono: createCarrierDto.telefono,
-            direccion: createCarrierDto.direccion,
-            comunaId: createCarrierDto.comunaId,
-            esPersona: createCarrierDto.esPersona ?? false,
+            ...syncData,
             tipoEntidad: TipoEntidad.CARRIER,
             activo: true,
           },
         });
         entidadId = existingEntidad.id;
-        this.logger.log(`Linked to existing Entidad: ${existingEntidad.rut}`);
+        this.logger.log(
+          `Reutilizando entidad existente: ${existingEntidad.id}`,
+        );
       } else {
-        // Create new Entidad
-        const newEntidad = await this.prisma.entidad.create({
+        // Create new Entidad - only provide fields that are present
+        const newEntidad = await tx.entidad.create({
           data: {
-            nombre: createCarrierDto.nombre || createCarrierDto.razonSocial,
-            razonSocial: createCarrierDto.razonSocial,
-            rut: createCarrierDto.rut,
+            // Required fields
+            rut: formattedRut,
             contacto: createCarrierDto.contacto,
             email: createCarrierDto.email,
             telefono: createCarrierDto.telefono,
-            direccion: createCarrierDto.direccion,
             comunaId: createCarrierDto.comunaId,
-            esPersona: createCarrierDto.esPersona ?? false,
-            activo: true,
-            tipoEntidad: TipoEntidad.CARRIER,
             tenantId,
+            tipoEntidad: TipoEntidad.CARRIER,
+            activo: true,
+            // Optional fields (from syncData)
+            nombre: syncData.nombre,
+            razonSocial: syncData.razonSocial,
+            direccion: syncData.direccion,
+            esPersona,
           },
         });
         entidadId = newEntidad.id;
       }
 
-      // Create Carrier with entidadId link
-      const carrier = await this.prisma.carrier.create({
+      // Create Carrier
+      const carrier = await tx.carrier.create({
         data: {
           nombre: createCarrierDto.nombre,
           razonSocial: createCarrierDto.razonSocial,
-          rut: createCarrierDto.rut,
+          rut: formattedRut,
           contacto: createCarrierDto.contacto,
           email: createCarrierDto.email,
           telefono: createCarrierDto.telefono,
           direccion: createCarrierDto.direccion,
           comunaId: createCarrierDto.comunaId,
-          esPersona: createCarrierDto.esPersona ?? false,
+          esPersona,
           activo: true,
           tipoEntidad: TipoEntidad.CARRIER,
           tenantId,
-          entidadId: entidadId,
+          entidadId,
         },
-        include: {
-          comuna: {
-            include: {
-              provincia: {
-                include: {
-                  region: true,
-                },
-              },
-            },
-          },
-          equipos: {
-            where: { activo: true },
-            include: {
-              tipoEquipo: {
-                select: { id: true, nombre: true },
-              },
-              modeloTransporte: {
-                select: { id: true, nombre: true, tipoModelo: true },
-              },
-            },
-          },
-          entidad: true,
-        },
+        include: this.carrierInclude,
       });
 
-      this.logger.log(`Carrier created successfully: ${carrier.rut}`);
+      this.logger.log(
+        `Carrier creado: ${formattedRut} (Entidad: ${entidadId})`,
+      );
       return new CarrierResponseDto(carrier);
-    } catch (error) {
-      this.logger.error('Error creating carrier:', error);
-      throw error;
-    }
+    });
   }
 
   async update(
@@ -276,236 +259,217 @@ export class CarriersService {
     updateCarrierDto: UpdateCarrierDto,
     tenantId: string,
   ): Promise<CarrierResponseDto> {
-    try {
-      // Verify carrier exists and belongs to tenant
-      const existingCarrier = await this.prisma.carrier.findFirst({
-        where: { id, tenantId },
-      });
+    const carrier = await this.prisma.carrier.findFirst({
+      where: { id, tenantId },
+      include: { entidad: true },
+    });
 
-      if (!existingCarrier) {
-        throw new NotFoundException('Carrier not found');
-      }
-
-      // Check for RUT conflict if RUT is being updated
-      if (
-        updateCarrierDto.rut &&
-        updateCarrierDto.rut !== existingCarrier.rut
-      ) {
-        const duplicateCarrier = await this.prisma.carrier.findFirst({
-          where: {
-            rut: updateCarrierDto.rut,
-            tenantId,
-            id: { not: id },
-          },
-        });
-
-        if (duplicateCarrier) {
-          throw new ConflictException(
-            'Another carrier with this RUT already exists',
-          );
-        }
-      }
-
-      // Verify comuna exists if comunaId is being updated
-      if (updateCarrierDto.comunaId) {
-        const comuna = await this.prisma.comuna.findUnique({
-          where: { id: updateCarrierDto.comunaId },
-        });
-
-        if (!comuna) {
-          throw new BadRequestException('Invalid comunaId');
-        }
-      }
-
-      //Also update the linked Entidad if it exists
-      if (existingCarrier.entidadId) {
-        await this.prisma.entidad.updateMany({
-          where: {
-            id: existingCarrier.entidadId,
-            tenantId,
-          },
-          data: {
-            ...(updateCarrierDto.nombre && { nombre: updateCarrierDto.nombre }),
-            ...(updateCarrierDto.razonSocial && {
-              razonSocial: updateCarrierDto.razonSocial,
-            }),
-            ...(updateCarrierDto.rut && { rut: updateCarrierDto.rut }),
-            ...(updateCarrierDto.contacto && {
-              contacto: updateCarrierDto.contacto,
-            }),
-            ...(updateCarrierDto.email && { email: updateCarrierDto.email }),
-            ...(updateCarrierDto.telefono && {
-              telefono: updateCarrierDto.telefono,
-            }),
-            ...(updateCarrierDto.direccion && {
-              direccion: updateCarrierDto.direccion,
-            }),
-            ...(updateCarrierDto.comunaId && {
-              comunaId: updateCarrierDto.comunaId,
-            }),
-            ...(updateCarrierDto.esPersona !== undefined && {
-              esPersona: updateCarrierDto.esPersona,
-            }),
-          },
-        });
-      }
-
-      const carrier = await this.prisma.carrier.update({
-        where: { id },
-        data: updateCarrierDto,
-        include: {
-          comuna: {
-            include: {
-              provincia: {
-                include: {
-                  region: true,
-                },
-              },
-            },
-          },
-          equipos: {
-            where: { activo: true },
-            include: {
-              tipoEquipo: {
-                select: { id: true, nombre: true },
-              },
-              modeloTransporte: {
-                select: { id: true, nombre: true, tipoModelo: true },
-              },
-            },
-          },
-          entidad: true,
-        },
-      });
-
-      this.logger.log(`Carrier updated successfully: ${carrier.rut}`);
-      return new CarrierResponseDto(carrier);
-    } catch (error) {
-      this.logger.error(`Error updating carrier ${id}:`, error);
-      throw error;
+    if (!carrier) {
+      throw new NotFoundException('Carrier no encontrado');
     }
+
+    // RUT uniqueness check
+    if (updateCarrierDto.rut && updateCarrierDto.rut !== carrier.rut) {
+      const formattedRut = this.formatRut(updateCarrierDto.rut);
+      const duplicate = await this.prisma.carrier.findFirst({
+        where: { rut: formattedRut, tenantId, id: { not: id } },
+      });
+
+      if (duplicate) {
+        throw new ConflictException('Ya existe otro carrier con este RUT');
+      }
+    }
+
+    // Validate comuna if provided
+    if (updateCarrierDto.comunaId) {
+      const comuna = await this.prisma.comuna.findUnique({
+        where: { id: updateCarrierDto.comunaId },
+      });
+
+      if (!comuna) {
+        throw new BadRequestException('comunaId no es válido');
+      }
+    }
+
+    const esPersona =
+      updateCarrierDto.esPersona !== undefined
+        ? updateCarrierDto.esPersona
+        : carrier.esPersona;
+
+    const syncData = this.getSyncFields(updateCarrierDto, esPersona);
+
+    return this.prisma.$transaction(async (tx) => {
+      // Prepare carrier update data - handle undefined vs null for optional fields
+      const carrierUpdateData: Prisma.CarrierUpdateInput = {};
+
+      // Handle optional string fields (nombre, razonSocial, direccion)
+      if (updateCarrierDto.nombre !== undefined) {
+        carrierUpdateData.nombre = updateCarrierDto.nombre;
+      }
+      if (updateCarrierDto.razonSocial !== undefined) {
+        carrierUpdateData.razonSocial = updateCarrierDto.razonSocial;
+      }
+      if (updateCarrierDto.rut !== undefined) {
+        carrierUpdateData.rut = this.formatRut(updateCarrierDto.rut);
+      }
+      if (updateCarrierDto.contacto !== undefined) {
+        carrierUpdateData.contacto = updateCarrierDto.contacto;
+      }
+      if (updateCarrierDto.email !== undefined) {
+        carrierUpdateData.email = updateCarrierDto.email;
+      }
+      if (updateCarrierDto.telefono !== undefined) {
+        carrierUpdateData.telefono = updateCarrierDto.telefono;
+      }
+      if (updateCarrierDto.direccion !== undefined) {
+        carrierUpdateData.direccion = updateCarrierDto.direccion;
+      }
+      if (updateCarrierDto.comunaId !== undefined) {
+        carrierUpdateData.comuna = {
+          connect: { id: updateCarrierDto.comunaId },
+        };
+      }
+      if (updateCarrierDto.activo !== undefined) {
+        carrierUpdateData.activo = updateCarrierDto.activo;
+      }
+      if (updateCarrierDto.esPersona !== undefined) {
+        carrierUpdateData.esPersona = updateCarrierDto.esPersona;
+      }
+
+      const [updatedCarrier] = await Promise.all([
+        tx.carrier.update({
+          where: { id },
+          data: carrierUpdateData,
+          include: this.carrierInclude,
+        }),
+        // Update linked Entidad if exists and there are fields to sync
+        carrier.entidadId && Object.keys(syncData).length > 0
+          ? tx.entidad.update({
+              where: { id: carrier.entidadId },
+              data: {
+                ...syncData,
+                tipoEntidad: TipoEntidad.CARRIER,
+              },
+            })
+          : Promise.resolve(),
+      ]);
+
+      this.logger.log(`Carrier actualizado: ${updatedCarrier.rut}`);
+      return new CarrierResponseDto(updatedCarrier);
+    });
   }
 
   async remove(id: string, tenantId: string): Promise<{ message: string }> {
-    try {
-      // Verify carrier exists and belongs to tenant
-      const existingCarrier = await this.prisma.carrier.findFirst({
-        where: { id, tenantId },
-      });
+    const carrier = await this.prisma.carrier.findFirst({
+      where: { id, tenantId },
+      select: {
+        id: true,
+        entidadId: true,
+        rut: true,
+        nombre: true,
+      },
+    });
 
-      if (!existingCarrier) {
-        throw new NotFoundException('Carrier not found');
-      }
-
-      // Check if carrier has active equipment
-      const activeEquipment = await this.prisma.equipo.findFirst({
-        where: {
-          carrierId: id,
-          activo: true,
-        },
-      });
-
-      if (activeEquipment) {
-        throw new BadRequestException(
-          'Cannot deactivate carrier with active equipment. Please deactivate all equipment first.',
-        );
-      }
-
-      // Use transaction to deactivate both Carrier and Entidad
-      await this.prisma.$transaction([
-        // Soft delete carrier
-        this.prisma.carrier.update({
-          where: { id },
-          data: { activo: false },
-        }),
-        // Soft delete corresponding entidad if it exists
-        ...(existingCarrier.entidadId
-          ? [
-              this.prisma.entidad.update({
-                where: { id: existingCarrier.entidadId },
-                data: { activo: false },
-              }),
-            ]
-          : []),
-      ]);
-
-      this.logger.log(`Carrier ${id} and corresponding Entity deactivated`);
-      return { message: 'Carrier deactivated successfully' };
-    } catch (error) {
-      this.logger.error(`Error deactivating carrier ${id}:`, error);
-      throw error;
+    if (!carrier) {
+      throw new NotFoundException('Carrier no encontrado');
     }
+
+    // Check for active equipment
+    const activeEquipment = await this.prisma.equipo.findFirst({
+      where: { carrierId: id, activo: true },
+    });
+
+    if (activeEquipment) {
+      throw new BadRequestException(
+        'No se puede desactivar un carrier con equipos activos. Desactive los equipos primero.',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.carrier.update({
+        where: { id },
+        data: { activo: false },
+      });
+
+      if (carrier.entidadId) {
+        await tx.entidad.update({
+          where: { id: carrier.entidadId },
+          data: { activo: false },
+        });
+      }
+    });
+
+    this.logger.log(`Carrier desactivado: ${carrier.rut} (${carrier.nombre})`);
+    return { message: 'Carrier desactivado exitosamente' };
   }
 
   async findByRut(
     rut: string,
     tenantId: string,
   ): Promise<CarrierResponseDto | null> {
-    try {
-      const carrier = await this.prisma.carrier.findFirst({
-        where: {
-          rut,
-          tenantId,
-        },
-        include: {
-          comuna: {
-            include: {
-              provincia: {
-                include: {
-                  region: true,
-                },
-              },
-            },
-          },
-          equipos: {
-            where: { activo: true },
-            include: {
-              tipoEquipo: {
-                select: { id: true, nombre: true },
-              },
-              modeloTransporte: {
-                select: { id: true, nombre: true, tipoModelo: true },
-              },
-            },
-          },
-          entidad: true,
-        },
-      });
+    const formattedRut = this.formatRut(rut);
 
-      return carrier ? new CarrierResponseDto(carrier) : null;
-    } catch (error) {
-      this.logger.error(`Error finding carrier by RUT ${rut}:`, error);
-      throw error;
-    }
+    const carrier = await this.prisma.carrier.findFirst({
+      where: { rut: formattedRut, tenantId },
+      include: this.carrierInclude,
+    });
+
+    return carrier ? new CarrierResponseDto(carrier) : null;
   }
+
   async getStats(tenantId: string): Promise<CarrierStatsDto> {
-    try {
-      const total = await this.prisma.carrier.count({
-        where: { tenantId },
-      });
+    const [total, activos, inactivos] = await this.prisma.$transaction([
+      this.prisma.carrier.count({ where: { tenantId } }),
+      this.prisma.carrier.count({ where: { tenantId, activo: true } }),
+      this.prisma.carrier.count({ where: { tenantId, activo: false } }),
+    ]);
 
-      const activos = await this.prisma.carrier.count({
-        where: {
-          tenantId,
-          activo: true,
-        },
-      });
+    return { total, activos, inactivos };
+  }
 
-      const inactivos = await this.prisma.carrier.count({
-        where: {
-          tenantId,
-          activo: false,
-        },
-      });
+  // Get carriers with active equipment stats
+  async getCarriersWithEquipmentStats(tenantId: string): Promise<
+    Array<{
+      id: string;
+      nombre: string;
+      rut: string;
+      totalEquipos: number;
+      equiposActivos: number;
+      equiposInactivos: number;
+    }>
+  > {
+    const carriers = await this.prisma.carrier.findMany({
+      where: { tenantId, activo: true },
+      select: {
+        id: true,
+        nombre: true,
+        rut: true,
+      },
+      orderBy: { nombre: 'asc' },
+    });
 
-      return {
-        total,
-        activos,
-        inactivos,
-      };
-    } catch (error) {
-      this.logger.error('Error fetching carrier stats:', error);
-      throw error;
-    }
+    const carriersWithStats = await Promise.all(
+      carriers.map(async (carrier) => {
+        const [totalEquipos, equiposActivos, equiposInactivos] =
+          await Promise.all([
+            this.prisma.equipo.count({ where: { carrierId: carrier.id } }),
+            this.prisma.equipo.count({
+              where: { carrierId: carrier.id, activo: true },
+            }),
+            this.prisma.equipo.count({
+              where: { carrierId: carrier.id, activo: false },
+            }),
+          ]);
+
+        return {
+          ...carrier,
+          totalEquipos,
+          equiposActivos,
+          equiposInactivos,
+        };
+      }),
+    );
+
+    return carriersWithStats;
   }
 }

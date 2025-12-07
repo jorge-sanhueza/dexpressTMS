@@ -4,7 +4,6 @@ import {
   Query,
   Param,
   UseGuards,
-  Request,
   Logger,
   ParseUUIDPipe,
 } from '@nestjs/common';
@@ -12,6 +11,7 @@ import { EntidadesService } from '../services/entidades.service';
 import { EntidadesFilterDto } from '../dto/entidades-filter.dto';
 import { EntidadResponseDto } from '../dto/entidad-response.dto';
 import { JwtGuard } from 'src/auth/guards/jwt.guard';
+import { TenantId } from 'src/common/decorators/tenant-id.decorator';
 
 @Controller('api/entidades')
 @UseGuards(JwtGuard)
@@ -20,23 +20,10 @@ export class EntidadesController {
 
   constructor(private readonly entidadesService: EntidadesService) {}
 
-  private getTenantId(req: any): string {
-    const tenantId =
-      req.user?.tenant_id || req.user?.tenantId || req.user?.tenant?.id;
-
-    this.logger.debug(`Extracted tenantId: ${tenantId}`);
-
-    if (!tenantId) {
-      throw new Error('Tenant ID not found in user object');
-    }
-
-    return tenantId;
-  }
-
   @Get()
   async findAll(
     @Query() filter: EntidadesFilterDto,
-    @Request() req,
+    @TenantId() tenantId: string,
   ): Promise<{
     entidades: EntidadResponseDto[];
     total: number;
@@ -44,26 +31,42 @@ export class EntidadesController {
     limit: number;
     totalPages: number;
   }> {
-    const tenantId = this.getTenantId(req);
     this.logger.log(`Fetching entidades for tenant: ${tenantId}`);
 
     const result = await this.entidadesService.findAll(filter, tenantId);
 
     return {
       ...result,
-      page: filter.page || 1,
-      limit: filter.limit || 10,
-      totalPages: Math.ceil(result.total / (filter.limit || 10)),
+      totalPages: Math.ceil(result.total / result.limit),
     };
   }
 
   @Get(':id')
   async findOne(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Request() req,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @TenantId() tenantId: string,
   ): Promise<EntidadResponseDto> {
-    const tenantId = this.getTenantId(req);
     this.logger.log(`Fetching entidad ${id} for tenant: ${tenantId}`);
     return this.entidadesService.findOne(id, tenantId);
+  }
+
+  @Get('rut/:rut')
+  async findByRut(
+    @Param('rut') rut: string,
+    @TenantId() tenantId: string,
+  ): Promise<EntidadResponseDto | null> {
+    this.logger.log(`Finding entidad by RUT: ${rut} for tenant: ${tenantId}`);
+    return this.entidadesService.findByRut(rut, tenantId);
+  }
+
+  @Get('stats/overview')
+  async getStats(@TenantId() tenantId: string): Promise<{
+    total: number;
+    activos: number;
+    inactivos: number;
+    porTipoEntidad: Record<string, number>;
+  }> {
+    this.logger.log(`Fetching entidad stats for tenant: ${tenantId}`);
+    return this.entidadesService.getStats(tenantId);
   }
 }
