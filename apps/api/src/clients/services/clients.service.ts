@@ -10,412 +10,365 @@ import { CreateClientDto } from '../dto/create-client.dto';
 import { UpdateClientDto } from '../dto/update-client.dto';
 import { ClientsFilterDto } from '../dto/clients-filter.dto';
 import { ClientResponseDto } from '../dto/client-response.dto';
-import { TipoEntidad } from '@prisma/client';
 import { ClientStatsDto } from '../dto/client-stats.dto';
+import { TipoEntidad, Prisma } from '@prisma/client';
 
 @Injectable()
 export class ClientsService {
   private readonly logger = new Logger(ClientsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
+
+  // Reusable include for consistent relations
+  private readonly clienteInclude = {
+    comuna: {
+      include: {
+        region: true,
+        provincia: true,
+      },
+    },
+    entidad: true,
+  } satisfies Prisma.ClienteInclude;
+
+  // Build dynamic WHERE clause
+  private buildWhereClause(
+    filter: ClientsFilterDto,
+    tenantId: string,
+  ): Prisma.ClienteWhereInput {
+    const where: Prisma.ClienteWhereInput = { tenantId };
+
+    if (filter.search) {
+      const search = filter.search.trim();
+      where.OR = [
+        { nombre: { contains: search, mode: 'insensitive' } },
+        { razonSocial: { contains: search, mode: 'insensitive' } },
+        { rut: { contains: search, mode: 'insensitive' } },
+        { contacto: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (filter.activo !== undefined) {
+      where.activo = filter.activo;
+    }
+
+    return where;
+  }
+
+  // Shared fields to sync between Cliente and Entidad
+  private getSyncFields(dto: CreateClientDto | UpdateClientDto) {
+    const fields = {
+      nombre: 'nombre' in dto ? dto.nombre : undefined,
+      razonSocial: 'razonSocial' in dto ? dto.razonSocial : undefined,
+      rut: 'rut' in dto ? dto.rut : undefined,
+      contacto: 'contacto' in dto ? dto.contacto : undefined,
+      email: 'email' in dto ? dto.email : undefined,
+      telefono: 'telefono' in dto ? dto.telefono : undefined,
+      direccion: 'direccion' in dto ? dto.direccion : undefined,
+      comunaId: 'comunaId' in dto ? dto.comunaId : undefined,
+      esPersona: 'esPersona' in dto ? dto.esPersona : undefined,
+      activo: 'activo' in dto ? dto.activo : undefined,
+    };
+
+    return Object.fromEntries(
+      Object.entries(fields).filter(([, v]) => v !== undefined),
+    );
+  }
+
+  private determineNombreField(
+    dto: CreateClientDto | UpdateClientDto,
+  ): string | undefined {
+    // If esPersona is explicitly provided, use it
+    const isPersona = 'esPersona' in dto ? dto.esPersona : undefined;
+
+    if (isPersona === true) {
+      return dto.nombre;
+    } else if (isPersona === false) {
+      return dto.razonSocial;
+    }
+
+    // If esPersona is not provided, infer from which field is present
+    if (dto.nombre && !dto.razonSocial) {
+      return dto.nombre;
+    } else if (dto.razonSocial && !dto.nombre) {
+      return dto.razonSocial;
+    }
+
+    // If both are present, we need additional logic based on your business rules
+    // For now, default to nombre if present
+    return dto.nombre || dto.razonSocial;
+  }
 
   async findAll(
     filter: ClientsFilterDto,
     tenantId: string,
   ): Promise<{ clients: ClientResponseDto[]; total: number }> {
-    try {
-      const { search, activo, page = 1, limit = 10 } = filter;
+    const page = filter.page ?? 1;
+    const limit = filter.limit ?? 10;
+    const skip = (page - 1) * limit;
 
-      const pageNumber = typeof page === 'string' ? parseInt(page, 10) : page;
-      const limitNumber =
-        typeof limit === 'string' ? parseInt(limit, 10) : limit;
-      const skip = (pageNumber - 1) * limitNumber;
+    const where = this.buildWhereClause(filter, tenantId);
 
-      const where: any = {
-        tenantId,
-      };
+    const [clients, total] = await this.prisma.$transaction([
+      this.prisma.cliente.findMany({
+        where,
+        include: this.clienteInclude,
+        skip,
+        take: limit,
+        orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
+      }),
+      this.prisma.cliente.count({ where }),
+    ]);
 
-      // Search filter
-      if (search) {
-        where.OR = [
-          { nombre: { contains: search, mode: 'insensitive' } },
-          { razonSocial: { contains: search, mode: 'insensitive' } },
-          { rut: { contains: search, mode: 'insensitive' } },
-          { contacto: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ];
-      }
-
-      // Active filter
-      if (activo !== undefined) {
-        where.activo = typeof activo === 'string' ? activo === 'true' : activo;
-      }
-
-      const [clients, total] = await this.prisma.$transaction([
-        this.prisma.cliente.findMany({
-          where,
-          include: {
-            comuna: {
-              include: {
-                region: true,
-                provincia: true,
-              },
-            },
-            entidad: true,
-          },
-          skip,
-          take: limitNumber,
-          orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
-        }),
-        this.prisma.cliente.count({ where }),
-      ]);
-
-      return {
-        clients: clients.map((client) => new ClientResponseDto(client)),
-        total,
-      };
-    } catch (error) {
-      this.logger.error('Error fetching clients:', error);
-      throw error;
-    }
+    return {
+      clients: clients.map((c) => new ClientResponseDto(c)),
+      total,
+    };
   }
 
   async findOne(id: string, tenantId: string): Promise<ClientResponseDto> {
-    try {
-      const client = await this.prisma.cliente.findFirst({
-        where: {
-          id,
-          tenantId,
-        },
-        include: {
-          comuna: {
-            include: {
-              region: true,
-              provincia: true,
-            },
-          },
-          entidad: true,
-        },
-      });
+    const client = await this.prisma.cliente.findFirst({
+      where: { id, tenantId },
+      include: this.clienteInclude,
+    });
 
-      if (!client) {
-        throw new NotFoundException('Client not found');
-      }
-
-      return new ClientResponseDto(client);
-    } catch (error) {
-      this.logger.error(`Error fetching client ${id}:`, error);
-      throw error;
+    if (!client) {
+      throw new NotFoundException('Cliente no encontrado');
     }
+
+    return new ClientResponseDto(client);
   }
 
   async create(
-    createClientDto: CreateClientDto,
+    dto: CreateClientDto,
     tenantId: string,
   ): Promise<ClientResponseDto> {
-    try {
-      // Check if RUT already exists for this tenant in Cliente
-      const existingClient = await this.prisma.cliente.findFirst({
-        where: {
-          rut: createClientDto.rut,
-          tenantId,
-        },
+    // Validate RUT uniqueness in Cliente
+    if (dto.rut) {
+      const exists = await this.prisma.cliente.findFirst({
+        where: { rut: dto.rut, tenantId },
       });
-
-      if (existingClient) {
-        throw new ConflictException('Client with this RUT already exists');
+      if (exists) {
+        throw new ConflictException('Ya existe un cliente con este RUT');
       }
+    }
 
-      // Verify comuna exists
+    // Validate comunaId
+    if (dto.comunaId) {
       const comuna = await this.prisma.comuna.findUnique({
-        where: { id: createClientDto.comunaId },
+        where: { id: dto.comunaId },
       });
-
       if (!comuna) {
-        throw new BadRequestException('Invalid comunaId');
+        throw new BadRequestException('comunaId no es válido');
       }
+    }
 
-      // Check if Entidad already exists - but don't fail, just use it
-      const existingEntidad = await this.prisma.entidad.findFirst({
-        where: {
-          rut: createClientDto.rut,
-          tenantId,
-        },
-      });
+    // Determine nombre/razonSocial based on esPersona
+    const esPersona =
+      dto.esPersona !== undefined ? dto.esPersona : !!dto.nombre;
+    const nombreField = this.determineNombreField(dto);
+
+    const syncData = {
+      ...this.getSyncFields(dto),
+      nombre: nombreField,
+      esPersona,
+    };
+
+    return this.prisma.$transaction(async (tx) => {
+      // Try to find existing Entidad by RUT
+      const existingEntidad = dto.rut
+        ? await tx.entidad.findFirst({
+            where: { rut: dto.rut, tenantId },
+          })
+        : null;
 
       let entidadId: string;
 
       if (existingEntidad) {
-        // Update existing Entidad to ensure data consistency
-        await this.prisma.entidad.update({
+        // Reuse and update existing Entidad
+        await tx.entidad.update({
           where: { id: existingEntidad.id },
           data: {
-            nombre: createClientDto.nombre || createClientDto.razonSocial,
-            razonSocial: createClientDto.razonSocial,
-            contacto: createClientDto.contacto,
-            email: createClientDto.email,
-            telefono: createClientDto.telefono,
-            direccion: createClientDto.direccion,
-            comunaId: createClientDto.comunaId,
-            esPersona: createClientDto.esPersona ?? false,
+            ...syncData,
             tipoEntidad: TipoEntidad.CLIENTE,
-            activo: true, // Reactivate if was inactive
+            activo: true,
           },
         });
         entidadId = existingEntidad.id;
-        this.logger.log(`Linked to existing Entidad: ${existingEntidad.rut}`);
+        this.logger.log(
+          `Reutilizando entidad existente: ${existingEntidad.id}`,
+        );
       } else {
         // Create new Entidad
-        const newEntidad = await this.prisma.entidad.create({
+        const newEntidad = await tx.entidad.create({
           data: {
-            nombre: createClientDto.nombre || createClientDto.razonSocial,
-            razonSocial: createClientDto.razonSocial,
-            rut: createClientDto.rut,
-            contacto: createClientDto.contacto,
-            email: createClientDto.email,
-            telefono: createClientDto.telefono,
-            direccion: createClientDto.direccion,
-            comunaId: createClientDto.comunaId,
-            esPersona: createClientDto.esPersona ?? false,
-            activo: true,
+            nombre: nombreField,
+            rut: dto.rut,
+            contacto: dto.contacto,
+            email: dto.email,
+            telefono: dto.telefono,
+            direccion: dto.direccion,
+            comunaId: dto.comunaId,
             tipoEntidad: TipoEntidad.CLIENTE,
+            activo: true,
             tenantId,
           },
         });
         entidadId = newEntidad.id;
       }
 
-      // Create Cliente with entidadId link
-      const client = await this.prisma.cliente.create({
+      // Create Cliente
+      const client = await tx.cliente.create({
         data: {
-          nombre: createClientDto.nombre,
-          razonSocial: createClientDto.razonSocial,
-          rut: createClientDto.rut,
-          contacto: createClientDto.contacto,
-          email: createClientDto.email,
-          telefono: createClientDto.telefono,
-          direccion: createClientDto.direccion,
-          comunaId: createClientDto.comunaId,
-          esPersona: createClientDto.esPersona ?? false,
+          nombre: dto.nombre,
+          razonSocial: dto.razonSocial,
+          rut: dto.rut,
+          contacto: dto.contacto,
+          email: dto.email,
+          telefono: dto.telefono,
+          direccion: dto.direccion,
+          comunaId: dto.comunaId,
+          esPersona,
           activo: true,
-          tipoEntidad: TipoEntidad.CLIENTE,
           tenantId,
-          entidadId: entidadId,
+          entidadId,
+          tipoEntidad: TipoEntidad.CLIENTE,
         },
-        include: {
-          comuna: {
-            include: {
-              region: true,
-              provincia: true,
-            },
-          },
-          entidad: true, // Include entidad to check if it exists
-        },
+        include: this.clienteInclude,
       });
 
-      this.logger.log(`Client created successfully: ${client.rut}`);
+      this.logger.log(`Cliente creado: ${client.rut} (Entidad: ${entidadId})`);
       return new ClientResponseDto(client);
-    } catch (error) {
-      this.logger.error('Error creating client:', error);
-      throw error;
-    }
+    });
   }
 
   async update(
     id: string,
-    updateClientDto: UpdateClientDto,
+    dto: UpdateClientDto,
     tenantId: string,
   ): Promise<ClientResponseDto> {
-    try {
-      // Verify client exists and belongs to tenant
-      const existingClient = await this.prisma.cliente.findFirst({
-        where: { id, tenantId },
-        include: {
-          entidad: true, // Include entidad to check if it exists
-        },
-      });
+    const client = await this.prisma.cliente.findFirst({
+      where: { id, tenantId },
+      include: { entidad: true },
+    });
 
-      if (!existingClient) {
-        throw new NotFoundException('Client not found');
-      }
-
-      // Check for RUT conflict if RUT is being updated
-      if (updateClientDto.rut && updateClientDto.rut !== existingClient.rut) {
-        const duplicateClient = await this.prisma.cliente.findFirst({
-          where: {
-            rut: updateClientDto.rut,
-            tenantId,
-            id: { not: id },
-          },
-        });
-
-        if (duplicateClient) {
-          throw new ConflictException(
-            'Another client with this RUT already exists',
-          );
-        }
-      }
-
-      // Verify comuna exists if comunaId is being updated
-      if (updateClientDto.comunaId) {
-        const comuna = await this.prisma.comuna.findUnique({
-          where: { id: updateClientDto.comunaId },
-        });
-
-        if (!comuna) {
-          throw new BadRequestException('Invalid comunaId');
-        }
-      }
-
-      // Also update the linked Entidad if it exists
-      if (existingClient.entidadId) {
-        await this.prisma.entidad.update({
-          where: {
-            id: existingClient.entidadId,
-          },
-          data: {
-            ...(updateClientDto.nombre && { nombre: updateClientDto.nombre }),
-            ...(updateClientDto.razonSocial && {
-              razonSocial: updateClientDto.razonSocial,
-            }),
-            ...(updateClientDto.rut && { rut: updateClientDto.rut }),
-            ...(updateClientDto.contacto && {
-              contacto: updateClientDto.contacto,
-            }),
-            ...(updateClientDto.email && { email: updateClientDto.email }),
-            ...(updateClientDto.telefono && {
-              telefono: updateClientDto.telefono,
-            }),
-            ...(updateClientDto.direccion && {
-              direccion: updateClientDto.direccion,
-            }),
-            ...(updateClientDto.comunaId && {
-              comunaId: updateClientDto.comunaId,
-            }),
-            ...(updateClientDto.esPersona !== undefined && {
-              esPersona: updateClientDto.esPersona,
-            }),
-          },
-        });
-      }
-
-      const client = await this.prisma.cliente.update({
-        where: { id },
-        data: updateClientDto,
-        include: {
-          comuna: {
-            include: {
-              region: true,
-              provincia: true,
-            },
-          },
-          entidad: true, // Include entidad relation
-        },
-      });
-
-      this.logger.log(`Client updated successfully: ${client.rut}`);
-      return new ClientResponseDto(client);
-    } catch (error) {
-      this.logger.error(`Error updating client ${id}:`, error);
-      throw error;
+    if (!client) {
+      throw new NotFoundException('Cliente no encontrado');
     }
+
+    // RUT uniqueness check (if changing)
+    if (dto.rut && dto.rut !== client.rut) {
+      const duplicate = await this.prisma.cliente.findFirst({
+        where: { rut: dto.rut, tenantId, id: { not: id } },
+      });
+      if (duplicate) {
+        throw new ConflictException('Ya existe otro cliente con este RUT');
+      }
+    }
+
+    // Validate comunaId if provided
+    if (dto.comunaId) {
+      const comuna = await this.prisma.comuna.findUnique({
+        where: { id: dto.comunaId },
+      });
+      if (!comuna) {
+        throw new BadRequestException('comunaId no es válido');
+      }
+    }
+
+    // Determine esPersona if not provided
+    const esPersona =
+      dto.esPersona !== undefined ? dto.esPersona : client.esPersona;
+
+    const nombreField = this.determineNombreField(dto);
+
+    const syncData = {
+      ...this.getSyncFields(dto),
+      nombre: nombreField,
+      esPersona,
+    };
+
+    return this.prisma.$transaction(async (tx) => {
+      const updatedClient = await tx.cliente.update({
+        where: { id },
+        data: {
+          nombre: dto.nombre,
+          razonSocial: dto.razonSocial,
+          rut: dto.rut,
+          contacto: dto.contacto,
+          email: dto.email,
+          telefono: dto.telefono,
+          direccion: dto.direccion,
+          comunaId: dto.comunaId,
+          activo: dto.activo,
+          esPersona,
+        },
+        include: this.clienteInclude,
+      });
+
+      // Update linked Entidad if exists
+      if (client.entidadId) {
+        await tx.entidad.update({
+          where: { id: client.entidadId },
+          data: {
+            ...syncData,
+            tipoEntidad: TipoEntidad.CLIENTE,
+          },
+        });
+      }
+
+      this.logger.log(`Cliente actualizado: ${updatedClient.rut}`);
+      return new ClientResponseDto(updatedClient);
+    });
   }
 
-  async remove(id: string, tenantId: string): Promise<void> {
-    try {
-      // Verify client exists and belongs to tenant
-      const existingClient = await this.prisma.cliente.findFirst({
-        where: { id, tenantId },
+  async remove(id: string, tenantId: string): Promise<{ message: string }> {
+    const client = await this.prisma.cliente.findFirst({
+      where: { id, tenantId },
+      select: { id: true, entidadId: true, rut: true },
+    });
+
+    if (!client) {
+      throw new NotFoundException('Cliente no encontrado');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.cliente.update({
+        where: { id },
+        data: { activo: false },
       });
 
-      if (!existingClient) {
-        throw new NotFoundException('Client not found');
-      }
-
-      // Use transaction to deactivate both Cliente and Entidad
-      await this.prisma.$transaction([
-        // Soft delete cliente
-        this.prisma.cliente.update({
-          where: { id },
+      if (client.entidadId) {
+        await tx.entidad.update({
+          where: { id: client.entidadId },
           data: { activo: false },
-        }),
-        // Soft delete corresponding entidad if it exists
-        ...(existingClient.entidadId
-          ? [
-              this.prisma.entidad.update({
-                where: { id: existingClient.entidadId },
-                data: { activo: false },
-              }),
-            ]
-          : []),
-      ]);
+        });
+      }
+    });
 
-      this.logger.log(`Client ${id} and corresponding Entity deactivated`);
-    } catch (error) {
-      this.logger.error(`Error deactivating client ${id}:`, error);
-      throw error;
-    }
+    this.logger.log(`Cliente y entidad desactivados: ${client.rut}`);
+    return { message: 'Cliente desactivado exitosamente' };
   }
 
   async findByRut(
     rut: string,
     tenantId: string,
   ): Promise<ClientResponseDto | null> {
-    try {
-      const client = await this.prisma.cliente.findFirst({
-        where: {
-          rut,
-          tenantId,
-        },
-        include: {
-          comuna: {
-            include: {
-              region: true,
-              provincia: true,
-            },
-          },
-          entidad: true, // Include entidad relation
-        },
-      });
+    const client = await this.prisma.cliente.findFirst({
+      where: { rut, tenantId },
+      include: this.clienteInclude,
+    });
 
-      return client ? new ClientResponseDto(client) : null;
-    } catch (error) {
-      this.logger.error(`Error finding client by RUT ${rut}:`, error);
-      throw error;
-    }
+    return client ? new ClientResponseDto(client) : null;
   }
 
   async getStats(tenantId: string): Promise<ClientStatsDto> {
-    try {
-      // Get total count
-      const total = await this.prisma.cliente.count({
-        where: { tenantId },
-      });
+    const [total, activos, inactivos] = await this.prisma.$transaction([
+      this.prisma.cliente.count({ where: { tenantId } }),
+      this.prisma.cliente.count({ where: { tenantId, activo: true } }),
+      this.prisma.cliente.count({ where: { tenantId, activo: false } }),
+    ]);
 
-      // Get active count
-      const activos = await this.prisma.cliente.count({
-        where: {
-          tenantId,
-          activo: true,
-        },
-      });
-
-      // Get inactive count
-      const inactivos = await this.prisma.cliente.count({
-        where: {
-          tenantId,
-          activo: false,
-        },
-      });
-
-      return {
-        total,
-        activos,
-        inactivos,
-      };
-    } catch (error) {
-      this.logger.error('Error fetching client stats:', error);
-      throw error;
-    }
+    return { total, activos, inactivos };
   }
 }

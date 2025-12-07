@@ -8,7 +8,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
   Logger,
   ParseUUIDPipe,
 } from '@nestjs/common';
@@ -17,8 +16,9 @@ import { CreateClientDto } from '../dto/create-client.dto';
 import { UpdateClientDto } from '../dto/update-client.dto';
 import { ClientsFilterDto } from '../dto/clients-filter.dto';
 import { ClientResponseDto } from '../dto/client-response.dto';
-import { JwtGuard } from 'src/auth/guards/jwt.guard';
 import { ClientStatsDto } from '../dto/client-stats.dto';
+import { JwtGuard } from 'src/auth/guards/jwt.guard';
+import { TenantId } from 'src/common/decorators/tenant-id.decorator';
 
 @Controller('api/clients')
 @UseGuards(JwtGuard)
@@ -27,23 +27,8 @@ export class ClientsController {
 
   constructor(private readonly clientsService: ClientsService) {}
 
-  private getTenantId(req: any): string {
-    const tenantId =
-      req.user?.tenant_id || req.user?.tenantId || req.user?.tenant?.id;
-
-    this.logger.debug(`Extracted tenantId: ${tenantId}`);
-
-    if (!tenantId) {
-      throw new Error('Tenant ID not found in user object');
-    }
-
-    return tenantId;
-  }
-
-  // In your ClientsController, add this method:
   @Get('stats')
-  async getStats(@Request() req): Promise<ClientStatsDto> {
-    const tenantId = this.getTenantId(req);
+  async getStats(@TenantId() tenantId: string): Promise<ClientStatsDto> {
     this.logger.log(`Fetching client stats for tenant: ${tenantId}`);
     return this.clientsService.getStats(tenantId);
   }
@@ -51,16 +36,16 @@ export class ClientsController {
   @Get()
   async findAll(
     @Query() filter: ClientsFilterDto,
-    @Request() req,
+    @TenantId() tenantId: string,
   ): Promise<{
     clients: ClientResponseDto[];
     total: number;
     page: number;
     limit: number;
   }> {
-    const tenantId = this.getTenantId(req);
-
-    this.logger.log(`Fetching clients for tenant: ${tenantId}`);
+    this.logger.log(
+      `Fetching clients - Tenant: ${tenantId} | Page: ${filter.page || 1} | Limit: ${filter.limit || 10}`,
+    );
 
     const result = await this.clientsService.findAll(filter, tenantId);
 
@@ -73,10 +58,9 @@ export class ClientsController {
 
   @Get(':id')
   async findOne(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Request() req,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @TenantId() tenantId: string,
   ): Promise<ClientResponseDto> {
-    const tenantId = this.getTenantId(req);
     this.logger.log(`Fetching client ${id} for tenant: ${tenantId}`);
     return this.clientsService.findOne(id, tenantId);
   }
@@ -84,42 +68,39 @@ export class ClientsController {
   @Get('rut/:rut')
   async findByRut(
     @Param('rut') rut: string,
-    @Request() req,
+    @TenantId() tenantId: string,
   ): Promise<ClientResponseDto | null> {
-    const tenantId = this.getTenantId(req);
     this.logger.log(`Finding client by RUT: ${rut} for tenant: ${tenantId}`);
-    return this.clientsService.findByRut(rut, tenantId);
+    return this.clientsService.findByRut(rut.trim(), tenantId);
   }
 
   @Post()
   async create(
     @Body() createClientDto: CreateClientDto,
-    @Request() req,
+    @TenantId() tenantId: string,
   ): Promise<ClientResponseDto> {
-    const tenantId = this.getTenantId(req);
-    this.logger.log(`Creating client for tenant: ${tenantId}`);
+    this.logger.log(
+      `Creating client - Tenant: ${tenantId} | RUT: ${createClientDto.rut}`,
+    );
     return this.clientsService.create(createClientDto, tenantId);
   }
 
   @Put(':id')
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() updateClientDto: UpdateClientDto,
-    @Request() req,
+    @TenantId() tenantId: string,
   ): Promise<ClientResponseDto> {
-    const tenantId = this.getTenantId(req);
     this.logger.log(`Updating client ${id} for tenant: ${tenantId}`);
     return this.clientsService.update(id, updateClientDto, tenantId);
   }
 
   @Delete(':id')
   async remove(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Request() req,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @TenantId() tenantId: string,
   ): Promise<{ message: string }> {
-    const tenantId = this.getTenantId(req);
     this.logger.log(`Deactivating client ${id} for tenant: ${tenantId}`);
-    await this.clientsService.remove(id, tenantId);
-    return { message: 'Client deactivated successfully' };
+    return this.clientsService.remove(id, tenantId);
   }
 }
