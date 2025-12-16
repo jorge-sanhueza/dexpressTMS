@@ -1,44 +1,41 @@
-# API TMS - Presentación de Desarrollo Inicial
+# TMS - Presentación de Desarrollo Inicial
 
-> **Branch**: `showcase/early-development-demo`
 > **Estado**: Desarrollo Inicial - Prueba de Concepto
-> **Última Actualización**: 27/09/2025
+> **Última Actualización**: 07/12/2025
 
-## 🚀 Resumen
+## Resumen
 
-Esta es una presentación de desarrollo inicial para API de Sistema de Gestión de Transporte (TMS) multiusuario creada con NestJS, incluye Control de Acceso Basado en Roles (RBAC) y un sistema de autenticación híbrido.
+Esta es la presentación de desarrollo inicial para un de Sistema de Gestión de Transporte (TMS) multiusuario creada con NestJS, incluye Control de Acceso Basado en Roles (RBAC) y un sistema de autenticación híbrido.
 
-## 📋 Características actuales
+## Características
 
-### ✅ Implementado
 - **Arquitectura multiusuario** con aislamiento de datos
 - **Sistema RBAC (Control de acceso basado en roles)**
 - **Autenticación híbrida** (Auth0 + JWT personalizado)
 - **Base de datos PostgreSQL** con Prisma ORM
 - **Estructura de API RESTful**
 - **Gestión de usuarios/perfiles/roles**
+- **Creación de entidades básicas**
+- **Creación de ordenes y pedidos**
 
-### 🔄 En progreso
-- Módulos principales del TMS (Pedidos, Envíos, Seguimiento)
-- Sistema avanzado de permisos
-- Integración frontend
+### En progreso
+- Módulos de Envíos & Seguimiento de ordenes
 
-## 🏗️ Arquitectura
+## Arquitectura
 Auth0 (IDP)   - NestJS API    - PostgreSQL
-              -Multi-tenant   - Prisma
+              - Multi-tenant  - Prisma
               - RBAC          - Neon
 
-## 🚀 Inicio rápido
+## Inicio rápido
 
-### Requisitos previos
+### Requisitos
 - Node.js 18+
 - Base de datos PostgreSQL
 - Cuenta Auth0
 
 ### Instalación
 
-# Configurar el entorno
-cp .env.example .env
+# Configuración de entorno
 # Editar .env con las credenciales de la base de datos
 
 # Generar el cliente Prisma
