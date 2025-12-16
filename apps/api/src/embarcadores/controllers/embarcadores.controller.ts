@@ -8,7 +8,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
   Logger,
   ParseUUIDPipe,
 } from '@nestjs/common';
@@ -19,6 +18,7 @@ import { EmbarcadoresFilterDto } from '../dto/embarcadores-filter.dto';
 import { EmbarcadorResponseDto } from '../dto/embarcador-response.dto';
 import { JwtGuard } from 'src/auth/guards/jwt.guard';
 import { ShipperStatsDto } from '../dto/embarcadores-stats.dto';
+import { TenantId } from 'src/common/decorators/tenant-id.decorator';
 
 @Controller('api/embarcadores')
 @UseGuards(JwtGuard)
@@ -27,55 +27,45 @@ export class EmbarcadoresController {
 
   constructor(private readonly embarcadoresService: EmbarcadoresService) {}
 
-  private getTenantId(req: any): string {
-    const tenantId =
-      req.user?.tenant_id || req.user?.tenantId || req.user?.tenant?.id;
-
-    this.logger.debug(`Extracted tenantId: ${tenantId}`);
-
-    if (!tenantId) {
-      throw new Error('Tenant ID not found in user object');
-    }
-
-    return tenantId;
-  }
-
   @Get()
   async findAll(
     @Query() filter: EmbarcadoresFilterDto,
-    @Request() req,
+    @TenantId() tenantId: string,
   ): Promise<{
     embarcadores: EmbarcadorResponseDto[];
     total: number;
     page: number;
     limit: number;
+    totalPages: number;
   }> {
-    const tenantId = this.getTenantId(req);
-
     this.logger.log(`Fetching embarcadores for tenant: ${tenantId}`);
 
     const result = await this.embarcadoresService.findAll(filter, tenantId);
 
+    const page = filter.page ?? 1;
+    const limit = filter.limit ?? 10;
+    const totalPages = Math.ceil(result.total / limit);
+
     return {
-      ...result,
-      page: filter.page || 1,
-      limit: filter.limit || 10,
+      embarcadores: result.embarcadores,
+      total: result.total,
+      page,
+      limit,
+      totalPages,
     };
   }
 
   @Get('stats')
-  async getStats(@Request() req): Promise<ShipperStatsDto> {
-    const tenantId = this.getTenantId(req);
+  async getStats(@TenantId() tenantId: string): Promise<ShipperStatsDto> {
     this.logger.log(`Fetching shipper stats for tenant: ${tenantId}`);
     return this.embarcadoresService.getStats(tenantId);
   }
 
   @Get(':id')
   async findOne(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Request() req,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @TenantId() tenantId: string,
   ): Promise<EmbarcadorResponseDto> {
-    const tenantId = this.getTenantId(req);
     this.logger.log(`Fetching embarcador ${id} for tenant: ${tenantId}`);
     return this.embarcadoresService.findOne(id, tenantId);
   }
@@ -83,9 +73,8 @@ export class EmbarcadoresController {
   @Get('rut/:rut')
   async findByRut(
     @Param('rut') rut: string,
-    @Request() req,
+    @TenantId() tenantId: string,
   ): Promise<EmbarcadorResponseDto | null> {
-    const tenantId = this.getTenantId(req);
     this.logger.log(
       `Finding embarcador by RUT: ${rut} for tenant: ${tenantId}`,
     );
@@ -95,30 +84,29 @@ export class EmbarcadoresController {
   @Post()
   async create(
     @Body() createEmbarcadorDto: CreateEmbarcadorDto,
-    @Request() req,
+    @TenantId() tenantId: string,
   ): Promise<EmbarcadorResponseDto> {
-    const tenantId = this.getTenantId(req);
-    this.logger.log(`Creating embarcador for tenant: ${tenantId}`);
+    this.logger.log(
+      `Creating embarcador for tenant: ${tenantId} | RUT: ${createEmbarcadorDto.rut}`,
+    );
     return this.embarcadoresService.create(createEmbarcadorDto, tenantId);
   }
 
   @Put(':id')
   async update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() updateEmbarcadorDto: UpdateEmbarcadorDto,
-    @Request() req,
+    @TenantId() tenantId: string,
   ): Promise<EmbarcadorResponseDto> {
-    const tenantId = this.getTenantId(req);
     this.logger.log(`Updating embarcador ${id} for tenant: ${tenantId}`);
     return this.embarcadoresService.update(id, updateEmbarcadorDto, tenantId);
   }
 
   @Delete(':id')
   async remove(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Request() req,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @TenantId() tenantId: string,
   ): Promise<{ message: string }> {
-    const tenantId = this.getTenantId(req);
     this.logger.log(`Deactivating embarcador ${id} for tenant: ${tenantId}`);
     return this.embarcadoresService.remove(id, tenantId);
   }

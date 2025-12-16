@@ -10,234 +10,229 @@ import { CreateEmbarcadorDto } from '../dto/create-embarcador.dto';
 import { UpdateEmbarcadorDto } from '../dto/update-embarcador.dto';
 import { EmbarcadoresFilterDto } from '../dto/embarcadores-filter.dto';
 import { EmbarcadorResponseDto } from '../dto/embarcador-response.dto';
-import { TipoEntidad } from '@prisma/client';
+import { TipoEntidad, Prisma } from '@prisma/client';
 import { ShipperStatsDto } from '../dto/embarcadores-stats.dto';
 
 @Injectable()
 export class EmbarcadoresService {
   private readonly logger = new Logger(EmbarcadoresService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
+
+  private readonly embarcadorInclude = {
+    comuna: {
+      include: {
+        provincia: {
+          include: {
+            region: true,
+          },
+        },
+      },
+    },
+    entidad: true,
+  } satisfies Prisma.EmbarcadorInclude;
+
+  // Format RUT consistently (e.g., 12345678-9)
+  private formatRut(rut: string): string {
+    const cleanRut = rut.replace(/[^0-9Kk]/g, '').toUpperCase();
+
+    if (cleanRut.length >= 2) {
+      const body = cleanRut.slice(0, -1);
+      const verifier = cleanRut.slice(-1);
+      return `${body}-${verifier}`;
+    }
+
+    return cleanRut;
+  }
+
+  // dynamic WHERE clause
+  private buildWhereClause(
+    filter: EmbarcadoresFilterDto,
+    tenantId: string,
+  ): Prisma.EmbarcadorWhereInput {
+    const where: Prisma.EmbarcadorWhereInput = { tenantId };
+
+    if (filter.search) {
+      const searchTerm = filter.search.trim();
+      where.OR = [
+        { nombre: { contains: searchTerm, mode: 'insensitive' } },
+        { razonSocial: { contains: searchTerm, mode: 'insensitive' } },
+        { rut: { contains: searchTerm, mode: 'insensitive' } },
+        { contacto: { contains: searchTerm, mode: 'insensitive' } },
+        { email: { contains: searchTerm, mode: 'insensitive' } },
+      ];
+    }
+
+    if (filter.activo !== undefined) {
+      where.activo = filter.activo;
+    }
+
+    if (filter.esPersona !== undefined) {
+      where.esPersona = filter.esPersona;
+    }
+
+    return where;
+  }
+
+  // Shared fields to sync between Embarcador and Entidad
+  private getSyncFields(
+    dto: CreateEmbarcadorDto | UpdateEmbarcadorDto,
+    isPersona: boolean = false,
+  ) {
+    const nombre = dto.nombre || dto.razonSocial || '';
+    const razonSocial = !isPersona ? dto.razonSocial || nombre : null;
+
+    const fields: Record<string, any> = {
+      nombre,
+      razonSocial,
+      rut: 'rut' in dto && dto.rut ? this.formatRut(dto.rut) : undefined,
+      contacto: 'contacto' in dto ? dto.contacto : undefined,
+      email: 'email' in dto ? dto.email : undefined,
+      telefono: 'telefono' in dto ? dto.telefono : undefined,
+      direccion: 'direccion' in dto ? dto.direccion : undefined,
+      comunaId: 'comunaId' in dto ? dto.comunaId : undefined,
+      esPersona: 'esPersona' in dto ? dto.esPersona : undefined,
+      activo: 'activo' in dto ? dto.activo : undefined,
+    };
+
+    return Object.fromEntries(
+      Object.entries(fields).filter(([, v]) => v !== undefined),
+    );
+  }
 
   async findAll(
     filter: EmbarcadoresFilterDto,
     tenantId: string,
   ): Promise<{ embarcadores: EmbarcadorResponseDto[]; total: number }> {
-    try {
-      const { search, activo, esPersona, page = 1, limit = 10 } = filter;
+    const page = filter.page ?? 1;
+    const limit = filter.limit ?? 10;
+    const skip = (page - 1) * limit;
 
-      const pageNumber = typeof page === 'string' ? parseInt(page, 10) : page;
-      const limitNumber =
-        typeof limit === 'string' ? parseInt(limit, 10) : limit;
-      const skip = (pageNumber - 1) * limitNumber;
+    const where = this.buildWhereClause(filter, tenantId);
 
-      const where: any = {
-        tenantId,
-      };
+    const [embarcadores, total] = await this.prisma.$transaction([
+      this.prisma.embarcador.findMany({
+        where,
+        include: this.embarcadorInclude,
+        skip,
+        take: limit,
+        orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
+      }),
+      this.prisma.embarcador.count({ where }),
+    ]);
 
-      // Search filter
-      if (search) {
-        where.OR = [
-          { nombre: { contains: search, mode: 'insensitive' } },
-          { razonSocial: { contains: search, mode: 'insensitive' } },
-          { rut: { contains: search, mode: 'insensitive' } },
-          { contacto: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ];
-      }
-
-      // Active filter
-      if (activo !== undefined) {
-        where.activo = typeof activo === 'string' ? activo === 'true' : activo;
-      }
-
-      // Person type filter
-      if (esPersona !== undefined) {
-        where.esPersona =
-          typeof esPersona === 'string' ? esPersona === 'true' : esPersona;
-      }
-
-      const [embarcadores, total] = await this.prisma.$transaction([
-        this.prisma.embarcador.findMany({
-          where,
-          include: {
-            comuna: {
-              include: {
-                provincia: {
-                  include: {
-                    region: true,
-                  },
-                },
-              },
-            },
-            entidad: true, // NEW: Include entidad relation
-          },
-          skip,
-          take: limitNumber,
-          orderBy: [{ activo: 'desc' }, { nombre: 'asc' }],
-        }),
-        this.prisma.embarcador.count({ where }),
-      ]);
-
-      return {
-        embarcadores: embarcadores.map(
-          (embarcador) => new EmbarcadorResponseDto(embarcador),
-        ),
-        total,
-      };
-    } catch (error) {
-      this.logger.error('Error fetching embarcadores:', error);
-      throw error;
-    }
+    return {
+      embarcadores: embarcadores.map((e) => new EmbarcadorResponseDto(e)),
+      total,
+    };
   }
 
   async findOne(id: string, tenantId: string): Promise<EmbarcadorResponseDto> {
-    try {
-      const embarcador = await this.prisma.embarcador.findFirst({
-        where: {
-          id,
-          tenantId,
-        },
-        include: {
-          comuna: {
-            include: {
-              provincia: {
-                include: {
-                  region: true,
-                },
-              },
-            },
-          },
-          entidad: true, // NEW: Include entidad relation
-        },
-      });
+    const embarcador = await this.prisma.embarcador.findFirst({
+      where: { id, tenantId },
+      include: this.embarcadorInclude,
+    });
 
-      if (!embarcador) {
-        throw new NotFoundException('Embarcador not found');
-      }
-
-      return new EmbarcadorResponseDto(embarcador);
-    } catch (error) {
-      this.logger.error(`Error fetching embarcador ${id}:`, error);
-      throw error;
+    if (!embarcador) {
+      throw new NotFoundException('Embarcador no encontrado');
     }
+
+    return new EmbarcadorResponseDto(embarcador);
   }
 
   async create(
     createEmbarcadorDto: CreateEmbarcadorDto,
     tenantId: string,
   ): Promise<EmbarcadorResponseDto> {
-    try {
-      // Check if RUT already exists for this tenant in Embarcador
-      const existingEmbarcador = await this.prisma.embarcador.findFirst({
-        where: {
-          rut: createEmbarcadorDto.rut,
-          tenantId,
-        },
-      });
+    const formattedRut = this.formatRut(createEmbarcadorDto.rut);
 
-      if (existingEmbarcador) {
-        throw new ConflictException('Embarcador with this RUT already exists');
-      }
+    // Check uniqueness in Embarcador
+    const existingEmbarcador = await this.prisma.embarcador.findFirst({
+      where: { rut: formattedRut, tenantId },
+    });
 
-      // Verify comuna exists
-      const comuna = await this.prisma.comuna.findUnique({
-        where: { id: createEmbarcadorDto.comunaId },
-      });
+    if (existingEmbarcador) {
+      throw new ConflictException('Ya existe un embarcador con este RUT');
+    }
 
-      if (!comuna) {
-        throw new BadRequestException('Invalid comunaId');
-      }
+    // Validate comuna
+    const comuna = await this.prisma.comuna.findUnique({
+      where: { id: createEmbarcadorDto.comunaId },
+    });
 
-      // NEW: Check if Entidad already exists - but don't fail, just use it
-      const existingEntidad = await this.prisma.entidad.findFirst({
-        where: {
-          rut: createEmbarcadorDto.rut,
-          tenantId,
-        },
+    if (!comuna) {
+      throw new BadRequestException('comunaId no es válido');
+    }
+
+    const esPersona = createEmbarcadorDto.esPersona ?? false;
+    const syncData = this.getSyncFields(createEmbarcadorDto, esPersona);
+
+    return this.prisma.$transaction(async (tx) => {
+      // Find or create/reuse Entidad
+      const existingEntidad = await tx.entidad.findFirst({
+        where: { rut: formattedRut, tenantId },
       });
 
       let entidadId: string;
 
       if (existingEntidad) {
-        // Update existing Entidad to ensure data consistency
-        await this.prisma.entidad.update({
+        await tx.entidad.update({
           where: { id: existingEntidad.id },
           data: {
-            nombre:
-              createEmbarcadorDto.nombre || createEmbarcadorDto.razonSocial,
-            razonSocial: createEmbarcadorDto.razonSocial,
-            contacto: createEmbarcadorDto.contacto,
-            email: createEmbarcadorDto.email,
-            telefono: createEmbarcadorDto.telefono,
-            direccion: createEmbarcadorDto.direccion,
-            comunaId: createEmbarcadorDto.comunaId,
-            esPersona: createEmbarcadorDto.esPersona ?? false,
-            tipoEntidad: TipoEntidad.EMBARCADOR, // Update type if needed
-            activo: true, // Reactivate if was inactive
+            ...syncData,
+            tipoEntidad: TipoEntidad.EMBARCADOR,
+            activo: true,
           },
         });
         entidadId = existingEntidad.id;
-        this.logger.log(`Linked to existing Entidad: ${existingEntidad.rut}`);
+        this.logger.log(
+          `Reutilizando entidad existente: ${existingEntidad.id}`,
+        );
       } else {
-        // Create new Entidad
-        const newEntidad = await this.prisma.entidad.create({
+        const newEntidad = await tx.entidad.create({
           data: {
-            nombre:
-              createEmbarcadorDto.nombre || createEmbarcadorDto.razonSocial,
-            razonSocial: createEmbarcadorDto.razonSocial,
-            rut: createEmbarcadorDto.rut,
+            rut: formattedRut,
             contacto: createEmbarcadorDto.contacto,
             email: createEmbarcadorDto.email,
             telefono: createEmbarcadorDto.telefono,
-            direccion: createEmbarcadorDto.direccion,
             comunaId: createEmbarcadorDto.comunaId,
-            esPersona: createEmbarcadorDto.esPersona ?? false,
-            activo: true,
-            tipoEntidad: TipoEntidad.EMBARCADOR,
             tenantId,
+            tipoEntidad: TipoEntidad.EMBARCADOR,
+            activo: true,
+            nombre: syncData.nombre,
+            razonSocial: syncData.razonSocial,
+            direccion: syncData.direccion,
+            esPersona,
           },
         });
         entidadId = newEntidad.id;
       }
 
-      // Create Embarcador with entidadId link
-      const embarcador = await this.prisma.embarcador.create({
+      // Create Embarcador
+      const embarcador = await tx.embarcador.create({
         data: {
           nombre: createEmbarcadorDto.nombre,
           razonSocial: createEmbarcadorDto.razonSocial,
-          rut: createEmbarcadorDto.rut,
+          rut: formattedRut,
           contacto: createEmbarcadorDto.contacto,
           email: createEmbarcadorDto.email,
           telefono: createEmbarcadorDto.telefono,
           direccion: createEmbarcadorDto.direccion,
           comunaId: createEmbarcadorDto.comunaId,
-          esPersona: createEmbarcadorDto.esPersona ?? false,
+          esPersona,
           activo: true,
           tipoEntidad: TipoEntidad.EMBARCADOR,
           tenantId,
-          entidadId: entidadId, // NEW: Add entidad link
+          entidadId,
         },
-        include: {
-          comuna: {
-            include: {
-              provincia: {
-                include: {
-                  region: true,
-                },
-              },
-            },
-          },
-          entidad: true, // NEW: Include entidad relation
-        },
+        include: this.embarcadorInclude,
       });
 
-      this.logger.log(`Embarcador created successfully: ${embarcador.rut}`);
+      this.logger.log(
+        `Embarcador creado: ${formattedRut} (Entidad: ${entidadId})`,
+      );
       return new EmbarcadorResponseDto(embarcador);
-    } catch (error) {
-      this.logger.error('Error creating embarcador:', error);
-      throw error;
-    }
+    });
   }
 
   async update(
@@ -245,206 +240,163 @@ export class EmbarcadoresService {
     updateEmbarcadorDto: UpdateEmbarcadorDto,
     tenantId: string,
   ): Promise<EmbarcadorResponseDto> {
-    try {
-      // Verify embarcador exists and belongs to tenant
-      const existingEmbarcador = await this.prisma.embarcador.findFirst({
-        where: { id, tenantId },
-        include: {
-          entidad: true, // NEW: Include entidad to check if it exists
-        },
-      });
+    const embarcador = await this.prisma.embarcador.findFirst({
+      where: { id, tenantId },
+      include: { entidad: true },
+    });
 
-      if (!existingEmbarcador) {
-        throw new NotFoundException('Embarcador not found');
-      }
-
-      // Check for RUT conflict if RUT is being updated
-      if (
-        updateEmbarcadorDto.rut &&
-        updateEmbarcadorDto.rut !== existingEmbarcador.rut
-      ) {
-        const duplicateEmbarcador = await this.prisma.embarcador.findFirst({
-          where: {
-            rut: updateEmbarcadorDto.rut,
-            tenantId,
-            id: { not: id },
-          },
-        });
-
-        if (duplicateEmbarcador) {
-          throw new ConflictException(
-            'Another embarcador with this RUT already exists',
-          );
-        }
-      }
-
-      // Verify comuna exists if comunaId is being updated
-      if (updateEmbarcadorDto.comunaId) {
-        const comuna = await this.prisma.comuna.findUnique({
-          where: { id: updateEmbarcadorDto.comunaId },
-        });
-
-        if (!comuna) {
-          throw new BadRequestException('Invalid comunaId');
-        }
-      }
-
-      // NEW: Also update the linked Entidad if it exists
-      if (existingEmbarcador.entidadId) {
-        await this.prisma.entidad.update({
-          where: {
-            id: existingEmbarcador.entidadId,
-          },
-          data: {
-            ...(updateEmbarcadorDto.nombre && {
-              nombre: updateEmbarcadorDto.nombre,
-            }),
-            ...(updateEmbarcadorDto.razonSocial && {
-              razonSocial: updateEmbarcadorDto.razonSocial,
-            }),
-            ...(updateEmbarcadorDto.rut && { rut: updateEmbarcadorDto.rut }),
-            ...(updateEmbarcadorDto.contacto && {
-              contacto: updateEmbarcadorDto.contacto,
-            }),
-            ...(updateEmbarcadorDto.email && {
-              email: updateEmbarcadorDto.email,
-            }),
-            ...(updateEmbarcadorDto.telefono && {
-              telefono: updateEmbarcadorDto.telefono,
-            }),
-            ...(updateEmbarcadorDto.direccion && {
-              direccion: updateEmbarcadorDto.direccion,
-            }),
-            ...(updateEmbarcadorDto.comunaId && {
-              comunaId: updateEmbarcadorDto.comunaId,
-            }),
-            ...(updateEmbarcadorDto.esPersona !== undefined && {
-              esPersona: updateEmbarcadorDto.esPersona,
-            }),
-          },
-        });
-      }
-
-      const embarcador = await this.prisma.embarcador.update({
-        where: { id },
-        data: updateEmbarcadorDto,
-        include: {
-          comuna: {
-            include: {
-              provincia: {
-                include: {
-                  region: true,
-                },
-              },
-            },
-          },
-          entidad: true, // NEW: Include entidad relation
-        },
-      });
-
-      this.logger.log(`Embarcador updated successfully: ${embarcador.rut}`);
-      return new EmbarcadorResponseDto(embarcador);
-    } catch (error) {
-      this.logger.error(`Error updating embarcador ${id}:`, error);
-      throw error;
+    if (!embarcador) {
+      throw new NotFoundException('Embarcador no encontrado');
     }
+
+    // RUT uniqueness check if changing
+    if (updateEmbarcadorDto.rut && updateEmbarcadorDto.rut !== embarcador.rut) {
+      const formattedRut = this.formatRut(updateEmbarcadorDto.rut);
+      const duplicate = await this.prisma.embarcador.findFirst({
+        where: { rut: formattedRut, tenantId, id: { not: id } },
+      });
+
+      if (duplicate) {
+        throw new ConflictException('Ya existe otro embarcador con este RUT');
+      }
+    }
+
+    // Validate comuna if provided
+    if (updateEmbarcadorDto.comunaId) {
+      const comuna = await this.prisma.comuna.findUnique({
+        where: { id: updateEmbarcadorDto.comunaId },
+      });
+
+      if (!comuna) {
+        throw new BadRequestException('comunaId no es válido');
+      }
+    }
+
+    const esPersona =
+      updateEmbarcadorDto.esPersona !== undefined
+        ? updateEmbarcadorDto.esPersona
+        : embarcador.esPersona;
+
+    const syncData = this.getSyncFields(updateEmbarcadorDto, esPersona);
+
+    return this.prisma.$transaction(async (tx) => {
+      const embarcadorUpdateData: Prisma.EmbarcadorUpdateInput = {};
+
+      if (updateEmbarcadorDto.nombre !== undefined) {
+        embarcadorUpdateData.nombre = updateEmbarcadorDto.nombre;
+      }
+      if (updateEmbarcadorDto.razonSocial !== undefined) {
+        embarcadorUpdateData.razonSocial = updateEmbarcadorDto.razonSocial;
+      }
+      if (updateEmbarcadorDto.rut !== undefined) {
+        embarcadorUpdateData.rut = this.formatRut(updateEmbarcadorDto.rut);
+      }
+      if (updateEmbarcadorDto.contacto !== undefined) {
+        embarcadorUpdateData.contacto = updateEmbarcadorDto.contacto;
+      }
+      if (updateEmbarcadorDto.email !== undefined) {
+        embarcadorUpdateData.email = updateEmbarcadorDto.email;
+      }
+      if (updateEmbarcadorDto.telefono !== undefined) {
+        embarcadorUpdateData.telefono = updateEmbarcadorDto.telefono;
+      }
+      if (updateEmbarcadorDto.direccion !== undefined) {
+        embarcadorUpdateData.direccion = updateEmbarcadorDto.direccion;
+      }
+      if (updateEmbarcadorDto.comunaId !== undefined) {
+        embarcadorUpdateData.comuna = {
+          connect: { id: updateEmbarcadorDto.comunaId },
+        };
+      }
+      if (updateEmbarcadorDto.activo !== undefined) {
+        embarcadorUpdateData.activo = updateEmbarcadorDto.activo;
+      }
+      if (updateEmbarcadorDto.esPersona !== undefined) {
+        embarcadorUpdateData.esPersona = updateEmbarcadorDto.esPersona;
+      }
+
+      const [updatedEmbarcador] = await Promise.all([
+        tx.embarcador.update({
+          where: { id },
+          data: embarcadorUpdateData,
+          include: this.embarcadorInclude,
+        }),
+        // Update linked Entidad if exists and has sync fields
+        embarcador.entidadId && Object.keys(syncData).length > 0
+          ? tx.entidad.update({
+              where: { id: embarcador.entidadId },
+              data: {
+                ...syncData,
+                tipoEntidad: TipoEntidad.EMBARCADOR,
+              },
+            })
+          : Promise.resolve(),
+      ]);
+
+      this.logger.log(`Embarcador actualizado: ${updatedEmbarcador.rut}`);
+      return new EmbarcadorResponseDto(updatedEmbarcador);
+    });
   }
 
   async remove(id: string, tenantId: string): Promise<{ message: string }> {
-    try {
-      // Verify embarcador exists and belongs to tenant
-      const existingEmbarcador = await this.prisma.embarcador.findFirst({
-        where: { id, tenantId },
+    const embarcador = await this.prisma.embarcador.findFirst({
+      where: { id, tenantId },
+      select: {
+        id: true,
+        entidadId: true,
+        rut: true,
+        nombre: true,
+        razonSocial: true,
+      },
+    });
+
+    if (!embarcador) {
+      throw new NotFoundException('Embarcador no encontrado');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.embarcador.update({
+        where: { id },
+        data: { activo: false },
       });
 
-      if (!existingEmbarcador) {
-        throw new NotFoundException('Embarcador not found');
-      }
-
-      // NEW: Use transaction to deactivate both Embarcador and Entidad
-      await this.prisma.$transaction([
-        // Soft delete embarcador
-        this.prisma.embarcador.update({
-          where: { id },
+      if (embarcador.entidadId) {
+        await tx.entidad.update({
+          where: { id: embarcador.entidadId },
           data: { activo: false },
-        }),
-        // Soft delete corresponding entidad if it exists
-        ...(existingEmbarcador.entidadId
-          ? [
-              this.prisma.entidad.update({
-                where: { id: existingEmbarcador.entidadId },
-                data: { activo: false },
-              }),
-            ]
-          : []),
-      ]);
+        });
+      }
+    });
 
-      this.logger.log(`Embarcador ${id} and corresponding Entity deactivated`);
-      return { message: 'Embarcador deactivated successfully' };
-    } catch (error) {
-      this.logger.error(`Error deactivating embarcador ${id}:`, error);
-      throw error;
-    }
+    const displayName =
+      embarcador.razonSocial || embarcador.nombre || embarcador.rut;
+    this.logger.log(
+      `Embarcador desactivado: ${embarcador.rut} (${displayName})`,
+    );
+    return { message: 'Embarcador desactivado exitosamente' };
   }
 
   async findByRut(
     rut: string,
     tenantId: string,
   ): Promise<EmbarcadorResponseDto | null> {
-    try {
-      const embarcador = await this.prisma.embarcador.findFirst({
-        where: {
-          rut,
-          tenantId,
-        },
-        include: {
-          comuna: {
-            include: {
-              provincia: {
-                include: {
-                  region: true,
-                },
-              },
-            },
-          },
-          entidad: true,
-        },
-      });
+    const formattedRut = this.formatRut(rut);
 
-      return embarcador ? new EmbarcadorResponseDto(embarcador) : null;
-    } catch (error) {
-      this.logger.error(`Error finding embarcador by RUT ${rut}:`, error);
-      throw error;
-    }
+    const embarcador = await this.prisma.embarcador.findFirst({
+      where: { rut: formattedRut, tenantId },
+      include: this.embarcadorInclude,
+    });
+
+    return embarcador ? new EmbarcadorResponseDto(embarcador) : null;
   }
+
   async getStats(tenantId: string): Promise<ShipperStatsDto> {
-    try {
-      const total = await this.prisma.embarcador.count({
-        where: { tenantId },
-      });
+    const [total, activos, inactivos] = await this.prisma.$transaction([
+      this.prisma.embarcador.count({ where: { tenantId } }),
+      this.prisma.embarcador.count({ where: { tenantId, activo: true } }),
+      this.prisma.embarcador.count({ where: { tenantId, activo: false } }),
+    ]);
 
-      const activos = await this.prisma.embarcador.count({
-        where: {
-          tenantId,
-          activo: true,
-        },
-      });
-
-      const inactivos = await this.prisma.embarcador.count({
-        where: {
-          tenantId,
-          activo: false,
-        },
-      });
-
-      return {
-        total,
-        activos,
-        inactivos,
-      };
-    } catch (error) {
-      this.logger.error('Error fetching shipper stats:', error);
-      throw error;
-    }
+    return { total, activos, inactivos };
   }
 }

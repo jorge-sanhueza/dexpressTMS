@@ -1,4 +1,3 @@
-// backend: controllers/tipo-carga.controller.ts
 import {
   Controller,
   Get,
