@@ -33,21 +33,21 @@ Auth0 (IDP)   - NestJS API    - PostgreSQL
 - Base de datos PostgreSQL
 - Cuenta Auth0
 
-### Instalación
+## Instalación
 
-# Configuración de entorno
-# Editar .env con las credenciales de la base de datos
+### Configuración de entorno
+Editar .env con las credenciales de la base de datos
 
-# Generar el cliente Prisma
+### Generar el cliente Prisma
 npx prisma generate
 
-# Subir el esquema de la base de datos
+### Subir el esquema de la base de datos
 npx prisma db push
 
-# Semillar los datos iniciales
+### Semillar los datos iniciales
 npx prisma db seed
 
-# API Endpoints
+### API Endpoints
 Autenticacion
 POST /auth/test-login - Endpoint de prueba
 
