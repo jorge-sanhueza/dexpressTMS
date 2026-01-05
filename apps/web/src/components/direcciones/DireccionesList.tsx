@@ -158,11 +158,11 @@ export const DireccionesList: React.FC = () => {
   const deleteError = useMutationError(deleteDireccionMutation, "delete");
 
   // ========== PERMISSIONS ==========
-  const canViewDirecciones = hasModulePermission("dashboard", "ver");
-  const canCreateDirecciones = hasModulePermission("dashboard", "crear");
-  const canEditDirecciones = hasModulePermission("dashboard", "editar");
-  const canDeleteDirecciones = hasModulePermission("dashboard", "eliminar");
-  const canActivateDirecciones = hasModulePermission("dashboard", "activar");
+  const canViewDirecciones = hasModulePermission("direcciones", "ver");
+  const canCreateDirecciones = hasModulePermission("direcciones", "crear");
+  const canEditDirecciones = hasModulePermission("direcciones", "editar");
+  const canDeleteDirecciones = hasModulePermission("direcciones", "eliminar");
+  const canActivateDirecciones = hasModulePermission("direcciones", "activar");
 
   // ========== EVENT HANDLERS ==========
   const handleViewMap = (direccion: Direccion) => {

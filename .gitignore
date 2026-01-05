@@ -1,2 +1,54 @@
-node_modules
+# ==================== Dependencies ====================
+node_modules/
+
+# ==================== Build Systems ====================
 .turbo
+dist/
+build/
+.out/
+.next/
+
+# ==================== IDE/Editor ====================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==================== OS Generated ====================
+.DS_Store
+Thumbs.db
+
+# ==================== Logs ====================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==================== Environment ====================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ==================== Temporary/Cache ====================
+.cache/
+.tmp/
+
+# ==================== Git Cleanup Scripts ====================
+# These are personal utilities, not part of the project
+check-branches.sh
+delete-safe-branches.sh
+cleanup-remote-branches.sh
+interactive-cleanup.sh
+full-cleanup.sh
+update-gitignore.sh
+
+# ==================== Shell Scripts ====================
+# Ignore all .sh files by default, except in scripts/ directory
+*.sh
+!scripts/
+!scripts/**/*.sh
+
+# ==================== Project Specific ====================
+# Add any project-specific ignores here

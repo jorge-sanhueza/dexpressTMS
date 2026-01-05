@@ -12,6 +12,7 @@ import type { Entidad } from "@/services/entidadesService";
 import { useEntidad } from "@/hooks/useEntidades";
 import { useOrder, useUpdateOrder } from "@/hooks/useOrders";
 import { DatePicker } from "../DatePicker";
+import { WideLayout } from "../layout/WideLayout";
 
 interface FormData {
   clienteId: string;
@@ -36,7 +37,38 @@ interface FormData {
 export const EditOrderForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { tenant } = useAuthStore();
+  const { tenant, hasModulePermission } = useAuthStore();
+
+  // ========== PERMISSIONS ==========
+  const canEditOrders = hasModulePermission("ordenes", "editar");
+
+  // Check permissions early - render unauthorized if no permission
+  if (!canEditOrders) {
+    return (
+      <WideLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-[#798283] mb-4">
+              Acceso No Autorizado
+            </div>
+            <p className="text-[#798283]/70">
+              No tienes permisos para editar órdenes.
+            </p>
+            <p className="text-sm text-[#798283]/50 mt-2">
+              Contacta al administrador del sistema para solicitar acceso.
+            </p>
+            <button
+              onClick={() => navigate("/ordenes")}
+              className="mt-6 px-4 py-2 bg-[#798283] text-white rounded-lg hover:bg-[#5a6b6c] transition-colors"
+            >
+              Volver a Órdenes
+            </button>
+          </div>
+        </div>
+      </WideLayout>
+    );
+  }
+
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);

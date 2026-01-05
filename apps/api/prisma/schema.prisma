@@ -1,4 +1,3 @@
-// ===== PRISMA CONFIGURATION =====
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
@@ -9,7 +8,805 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ===== CORE ENUMS =====
+model Tenant {
+  id                  String                 @id @default(uuid())
+  activo              Boolean                @default(true)
+  contacto            String
+  logoUrl             String?                @map("logo_url")
+  nombre              String                 @unique
+  rut                 String                 @unique
+  createdAt           DateTime               @default(now()) @map("created_at")
+  updatedAt           DateTime               @updatedAt @map("updated_at")
+  tipoTenant          TipoTenant             @map("tipo_tenant")
+  caracteristicas     CaracteristicaModelo[]
+  carriers            Carrier[]
+  choferes            Chofer[]
+  clientes            Cliente[]
+  coberturas          Cobertura[]
+  comunas             Comuna[]
+  contactos           Contacto[]
+  direcciones         Direccion[]
+  embarcadores        Embarcador[]
+  entidades           Entidad[]
+  equipos             Equipo[]
+  hubs                Hub[]
+  modelosTransporte   ModeloTransporte[]
+  ordenes             Orden[]
+  perfiles            Perfil[]
+  perfilesRoles       PerfilRol[]
+  planificaciones     Planificacion[]
+  provincias          Provincia[]
+  regiones            Region[]
+  retiros             Retiro[]
+  roles               Rol[]
+  slots               Slot[]
+  tipoCargas          TipoCarga[]
+  tipoServicios       TipoServicio[]
+  tiposEquipo         TipoEquipo[]
+  usuarioCredenciales UsuarioCredencial[]
+  usuarioSesiones     UsuarioSesion[]
+  usuarios            Usuario[]
+  zonas               Zona[]
+
+  @@map("tenants")
+}
+
+model Usuario {
+  id         String             @id @default(uuid())
+  activo     Boolean            @default(true)
+  correo     String             @unique
+  nombre     String
+  perfilId   String             @map("perfil_id")
+  rut        String?
+  telefono   String?
+  tenantId   String             @map("tenant_id")
+  createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
+  estado     EstadoUsuario
+  credencial UsuarioCredencial?
+  sesiones   UsuarioSesion[]
+  perfil     Perfil             @relation(fields: [perfilId], references: [id])
+  tenant     Tenant             @relation(fields: [tenantId], references: [id])
+
+  @@map("usuarios")
+}
+
+model Perfil {
+  id            String      @id @default(uuid())
+  activo        Boolean     @default(true)
+  descripcion   String?
+  nombre        String
+  tenantId      String      @map("tenant_id")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  perfilesRoles PerfilRol[]
+  usuarios      Usuario[]
+
+  @@unique([nombre, tenantId])
+  @@map("perfiles")
+}
+
+model Rol {
+  id            String      @id @default(uuid())
+  activo        Boolean     @default(true)
+  codigo        String      @unique
+  modulo        String
+  nombre        String
+  orden         Int         @default(0)
+  tenantId      String      @map("tenant_id")
+  visible       Boolean     @default(true)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  tipoAccion    TipoAccion  @map("tipo_accion")
+  perfilesRoles PerfilRol[]
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@map("roles")
+}
+
+model PerfilRol {
+  id        String   @id @default(uuid())
+  perfilId  String   @map("perfil_id")
+  rolId     String   @map("rol_id")
+  tenantId  String   @map("tenant_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  perfil    Perfil   @relation(fields: [perfilId], references: [id])
+  rol       Rol      @relation(fields: [rolId], references: [id])
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([perfilId, rolId, tenantId])
+  @@map("perfiles_roles")
+}
+
+model UsuarioCredencial {
+  id           String   @id @default(uuid())
+  activo       Boolean  @default(true)
+  passwordHash String   @map("password_hash")
+  salt         String?
+  tenantId     String   @map("tenant_id")
+  usuarioId    String   @unique @map("usuario_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  usuario      Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@map("usuario_credenciales")
+}
+
+model UsuarioSesion {
+  id              String   @id @default(uuid())
+  dispositivo     String?
+  fechaExpiracion DateTime @map("fecha_expiracion")
+  ipOrigen        String?  @map("ip_origen")
+  tenantId        String   @map("tenant_id")
+  tokenJwt        String   @map("token_jwt")
+  usuarioId       String   @map("usuario_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@index([tokenJwt])
+  @@index([fechaExpiracion])
+  @@map("usuario_sesiones")
+}
+
+model Region {
+  id         String      @id @default(uuid())
+  activo     Boolean     @default(true)
+  codigo     String      @unique
+  nombre     String
+  orden      Int         @default(0)
+  ordinal    Int?
+  tenantId   String      @map("tenant_id")
+  visible    Boolean     @default(true)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+  comunas    Comuna[]
+  provincias Provincia[]
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, activo])
+  @@index([codigo])
+  @@map("regiones")
+}
+
+model Provincia {
+  id        String   @id @default(uuid())
+  activo    Boolean  @default(true)
+  codigo    String
+  nombre    String
+  orden     Int      @default(0)
+  ordinal   Int?
+  regionId  String   @map("region_id")
+  tenantId  String   @map("tenant_id")
+  visible   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  comunas   Comuna[]
+  region    Region   @relation(fields: [regionId], references: [id])
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([regionId])
+  @@index([tenantId, activo])
+  @@index([codigo])
+  @@map("provincias")
+}
+
+model Comuna {
+  id           String       @id @default(uuid())
+  nombre       String
+  orden        Int          @default(0)
+  regionId     String       @map("region_id")
+  provinciaId  String       @map("provincia_id")
+  tenantId     String       @map("tenant_id")
+  visible      Boolean      @default(true)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  activo       Boolean      @default(true)
+  carriers     Carrier[]
+  clientes     Cliente[]
+  contactos    Contacto[]
+  provincia    Provincia    @relation(fields: [provinciaId], references: [id])
+  region       Region       @relation(fields: [regionId], references: [id])
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  direcciones  Direccion[]
+  embarcadores Embarcador[]
+  entidades    Entidad[]
+  hubs         Hub[]
+  slots        Slot[]
+
+  @@unique([nombre, regionId])
+  @@index([regionId])
+  @@index([provinciaId])
+  @@index([tenantId, visible])
+  @@index([nombre])
+  @@map("comunas")
+}
+
+model Zona {
+  id            String      @id @default(uuid())
+  activo        Boolean     @default(true)
+  codigo        String      @unique
+  comunasIds    String[]
+  esDestino     Boolean     @default(true) @map("es_destino")
+  esOrigen      Boolean     @default(true) @map("es_origen")
+  nombre        String
+  observaciones String?
+  orden         Int         @default(0)
+  tenantId      String      @map("tenant_id")
+  tipoZona      TipoZona    @map("tipo_zona")
+  visible       Boolean     @default(true)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  coberturas    Cobertura[]
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@map("zonas")
+}
+
+model TipoCarga {
+  id                     String   @id @default(uuid())
+  nombre                 String
+  observaciones          String?
+  orden                  Int      @default(0)
+  requiereEquipoEspecial Boolean  @default(false) @map("requiere_equipo_especial")
+  requiereTempControlada Boolean  @default(false) @map("requiere_temp_controlada")
+  tenantId               String   @map("tenant_id")
+  visible                Boolean  @default(true)
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+  activo                 Boolean  @default(true)
+  ordenes                Orden[]
+  tenant                 Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([nombre, tenantId])
+  @@index([tenantId, visible])
+  @@index([orden])
+  @@map("tipo_carga")
+}
+
+model TipoServicio {
+  id          String      @id @default(uuid())
+  activo      Boolean     @default(true)
+  codigo      String      @unique
+  descripcion String?
+  nombre      String
+  orden       Int         @default(0)
+  tenantId    String      @map("tenant_id")
+  visible     Boolean     @default(true)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  coberturas  Cobertura[]
+  ordenes     Orden[]
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, activo])
+  @@index([codigo])
+  @@index([orden])
+  @@map("tipo_servicio")
+}
+
+model Entidad {
+  id                      String       @id @default(uuid())
+  activo                  Boolean      @default(true)
+  comunaId                String       @map("comuna_id")
+  contacto                String
+  direccion               String
+  email                   String
+  esPersona               Boolean      @default(false) @map("es_persona")
+  nombre                  String?
+  razonSocial             String?      @map("razon_social")
+  rut                     String
+  telefono                String
+  tenantId                String       @map("tenant_id")
+  createdAt               DateTime     @default(now()) @map("created_at")
+  updatedAt               DateTime     @updatedAt @map("updated_at")
+  tipoEntidad             TipoEntidad  @map("tipo_entidad")
+  carriers                Carrier[]
+  choferes                Chofer[]
+  clientes                Cliente[]
+  coberturas              Cobertura[]
+  contactos               Contacto[]
+  embarcadors             Embarcador[]
+  comuna                  Comuna       @relation(fields: [comunaId], references: [id])
+  tenant                  Tenant       @relation(fields: [tenantId], references: [id])
+  hubs                    Hub[]
+  ordenesComoDestinatario Orden[]      @relation("OrdenDestinatario")
+  ordenesComoRemitente    Orden[]      @relation("OrdenRemitente")
+  retiros                 Retiro[]
+
+  @@index([tenantId, activo])
+  @@index([tipoEntidad])
+  @@index([rut])
+  @@index([nombre])
+  @@index([comunaId])
+  @@map("entidades")
+}
+
+model Cliente {
+  id          String      @id @default(uuid())
+  activo      Boolean     @default(true)
+  comunaId    String      @map("comuna_id")
+  contacto    String
+  direccion   String
+  email       String
+  esPersona   Boolean     @default(false) @map("es_persona")
+  nombre      String?
+  razonSocial String?     @map("razon_social")
+  rut         String      @unique
+  telefono    String
+  tenantId    String      @map("tenant_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  tipoEntidad TipoEntidad @default(CLIENTE) @map("tipo_entidad")
+  entidadId   String?     @map("entidad_id")
+  comuna      Comuna      @relation(fields: [comunaId], references: [id])
+  entidad     Entidad?    @relation(fields: [entidadId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  ordenes     Orden[]
+
+  @@index([tenantId, activo])
+  @@index([rut])
+  @@index([nombre])
+  @@index([comunaId])
+  @@map("clientes")
+}
+
+model Carrier {
+  id          String      @id @default(uuid())
+  activo      Boolean     @default(true)
+  comunaId    String      @map("comuna_id")
+  contacto    String
+  direccion   String
+  email       String
+  esPersona   Boolean     @default(false) @map("es_persona")
+  nombre      String
+  razonSocial String?     @map("razon_social")
+  rut         String      @unique
+  telefono    String
+  tenantId    String      @map("tenant_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  tipoEntidad TipoEntidad @default(CARRIER) @map("tipo_entidad")
+  entidadId   String?     @map("entidad_id")
+  comuna      Comuna      @relation(fields: [comunaId], references: [id])
+  entidad     Entidad?    @relation(fields: [entidadId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  equipos     Equipo[]
+
+  @@index([tenantId, activo])
+  @@index([rut])
+  @@index([nombre])
+  @@index([comunaId])
+  @@map("carriers")
+}
+
+model Embarcador {
+  id          String      @id @default(uuid())
+  activo      Boolean     @default(true)
+  comunaId    String      @map("comuna_id")
+  contacto    String
+  direccion   String
+  email       String
+  esPersona   Boolean     @default(false) @map("es_persona")
+  nombre      String
+  razonSocial String?     @map("razon_social")
+  rut         String      @unique
+  telefono    String
+  tenantId    String      @map("tenant_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  tipoEntidad TipoEntidad @default(EMBARCADOR) @map("tipo_entidad")
+  entidadId   String?     @map("entidad_id")
+  comuna      Comuna      @relation(fields: [comunaId], references: [id])
+  entidad     Entidad?    @relation(fields: [entidadId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  retiros     Retiro[]
+
+  @@index([tenantId, activo])
+  @@index([rut])
+  @@index([nombre])
+  @@index([comunaId])
+  @@map("embarcadores")
+}
+
+model Direccion {
+  id             String          @id @default(uuid())
+  activo         Boolean         @default(true)
+  comunaId       String          @map("comuna_id")
+  contacto       String?
+  email          String?
+  esPrincipal    Boolean         @default(false) @map("es_principal")
+  nombre         String?
+  referencia     String?
+  telefono       String?
+  tenantId       String          @map("tenant_id")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  calle          String?
+  direccionTexto String          @map("direccion_texto")
+  frecuencia     Int             @default(1)
+  latitud        Float?
+  longitud       Float?
+  numero         String?
+  origen         OrigenDireccion @default(MANUAL)
+  ultimaVezUsada DateTime?       @map("ultima_vez_usada")
+  comuna         Comuna          @relation(fields: [comunaId], references: [id])
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  ordenesDestino Orden[]         @relation("OrdenDestino")
+  ordenesOrigen  Orden[]         @relation("OrdenOrigen")
+
+  @@index([tenantId, activo])
+  @@index([comunaId])
+  @@index([esPrincipal])
+  @@index([origen])
+  @@index([ultimaVezUsada])
+  @@index([frecuencia])
+  @@map("direcciones")
+}
+
+model Orden {
+  id                   String          @id @default(uuid())
+  clienteId            String          @map("cliente_id")
+  codigo               String
+  numeroOt             String          @unique @map("numero_ot")
+  fecha                DateTime        @map("fecha")
+  fechaEntregaEstimada DateTime?       @map("fecha_entrega_estimada")
+  remitenteId          String          @map("remitente_id")
+  destinatarioId       String          @map("destinatario_id")
+  direccionOrigenId    String          @map("direccion_origen_id")
+  direccionDestinoId   String          @map("direccion_destino_id")
+  tipoCargaId          String          @map("tipo_carga_id")
+  tipoServicioId       String          @map("tipo_servicio_id")
+  equipoId             String?         @map("equipo_id")
+  pesoTotalKg          Float?          @map("peso_total_kg")
+  volumenTotalM3       Float?          @map("volumen_total_m3")
+  altoCm               Float?          @map("alto_cm")
+  largoCm              Float?          @map("largo_cm")
+  anchoCm              Float?          @map("ancho_cm")
+  observaciones        String?
+  tenantId             String          @map("tenant_id")
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+  estado               OrdenEstado     @default(PENDIENTE)
+  tipoTarifa           TipoTarifa      @default(PESO_VOLUMEN) @map("tipo_tarifa")
+  cliente              Cliente         @relation(fields: [clienteId], references: [id])
+  destinatario         Entidad         @relation("OrdenDestinatario", fields: [destinatarioId], references: [id])
+  direccionDestino     Direccion       @relation("OrdenDestino", fields: [direccionDestinoId], references: [id])
+  direccionOrigen      Direccion       @relation("OrdenOrigen", fields: [direccionOrigenId], references: [id])
+  equipo               Equipo?         @relation(fields: [equipoId], references: [id])
+  remitente            Entidad         @relation("OrdenRemitente", fields: [remitenteId], references: [id])
+  tenant               Tenant          @relation(fields: [tenantId], references: [id])
+  tipoCarga            TipoCarga       @relation(fields: [tipoCargaId], references: [id])
+  tipoServicio         TipoServicio    @relation(fields: [tipoServicioId], references: [id])
+  planificaciones      Planificacion[]
+  retiros              Retiro[]
+  slots                Slot[]
+
+  @@index([tenantId, estado])
+  @@index([clienteId])
+  @@index([fecha])
+  @@index([codigo])
+  @@index([fechaEntregaEstimada])
+  @@index([remitenteId])
+  @@index([destinatarioId])
+  @@index([tipoCargaId])
+  @@index([tipoServicioId])
+  @@map("ordenes")
+}
+
+model TipoEquipo {
+  id              String                 @id @default(uuid())
+  activo          Boolean                @default(true)
+  codigo          String                 @unique
+  descripcion     String?
+  nombre          String
+  orden           Int                    @default(0)
+  tenantId        String                 @map("tenant_id")
+  visible         Boolean                @default(true)
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+  caracteristicas CaracteristicaModelo[]
+  equipos         Equipo[]
+  modelos         ModeloTransporte[]
+  tenant          Tenant                 @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, activo])
+  @@index([codigo])
+  @@map("tipos_equipo")
+}
+
+model CaracteristicaModelo {
+  id           String                 @id @default(uuid())
+  activo       Boolean                @default(true)
+  codigo       String                 @unique
+  nombre       String
+  opciones     Json?
+  tipoEquipoId String                 @map("tipo_equipo_id")
+  orden        Int                    @default(0)
+  tenantId     String                 @map("tenant_id")
+  tipoDato     TipoDatoCaracteristica @map("tipo_dato")
+  visible      Boolean                @default(true)
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id])
+  tipoEquipo   TipoEquipo             @relation(fields: [tipoEquipoId], references: [id])
+
+  @@index([tenantId, visible])
+  @@index([tipoEquipoId])
+  @@map("caracteristicas_modelo")
+}
+
+model ModeloTransporte {
+  id           String     @id @default(uuid())
+  activo       Boolean    @default(true)
+  altoMts      Float?     @map("alto_mts")
+  anchoMts     Float?     @map("ancho_mts")
+  codigo       String     @unique
+  largoMts     Float?     @map("largo_mts")
+  nombre       String
+  orden        Int        @default(0)
+  tenantId     String     @map("tenant_id")
+  tipoEquipoId String     @map("tipo_equipo_id")
+  tipoModelo   TipoModelo @map("tipo_modelo")
+  tonelaje     Float?
+  visible      Boolean    @default(true)
+  volumenM3    Float?     @map("volumen_m3")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  equipos      Equipo[]
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  tipoEquipo   TipoEquipo @relation(fields: [tipoEquipoId], references: [id])
+
+  @@index([tenantId, activo])
+  @@index([codigo])
+  @@index([tipoEquipoId])
+  @@map("modelos_transporte")
+}
+
+model Equipo {
+  id                 String           @id @default(uuid())
+  activo             Boolean          @default(true)
+  carrierId          String           @map("carrier_id")
+  gpsActivo          Boolean          @default(false) @map("gps_activo")
+  modeloTransporteId String           @map("modelo_transporte_id")
+  nombre             String
+  observaciones      String?
+  patente            String           @unique
+  tenantId           String           @map("tenant_id")
+  tipoEquipoId       String           @map("tipo_equipo_id")
+  vin                String?          @map("vin")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  carrier            Carrier          @relation(fields: [carrierId], references: [id])
+  modeloTransporte   ModeloTransporte @relation(fields: [modeloTransporteId], references: [id])
+  tenant             Tenant           @relation(fields: [tenantId], references: [id])
+  tipoEquipo         TipoEquipo       @relation(fields: [tipoEquipoId], references: [id])
+  ordenes            Orden[]
+  planificaciones    Planificacion[]
+  retiros            Retiro[]
+
+  @@index([tenantId, activo])
+  @@index([patente])
+  @@index([carrierId])
+  @@index([tipoEquipoId])
+  @@map("equipos")
+}
+
+model Chofer {
+  id                  String          @id @default(uuid())
+  activo              Boolean         @default(true)
+  contacto            String
+  email               String?
+  entidadId           String          @map("entidad_id")
+  estado              ChoferEstado
+  licenciaTipo        String?         @map("licencia_tipo")
+  licenciaVencimiento DateTime?       @map("licencia_vencimiento")
+  nombre              String
+  patenteAsignada     String?         @map("patente_asignada")
+  rut                 String
+  telefono            String?
+  tenantId            String          @map("tenant_id")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+  entidad             Entidad         @relation(fields: [entidadId], references: [id])
+  tenant              Tenant          @relation(fields: [tenantId], references: [id])
+  planificaciones     Planificacion[]
+  retiros             Retiro[]
+
+  @@index([tenantId, activo])
+  @@index([rut])
+  @@index([entidadId])
+  @@index([licenciaVencimiento])
+  @@map("choferes")
+}
+
+model Hub {
+  id        String   @id @default(uuid())
+  activo    Boolean  @default(true)
+  codigo    String   @unique
+  comunaId  String   @map("comuna_id")
+  direccion String
+  entidadId String   @map("entidad_id")
+  latitud   Float?
+  longitud  Float?
+  nombre    String
+  orden     Int      @default(0)
+  tenantId  String   @map("tenant_id")
+  visible   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  comuna    Comuna   @relation(fields: [comunaId], references: [id])
+  entidad   Entidad  @relation(fields: [entidadId], references: [id])
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  retiros   Retiro[]
+  slots     Slot[]
+
+  @@index([tenantId, activo])
+  @@index([codigo])
+  @@index([comunaId])
+  @@map("hubs")
+}
+
+model Slot {
+  id              String          @id @default(uuid())
+  activo          Boolean         @default(true)
+  codigo          String
+  comentario      String?
+  comunaId        String?         @map("comuna_id")
+  direccionManual String?         @map("direccion_manual")
+  fecha           DateTime        @map("fecha")
+  horaFin         DateTime        @map("hora_fin")
+  horaInicio      DateTime        @map("hora_inicio")
+  hubId           String?         @map("hub_id")
+  ocupado         Boolean         @default(false)
+  ordenId         String?         @map("orden_id")
+  tenantId        String          @map("tenant_id")
+  tipoOperacion   TipoOperacion   @map("tipo_operacion")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  planificaciones Planificacion[]
+  retiros         Retiro[]
+  comuna          Comuna?         @relation(fields: [comunaId], references: [id])
+  hub             Hub?            @relation(fields: [hubId], references: [id])
+  orden           Orden?          @relation(fields: [ordenId], references: [id])
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, activo])
+  @@index([fecha])
+  @@index([hubId])
+  @@index([ocupado])
+  @@index([tipoOperacion])
+  @@map("slots")
+}
+
+model Planificacion {
+  id               String              @id @default(uuid())
+  choferId         String              @map("chofer_id")
+  codigo           String
+  equipoId         String              @map("equipo_id")
+  estado           PlanificacionEstado @default(PENDIENTE)
+  etapa            PlanificacionEtapa
+  fecha            DateTime            @map("fecha")
+  fechaAsignacion  DateTime?           @map("fecha_asignacion")
+  fechaPlanificada DateTime            @map("fecha_planificada")
+  horaFin          DateTime            @map("hora_fin")
+  horaInicio       DateTime            @map("hora_inicio")
+  observaciones    String?
+  ordenId          String              @map("orden_id")
+  slotId           String?             @map("slot_id")
+  tenantId         String              @map("tenant_id")
+  usuarioAsigno    String              @map("usuario_asigno")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+  chofer           Chofer              @relation(fields: [choferId], references: [id])
+  equipo           Equipo              @relation(fields: [equipoId], references: [id])
+  orden            Orden               @relation(fields: [ordenId], references: [id])
+  slot             Slot?               @relation(fields: [slotId], references: [id])
+  tenant           Tenant              @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, estado])
+  @@index([fecha])
+  @@index([ordenId])
+  @@index([choferId])
+  @@index([equipoId])
+  @@index([slotId])
+  @@map("planificaciones")
+}
+
+model Retiro {
+  id                     String       @id @default(uuid())
+  tenantId               String       @map("tenant_id")
+  ordenId                String       @map("orden_id")
+  slotId                 String?      @map("slot_id")
+  hubDestinoId           String       @map("hub_destino_id")
+  choferId               String       @map("chofer_id")
+  equipoId               String       @map("equipo_id")
+  fechaRetiroSolicitada  DateTime     @map("fecha_retiro_solicitada")
+  horaRetiroSolicitada   DateTime     @map("hora_retiro_solicitada")
+  fechaRetiroPlanificada DateTime?    @map("fecha_retiro_planificada")
+  fechaRetiroReal        DateTime?    @map("fecha_retiro_real")
+  estadoRetiro           EstadoRetiro @default(PENDIENTE) @map("estado_retiro")
+  agenciaCargaId         String?      @map("agencia_carga_id")
+  origenRetiro           String       @map("origen_retiro")
+  remitenteId            String       @map("remitente_id")
+  contactoRetiroId       String?      @map("contacto_retiro_id")
+  telefonoContacto       String?      @map("telefono_contacto")
+  observaciones          String?
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @updatedAt @map("updated_at")
+  agenciaCarga           Embarcador?  @relation(fields: [agenciaCargaId], references: [id])
+  chofer                 Chofer       @relation(fields: [choferId], references: [id])
+  contacto               Contacto?    @relation(fields: [contactoRetiroId], references: [id])
+  equipo                 Equipo       @relation(fields: [equipoId], references: [id])
+  hubDestino             Hub          @relation(fields: [hubDestinoId], references: [id])
+  orden                  Orden        @relation(fields: [ordenId], references: [id])
+  remitente              Entidad      @relation(fields: [remitenteId], references: [id])
+  slot                   Slot?        @relation(fields: [slotId], references: [id])
+  tenant                 Tenant       @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, estadoRetiro])
+  @@index([ordenId])
+  @@index([fechaRetiroSolicitada])
+  @@index([fechaRetiroReal])
+  @@index([agenciaCargaId])
+  @@map("retiros")
+}
+
+model Contacto {
+  id               String   @id @default(uuid())
+  activo           Boolean  @default(true)
+  cargo            String?
+  contacto         String
+  direccion        String?  @map("direccion")
+  email            String?
+  entidadId        String   @map("entidad_id")
+  esPersonaNatural Boolean  @default(true) @map("es_persona_natural")
+  nombre           String
+  rut              String
+  telefono         String?
+  tenantId         String   @map("tenant_id")
+  comunaId         String?  @map("comuna_id")
+  comuna           Comuna?  @relation(fields: [comunaId], references: [id])
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  entidad          Entidad  @relation(fields: [entidadId], references: [id])
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  retiros          Retiro[]
+
+  @@index([tenantId, activo])
+  @@index([rut])
+  @@index([entidadId])
+  @@map("contactos")
+}
+
+model Cobertura {
+  id             String        @id @default(uuid())
+  activo         Boolean       @default(true)
+  comentario     String?
+  entidadId      String        @map("entidad_id")
+  excluyente     Boolean       @default(false)
+  tenantId       String        @map("tenant_id")
+  tipoServicioId String?       @map("tipo_servicio_id")
+  valor          Float?
+  vigencia       DateTime?     @map("vigencia")
+  zonaId         String?       @map("zona_id")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  entidad        Entidad       @relation(fields: [entidadId], references: [id])
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  tipoServicio   TipoServicio? @relation(fields: [tipoServicioId], references: [id])
+  zona           Zona?         @relation(fields: [zonaId], references: [id])
+
+  @@index([tenantId, activo])
+  @@index([entidadId])
+  @@index([vigencia])
+  @@index([excluyente])
+  @@map("cobertura")
+}
+
 enum TipoTenant {
   SHIPPER
   CARRIER
@@ -114,892 +911,4 @@ enum OrigenDireccion {
   MANUAL
   IMPORTACION
   API
-}
-
-// ===== TENANT & USER MANAGEMENT MODELS =====
-
-// Main tenant/organization
-model Tenant {
-  id         String     @id @default(uuid())
-  activo     Boolean    @default(true)
-  contacto   String
-  logoUrl    String?    @map("logo_url")
-  nombre     String     @unique
-  rut        String     @unique
-  tipoTenant TipoTenant @map("tipo_tenant")
-  createdAt  DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime   @updatedAt @map("updated_at")
-
-  // System configuration
-  perfiles      Perfil[]
-  perfilesRoles PerfilRol[]
-  roles         Rol[]
-
-  // User management
-  usuarioCredenciales UsuarioCredencial[]
-  usuarioSesiones     UsuarioSesion[]
-  usuarios            Usuario[]
-
-  // Business entities
-  clientes          Cliente[]
-  carriers          Carrier[]
-  embarcadores      Embarcador[]
-  entidades         Entidad[]
-  ordenes           Orden[]
-  direcciones       Direccion[]
-  equipos           Equipo[]
-  choferes          Chofer[]
-  hubs              Hub[]
-  slots             Slot[]
-  planificaciones   Planificacion[]
-  retiros           Retiro[]
-  contactos         Contacto[]
-  coberturas        Cobertura[]
-  zonas             Zona[]
-  regiones          Region[]
-  provincias        Provincia[]
-  comunas           Comuna[]
-  tipoCargas        TipoCarga[]
-  tipoServicios     TipoServicio[]
-  tiposEquipo       TipoEquipo[]
-  modelosTransporte ModeloTransporte[]
-  caracteristicas   CaracteristicaModelo[]
-
-  @@map("tenants")
-}
-
-// System users
-model Usuario {
-  id        String        @id @default(uuid())
-  activo    Boolean       @default(true)
-  correo    String        @unique
-  estado    EstadoUsuario
-  nombre    String
-  perfilId  String        @map("perfil_id")
-  rut       String?
-  telefono  String?
-  tenantId  String        @map("tenant_id")
-  createdAt DateTime      @default(now()) @map("created_at")
-  updatedAt DateTime      @updatedAt @map("updated_at")
-
-  // Authentication
-  credencial UsuarioCredencial?
-  sesiones   UsuarioSesion[]
-  perfil     Perfil             @relation(fields: [perfilId], references: [id])
-  tenant     Tenant             @relation(fields: [tenantId], references: [id])
-
-  @@map("usuarios")
-}
-
-// User profiles with role assignments
-model Perfil {
-  id          String   @id @default(uuid())
-  activo      Boolean  @default(true)
-  descripcion String?
-  nombre      String
-  tenantId    String   @map("tenant_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  tenant        Tenant      @relation(fields: [tenantId], references: [id])
-  perfilesRoles PerfilRol[]
-  usuarios      Usuario[]
-
-  @@unique([nombre, tenantId])
-  @@map("perfiles")
-}
-
-// Role-based access control
-model Rol {
-  id         String     @id @default(uuid())
-  activo     Boolean    @default(true)
-  codigo     String     @unique
-  modulo     String
-  nombre     String
-  orden      Int        @default(0)
-  tenantId   String     @map("tenant_id")
-  tipoAccion TipoAccion @map("tipo_accion")
-  visible    Boolean    @default(true)
-  createdAt  DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime   @updatedAt @map("updated_at")
-
-  perfilesRoles PerfilRol[]
-  tenant        Tenant      @relation(fields: [tenantId], references: [id])
-
-  @@map("roles")
-}
-
-// Profile-role many-to-many relationship
-model PerfilRol {
-  id        String   @id @default(uuid())
-  perfilId  String   @map("perfil_id")
-  rolId     String   @map("rol_id")
-  tenantId  String   @map("tenant_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  perfil Perfil @relation(fields: [perfilId], references: [id])
-  rol    Rol    @relation(fields: [rolId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-
-  @@unique([perfilId, rolId, tenantId])
-  @@map("perfiles_roles")
-}
-
-// User authentication credentials
-model UsuarioCredencial {
-  id           String   @id @default(uuid())
-  activo       Boolean  @default(true)
-  passwordHash String   @map("password_hash")
-  salt         String?
-  tenantId     String   @map("tenant_id")
-  usuarioId    String   @unique @map("usuario_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  usuario Usuario @relation(fields: [usuarioId], references: [id])
-
-  @@map("usuario_credenciales")
-}
-
-// User session management
-model UsuarioSesion {
-  id              String   @id @default(uuid())
-  dispositivo     String?
-  fechaExpiracion DateTime @map("fecha_expiracion")
-  ipOrigen        String?  @map("ip_origen")
-  tenantId        String   @map("tenant_id")
-  tokenJwt        String   @map("token_jwt")
-  usuarioId       String   @map("usuario_id")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  usuario Usuario @relation(fields: [usuarioId], references: [id])
-
-  @@index([tokenJwt])
-  @@index([fechaExpiracion])
-  @@map("usuario_sesiones")
-}
-
-// ===== GEOGRAPHIC LOCATION MODELS =====
-
-model Region {
-  id        String   @id @default(uuid())
-  activo    Boolean  @default(true)
-  codigo    String   @unique
-  nombre    String
-  orden     Int      @default(0)
-  ordinal   Int?
-  tenantId  String   @map("tenant_id")
-  visible   Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  tenant     Tenant      @relation(fields: [tenantId], references: [id])
-  provincias Provincia[]
-  comunas    Comuna[]
-
-  @@index([tenantId, activo])
-  @@index([codigo])
-  @@map("regiones")
-}
-
-model Provincia {
-  id        String   @id @default(uuid())
-  activo    Boolean  @default(true)
-  codigo    String
-  nombre    String
-  orden     Int      @default(0)
-  ordinal   Int?
-  regionId  String   @map("region_id")
-  tenantId  String   @map("tenant_id")
-  visible   Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  region  Region   @relation(fields: [regionId], references: [id])
-  tenant  Tenant   @relation(fields: [tenantId], references: [id])
-  comunas Comuna[]
-
-  @@index([regionId])
-  @@index([tenantId, activo])
-  @@index([codigo])
-  @@map("provincias")
-}
-
-model Comuna {
-  id          String   @id @default(uuid())
-  activo      Boolean  @default(true)
-  nombre      String
-  orden       Int      @default(0)
-  regionId    String   @map("region_id")
-  provinciaId String   @map("provincia_id")
-  tenantId    String   @map("tenant_id")
-  visible     Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  region    Region    @relation(fields: [regionId], references: [id])
-  provincia Provincia @relation(fields: [provinciaId], references: [id])
-  tenant    Tenant    @relation(fields: [tenantId], references: [id])
-
-  // Geographic relationships
-  clientes     Cliente[]
-  contactos    Contacto[]
-  carriers     Carrier[]
-  embarcadores Embarcador[]
-  entidades    Entidad[]
-  direcciones  Direccion[]
-  hubs         Hub[]
-  slots        Slot[]
-
-  @@unique([nombre, regionId])
-  @@index([regionId])
-  @@index([provinciaId])
-  @@index([tenantId, visible])
-  @@index([nombre])
-  @@map("comunas")
-}
-
-model Zona {
-  id            String   @id @default(uuid())
-  activo        Boolean  @default(true)
-  codigo        String   @unique
-  comunasIds    String[]
-  esDestino     Boolean  @default(true) @map("es_destino")
-  esOrigen      Boolean  @default(true) @map("es_origen")
-  nombre        String
-  observaciones String?
-  orden         Int      @default(0)
-  tenantId      String   @map("tenant_id")
-  tipoZona      TipoZona @map("tipo_zona")
-  visible       Boolean  @default(true)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  tenant     Tenant      @relation(fields: [tenantId], references: [id])
-  coberturas Cobertura[]
-
-  @@map("zonas")
-}
-
-// ===== SERVICE CONFIGURATION MODELS =====
-
-model TipoCarga {
-  id                     String   @id @default(uuid())
-  activo                 Boolean  @default(true)
-  nombre                 String
-  observaciones          String?
-  orden                  Int      @default(0)
-  requiereEquipoEspecial Boolean  @default(false) @map("requiere_equipo_especial")
-  requiereTempControlada Boolean  @default(false) @map("requiere_temp_controlada")
-  tenantId               String   @map("tenant_id")
-  visible                Boolean  @default(true)
-  createdAt              DateTime @default(now()) @map("created_at")
-  updatedAt              DateTime @updatedAt @map("updated_at")
-
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  ordenes Orden[]
-
-  @@unique([nombre, tenantId])
-  @@index([tenantId, visible])
-  @@index([orden])
-  @@map("tipo_carga")
-}
-
-model TipoServicio {
-  id          String   @id @default(uuid())
-  activo      Boolean  @default(true)
-  codigo      String   @unique
-  descripcion String?
-  nombre      String
-  orden       Int      @default(0)
-  tenantId    String   @map("tenant_id")
-  visible     Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  tenant     Tenant      @relation(fields: [tenantId], references: [id])
-  ordenes    Orden[]
-  coberturas Cobertura[]
-
-  @@index([tenantId, activo])
-  @@index([codigo])
-  @@index([orden])
-  @@map("tipo_servicio")
-}
-
-// ===== BUSINESS ENTITY MODELS =====
-
-model Entidad {
-  id          String      @id @default(uuid())
-  activo      Boolean     @default(true)
-  comunaId    String      @map("comuna_id")
-  contacto    String
-  direccion   String?
-  email       String
-  esPersona   Boolean     @default(false) @map("es_persona")
-  nombre      String?
-  razonSocial String?     @map("razon_social")
-  rut         String
-  telefono    String
-  tenantId    String      @map("tenant_id")
-  tipoEntidad TipoEntidad @map("tipo_entidad")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
-
-  comuna Comuna @relation(fields: [comunaId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-
-  // Order relationships
-  ordenesComoRemitente    Orden[] @relation("OrdenRemitente")
-  ordenesComoDestinatario Orden[] @relation("OrdenDestinatario")
-
-  // Planning relationships
-  choferes    Chofer[]
-  hubs        Hub[]
-  retiros     Retiro[]
-  contactos   Contacto[]
-  coberturas  Cobertura[]
-  clientes    Cliente[]
-  carriers    Carrier[]
-  embarcadors Embarcador[]
-
-  @@index([tenantId, activo])
-  @@index([tipoEntidad])
-  @@index([rut])
-  @@index([nombre])
-  @@index([comunaId])
-  @@map("entidades")
-}
-
-model Cliente {
-  id          String      @id @default(uuid())
-  activo      Boolean     @default(true)
-  comunaId    String      @map("comuna_id")
-  contacto    String
-  direccion   String
-  email       String
-  esPersona   Boolean     @default(false) @map("es_persona")
-  nombre      String?
-  razonSocial String?     @map("razon_social")
-  rut         String      @unique
-  telefono    String
-  tenantId    String      @map("tenant_id")
-  tipoEntidad TipoEntidad @default(CLIENTE) @map("tipo_entidad")
-  entidadId   String?     @map("entidad_id")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
-
-  comuna  Comuna   @relation(fields: [comunaId], references: [id])
-  tenant  Tenant   @relation(fields: [tenantId], references: [id])
-  entidad Entidad? @relation(fields: [entidadId], references: [id])
-
-  ordenes Orden[]
-
-  @@index([tenantId, activo])
-  @@index([rut])
-  @@index([nombre])
-  @@index([comunaId])
-  @@map("clientes")
-}
-
-model Carrier {
-  id          String      @id @default(uuid())
-  activo      Boolean     @default(true)
-  comunaId    String      @map("comuna_id")
-  contacto    String
-  direccion   String
-  email       String
-  esPersona   Boolean     @default(false) @map("es_persona")
-  nombre      String
-  razonSocial String?     @map("razon_social")
-  rut         String      @unique
-  telefono    String
-  tenantId    String      @map("tenant_id")
-  tipoEntidad TipoEntidad @default(CARRIER) @map("tipo_entidad")
-  entidadId   String?     @map("entidad_id")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
-
-  comuna  Comuna   @relation(fields: [comunaId], references: [id])
-  tenant  Tenant   @relation(fields: [tenantId], references: [id])
-  entidad Entidad? @relation(fields: [entidadId], references: [id])
-  equipos Equipo[]
-
-  @@index([tenantId, activo])
-  @@index([rut])
-  @@index([nombre])
-  @@index([comunaId])
-  @@map("carriers")
-}
-
-model Embarcador {
-  id          String      @id @default(uuid())
-  activo      Boolean     @default(true)
-  comunaId    String      @map("comuna_id")
-  contacto    String
-  direccion   String
-  email       String
-  esPersona   Boolean     @default(false) @map("es_persona")
-  nombre      String
-  razonSocial String?     @map("razon_social")
-  rut         String      @unique
-  telefono    String
-  tenantId    String      @map("tenant_id")
-  tipoEntidad TipoEntidad @default(EMBARCADOR) @map("tipo_entidad")
-  entidadId   String?     @map("entidad_id")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
-
-  comuna  Comuna   @relation(fields: [comunaId], references: [id])
-  tenant  Tenant   @relation(fields: [tenantId], references: [id])
-  entidad Entidad? @relation(fields: [entidadId], references: [id])
-  retiros Retiro[]
-
-  @@index([tenantId, activo])
-  @@index([rut])
-  @@index([nombre])
-  @@index([comunaId])
-  @@map("embarcadores")
-}
-
-// ===== ADDRESS MANAGEMENT =====
-
-model Direccion {
-  id             String          @id @default(uuid())
-  activo         Boolean         @default(true)
-  calle          String?
-  comunaId       String          @map("comuna_id")
-  contacto       String?
-  direccionTexto String          @map("direccion_texto")
-  frecuencia     Int             @default(1)
-  latitud        Float?
-  longitud       Float?
-  nombre         String?
-  numero         String?
-  origen         OrigenDireccion @default(MANUAL)
-  tenantId       String          @map("tenant_id")
-  ultimaVezUsada DateTime?       @map("ultima_vez_usada")
-  esPrincipal    Boolean         @default(false) @map("es_principal")
-  email          String?
-  referencia     String?
-  telefono       String?
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
-
-  comuna Comuna @relation(fields: [comunaId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-
-  // Order relationships
-  ordenesOrigen  Orden[] @relation("OrdenOrigen")
-  ordenesDestino Orden[] @relation("OrdenDestino")
-
-  @@index([tenantId, activo])
-  @@index([comunaId])
-  @@index([esPrincipal])
-  @@index([origen])
-  @@index([ultimaVezUsada])
-  @@index([frecuencia])
-  @@map("direcciones")
-}
-
-// ===== ORDER MANAGEMENT =====
-
-model Orden {
-  id                   String    @id @default(uuid())
-  // Basic information
-  clienteId            String    @map("cliente_id")
-  codigo               String
-  numeroOt             String    @unique @map("numero_ot")
-  fecha                DateTime  @map("fecha")
-  fechaEntregaEstimada DateTime? @map("fecha_entrega_estimada")
-
-  // Status and type
-  estado     OrdenEstado @default(PENDIENTE)
-  tipoTarifa TipoTarifa  @default(PESO_VOLUMEN) @map("tipo_tarifa")
-
-  // Parties
-  remitenteId        String @map("remitente_id")
-  destinatarioId     String @map("destinatario_id")
-  direccionOrigenId  String @map("direccion_origen_id")
-  direccionDestinoId String @map("direccion_destino_id")
-
-  // Service details
-  tipoCargaId    String  @map("tipo_carga_id")
-  tipoServicioId String  @map("tipo_servicio_id")
-  equipoId       String? @map("equipo_id")
-
-  // Measurements
-  pesoTotalKg    Float? @map("peso_total_kg")
-  volumenTotalM3 Float? @map("volumen_total_m3")
-  altoCm         Float? @map("alto_cm")
-  largoCm        Float? @map("largo_cm")
-  anchoCm        Float? @map("ancho_cm")
-
-  // Additional info
-  observaciones String?
-  tenantId      String   @map("tenant_id")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  cliente          Cliente      @relation(fields: [clienteId], references: [id])
-  remitente        Entidad      @relation("OrdenRemitente", fields: [remitenteId], references: [id])
-  destinatario     Entidad      @relation("OrdenDestinatario", fields: [destinatarioId], references: [id])
-  direccionOrigen  Direccion    @relation("OrdenOrigen", fields: [direccionOrigenId], references: [id])
-  direccionDestino Direccion    @relation("OrdenDestino", fields: [direccionDestinoId], references: [id])
-  tipoCarga        TipoCarga    @relation(fields: [tipoCargaId], references: [id])
-  tipoServicio     TipoServicio @relation(fields: [tipoServicioId], references: [id])
-  tenant           Tenant       @relation(fields: [tenantId], references: [id])
-  equipo           Equipo?      @relation(fields: [equipoId], references: [id])
-
-  // Planning relationships
-  slots           Slot[]
-  planificaciones Planificacion[]
-  retiros         Retiro[]
-
-  @@index([tenantId, estado])
-  @@index([clienteId])
-  @@index([fecha])
-  @@index([codigo])
-  @@index([fechaEntregaEstimada])
-  @@index([remitenteId])
-  @@index([destinatarioId])
-  @@index([tipoCargaId])
-  @@index([tipoServicioId])
-  @@map("ordenes")
-}
-
-// ===== EQUIPMENT & FLEET MANAGEMENT =====
-
-model TipoEquipo {
-  id          String   @id @default(uuid())
-  activo      Boolean  @default(true)
-  codigo      String   @unique
-  descripcion String?
-  nombre      String
-  orden       Int      @default(0)
-  tenantId    String   @map("tenant_id")
-  visible     Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  tenant          Tenant                 @relation(fields: [tenantId], references: [id])
-  equipos         Equipo[]
-  modelos         ModeloTransporte[]
-  caracteristicas CaracteristicaModelo[]
-
-  @@index([tenantId, activo])
-  @@index([codigo])
-  @@map("tipos_equipo")
-}
-
-model CaracteristicaModelo {
-  id           String                 @id @default(uuid())
-  activo       Boolean                @default(true)
-  codigo       String                 @unique
-  nombre       String
-  opciones     Json?
-  tipoEquipoId String                 @map("tipo_equipo_id")
-  orden        Int                    @default(0)
-  tenantId     String                 @map("tenant_id")
-  tipoDato     TipoDatoCaracteristica @map("tipo_dato")
-  visible      Boolean                @default(true)
-  createdAt    DateTime               @default(now()) @map("created_at")
-  updatedAt    DateTime               @updatedAt @map("updated_at")
-
-  tipoEquipo TipoEquipo @relation(fields: [tipoEquipoId], references: [id])
-  tenant     Tenant     @relation(fields: [tenantId], references: [id])
-
-  @@index([tenantId, visible])
-  @@index([tipoEquipoId])
-  @@map("caracteristicas_modelo")
-}
-
-model ModeloTransporte {
-  id           String     @id @default(uuid())
-  activo       Boolean    @default(true)
-  altoMts      Float?     @map("alto_mts")
-  anchoMts     Float?     @map("ancho_mts")
-  codigo       String     @unique
-  largoMts     Float?     @map("largo_mts")
-  nombre       String
-  orden        Int        @default(0)
-  tenantId     String     @map("tenant_id")
-  tipoEquipoId String     @map("tipo_equipo_id")
-  tipoModelo   TipoModelo @map("tipo_modelo")
-  tonelaje     Float?
-  visible      Boolean    @default(true)
-  volumenM3    Float?     @map("volumen_m3")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
-
-  tipoEquipo TipoEquipo @relation(fields: [tipoEquipoId], references: [id])
-  tenant     Tenant     @relation(fields: [tenantId], references: [id])
-  equipos    Equipo[]
-
-  @@index([tenantId, activo])
-  @@index([codigo])
-  @@index([tipoEquipoId])
-  @@map("modelos_transporte")
-}
-
-model Equipo {
-  id                 String   @id @default(uuid())
-  activo             Boolean  @default(true)
-  carrierId          String   @map("carrier_id")
-  gpsActivo          Boolean  @default(false) @map("gps_activo")
-  modeloTransporteId String   @map("modelo_transporte_id")
-  nombre             String
-  observaciones      String?
-  patente            String   @unique
-  tenantId           String   @map("tenant_id")
-  tipoEquipoId       String   @map("tipo_equipo_id")
-  vin                String?  @map("vin")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
-
-  carrier          Carrier          @relation(fields: [carrierId], references: [id])
-  modeloTransporte ModeloTransporte @relation(fields: [modeloTransporteId], references: [id])
-  tipoEquipo       TipoEquipo       @relation(fields: [tipoEquipoId], references: [id])
-  tenant           Tenant           @relation(fields: [tenantId], references: [id])
-
-  // Operational relationships
-  planificaciones Planificacion[]
-  retiros         Retiro[]
-  ordenes         Orden[]
-
-  @@index([tenantId, activo])
-  @@index([patente])
-  @@index([carrierId])
-  @@index([tipoEquipoId])
-  @@map("equipos")
-}
-
-model Chofer {
-  id                  String       @id @default(uuid())
-  activo              Boolean      @default(true)
-  contacto            String
-  email               String?
-  entidadId           String       @map("entidad_id")
-  estado              ChoferEstado
-  licenciaTipo        String?      @map("licencia_tipo")
-  licenciaVencimiento DateTime?    @map("licencia_vencimiento")
-  nombre              String
-  patenteAsignada     String?      @map("patente_asignada")
-  rut                 String
-  telefono            String?
-  tenantId            String       @map("tenant_id")
-  createdAt           DateTime     @default(now()) @map("created_at")
-  updatedAt           DateTime     @updatedAt @map("updated_at")
-
-  entidad         Entidad         @relation(fields: [entidadId], references: [id])
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  planificaciones Planificacion[]
-  retiros         Retiro[]
-
-  @@index([tenantId, activo])
-  @@index([rut])
-  @@index([entidadId])
-  @@index([licenciaVencimiento])
-  @@map("choferes")
-}
-
-// ===== LOGISTICS INFRASTRUCTURE =====
-
-model Hub {
-  id        String   @id @default(uuid())
-  activo    Boolean  @default(true)
-  codigo    String   @unique
-  comunaId  String   @map("comuna_id")
-  direccion String
-  entidadId String   @map("entidad_id")
-  latitud   Float?
-  longitud  Float?
-  nombre    String
-  orden     Int      @default(0)
-  tenantId  String   @map("tenant_id")
-  visible   Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  comuna  Comuna   @relation(fields: [comunaId], references: [id])
-  entidad Entidad  @relation(fields: [entidadId], references: [id])
-  tenant  Tenant   @relation(fields: [tenantId], references: [id])
-  slots   Slot[]
-  retiros Retiro[]
-
-  @@index([tenantId, activo])
-  @@index([codigo])
-  @@index([comunaId])
-  @@map("hubs")
-}
-
-model Slot {
-  id              String        @id @default(uuid())
-  activo          Boolean       @default(true)
-  codigo          String
-  comentario      String?
-  comunaId        String?       @map("comuna_id")
-  direccionManual String?       @map("direccion_manual")
-  fecha           DateTime      @map("fecha")
-  horaFin         DateTime      @map("hora_fin")
-  horaInicio      DateTime      @map("hora_inicio")
-  hubId           String?       @map("hub_id")
-  ocupado         Boolean       @default(false)
-  ordenId         String?       @map("orden_id")
-  tenantId        String        @map("tenant_id")
-  tipoOperacion   TipoOperacion @map("tipo_operacion")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-
-  comuna          Comuna?         @relation(fields: [comunaId], references: [id])
-  hub             Hub?            @relation(fields: [hubId], references: [id])
-  orden           Orden?          @relation(fields: [ordenId], references: [id])
-  tenant          Tenant          @relation(fields: [tenantId], references: [id])
-  planificaciones Planificacion[]
-  retiros         Retiro[]
-
-  @@index([tenantId, activo])
-  @@index([fecha])
-  @@index([hubId])
-  @@index([ocupado])
-  @@index([tipoOperacion])
-  @@map("slots")
-}
-
-// ===== OPERATIONAL PLANNING MODELS =====
-
-model Planificacion {
-  id               String              @id @default(uuid())
-  choferId         String              @map("chofer_id")
-  codigo           String
-  equipoId         String              @map("equipo_id")
-  estado           PlanificacionEstado @default(PENDIENTE)
-  etapa            PlanificacionEtapa
-  fecha            DateTime            @map("fecha")
-  fechaAsignacion  DateTime?           @map("fecha_asignacion")
-  fechaPlanificada DateTime            @map("fecha_planificada")
-  horaFin          DateTime            @map("hora_fin")
-  horaInicio       DateTime            @map("hora_inicio")
-  observaciones    String?
-  ordenId          String              @map("orden_id")
-  slotId           String?             @map("slot_id")
-  tenantId         String              @map("tenant_id")
-  usuarioAsigno    String              @map("usuario_asigno")
-  createdAt        DateTime            @default(now()) @map("created_at")
-  updatedAt        DateTime            @updatedAt @map("updated_at")
-
-  chofer Chofer @relation(fields: [choferId], references: [id])
-  equipo Equipo @relation(fields: [equipoId], references: [id])
-  orden  Orden  @relation(fields: [ordenId], references: [id])
-  slot   Slot?  @relation(fields: [slotId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-
-  @@index([tenantId, estado])
-  @@index([fecha])
-  @@index([ordenId])
-  @@index([choferId])
-  @@index([equipoId])
-  @@index([slotId])
-  @@map("planificaciones")
-}
-
-model Retiro {
-  id                     String       @id @default(uuid())
-  tenantId               String       @map("tenant_id")
-  ordenId                String       @map("orden_id")
-  slotId                 String?      @map("slot_id")
-  hubDestinoId           String       @map("hub_destino_id")
-  choferId               String       @map("chofer_id")
-  equipoId               String       @map("equipo_id")
-  fechaRetiroSolicitada  DateTime     @map("fecha_retiro_solicitada")
-  horaRetiroSolicitada   DateTime     @map("hora_retiro_solicitada")
-  fechaRetiroPlanificada DateTime?    @map("fecha_retiro_planificada")
-  fechaRetiroReal        DateTime?    @map("fecha_retiro_real")
-  estadoRetiro           EstadoRetiro @default(PENDIENTE) @map("estado_retiro")
-  agenciaCargaId         String?      @map("agencia_carga_id")
-  origenRetiro           String       @map("origen_retiro")
-  remitenteId            String       @map("remitente_id")
-  contactoRetiroId       String?      @map("contacto_retiro_id")
-  telefonoContacto       String?      @map("telefono_contacto")
-  observaciones          String?
-  createdAt              DateTime     @default(now()) @map("created_at")
-  updatedAt              DateTime     @updatedAt @map("updated_at")
-
-  orden        Orden       @relation(fields: [ordenId], references: [id])
-  slot         Slot?       @relation(fields: [slotId], references: [id])
-  hubDestino   Hub         @relation(fields: [hubDestinoId], references: [id])
-  chofer       Chofer      @relation(fields: [choferId], references: [id])
-  equipo       Equipo      @relation(fields: [equipoId], references: [id])
-  agenciaCarga Embarcador? @relation(fields: [agenciaCargaId], references: [id])
-  remitente    Entidad     @relation(fields: [remitenteId], references: [id])
-  tenant       Tenant      @relation(fields: [tenantId], references: [id])
-  contacto     Contacto?   @relation(fields: [contactoRetiroId], references: [id])
-
-  @@index([tenantId, estadoRetiro])
-  @@index([ordenId])
-  @@index([fechaRetiroSolicitada])
-  @@index([fechaRetiroReal])
-  @@index([agenciaCargaId])
-  @@map("retiros")
-}
-
-// ===== ADDITIONAL BUSINESS MODELS =====
-
-model Contacto {
-  id               String  @id @default(uuid())
-  activo           Boolean @default(true)
-  cargo            String?
-  contacto         String
-  direccion        String? @map("direccion")
-  email            String?
-  entidadId        String  @map("entidad_id")
-  esPersonaNatural Boolean @default(true) @map("es_persona_natural")
-  nombre           String
-  rut              String
-  telefono         String?
-  tenantId         String  @map("tenant_id")
-  comunaId         String? @map("comuna_id")
-  comuna           Comuna? @relation(fields: [comunaId], references: [id])
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  entidad Entidad  @relation(fields: [entidadId], references: [id])
-  tenant  Tenant   @relation(fields: [tenantId], references: [id])
-  retiros Retiro[]
-
-  @@index([tenantId, activo])
-  @@index([rut])
-  @@index([entidadId])
-  @@map("contactos")
-}
-
-model Cobertura {
-  id             String    @id @default(uuid())
-  activo         Boolean   @default(true)
-  comentario     String?
-  entidadId      String    @map("entidad_id")
-  excluyente     Boolean   @default(false)
-  tenantId       String    @map("tenant_id")
-  tipoServicioId String?   @map("tipo_servicio_id")
-  valor          Float?
-  vigencia       DateTime? @map("vigencia")
-  zonaId         String?   @map("zona_id")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-
-  entidad      Entidad       @relation(fields: [entidadId], references: [id])
-  tipoServicio TipoServicio? @relation(fields: [tipoServicioId], references: [id])
-  zona         Zona?         @relation(fields: [zonaId], references: [id])
-  tenant       Tenant        @relation(fields: [tenantId], references: [id])
-
-  @@index([tenantId, activo])
-  @@index([entidadId])
-  @@index([vigencia])
-  @@index([excluyente])
-  @@map("cobertura")
 }

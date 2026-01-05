@@ -1,14 +1,18 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
+import { useUser } from "@/hooks/useUsers";
 
 export const UserProfile: React.FC = () => {
   const { user, tenant, roles, logout } = useAuthStore();
+
   const navigate = useNavigate();
 
-  console.log(user)
-
   if (!user) return null;
+
+  const { data: userProfile, isLoading } = useUser(user.id || "");
+
+  console.log("UserProfile Rendered with user:", userProfile);
 
   const toTitleCase = (str: string): string => {
     if (!str) return "";
@@ -269,11 +273,18 @@ export const UserProfile: React.FC = () => {
                       Miembro desde
                     </p>
                     <p className="font-medium text-[#798283]">
-                      {new Date().toLocaleDateString("es-ES", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                      {isLoading ? (
+                        <div>Cargando...</div>
+                      ) : (
+                        new Date(userProfile!.createdAt).toLocaleDateString(
+                          "es-ES",
+                          {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          }
+                        )
+                      )}
                     </p>
                   </div>
                   <div>
@@ -321,11 +332,18 @@ export const UserProfile: React.FC = () => {
               <div className="space-y-2">
                 <p className="text-sm text-[#798283]/70">Miembro desde</p>
                 <p className="font-medium text-[#798283]">
-                  {new Date().toLocaleDateString("es-ES", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
+                  {isLoading ? (
+                    <div>Cargando...</div>
+                  ) : (
+                    new Date(userProfile!.createdAt).toLocaleDateString(
+                      "es-ES",
+                      {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      }
+                    )
+                  )}
                 </p>
               </div>
               <div className="space-y-2">

@@ -195,7 +195,7 @@ export class EntidadesService {
           contacto: dto.contacto.trim(),
           email: dto.email.trim().toLowerCase(),
           telefono: dto.telefono.trim(),
-          direccion: dto.direccion?.trim() || null,
+          direccion: dto.direccion?.trim() || '',
           comunaId: dto.comunaId,
           esPersona: dto.esPersona ?? false,
           activo: dto.activo ?? true,
@@ -331,9 +331,7 @@ export class EntidadesService {
           dto.email !== undefined ? dto.email.trim().toLowerCase() : undefined,
         telefono: dto.telefono !== undefined ? dto.telefono.trim() : undefined,
         direccion:
-          dto.direccion !== undefined
-            ? dto.direccion?.trim() || null
-            : undefined,
+          dto.direccion !== undefined ? dto.direccion?.trim() || '' : undefined,
         ...(dto.comunaId !== undefined && { comunaId: dto.comunaId }),
         esPersona: dto.esPersona,
         activo: dto.activo,

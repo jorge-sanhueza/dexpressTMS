@@ -11,6 +11,7 @@ import { EntidadSelect } from "../EntidadSelect";
 import type { Entidad } from "@/services/entidadesService";
 import { useQueryClient } from "@tanstack/react-query";
 import { DatePicker } from "../DatePicker";
+import { WideLayout } from "../layout/WideLayout";
 
 interface FormData {
   clienteId: string;
@@ -34,12 +35,42 @@ interface FormData {
 
 export const CreateOrderForm: React.FC = () => {
   const navigate = useNavigate();
-  const { tenant } = useAuthStore();
+  const { tenant, hasModulePermission } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // ========== PERMISSIONS ==========
+  const canCreateOrders = hasModulePermission("ordenes", "crear");
+
+  // Check permissions early - render unauthorized if no permission
+  if (!canCreateOrders) {
+    return (
+      <WideLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-[#798283] mb-4">
+              Acceso No Autorizado
+            </div>
+            <p className="text-[#798283]/70">
+              No tienes permisos para crear órdenes.
+            </p>
+            <p className="text-sm text-[#798283]/50 mt-2">
+              Contacta al administrador del sistema para solicitar acceso.
+            </p>
+            <button
+              onClick={() => navigate("/ordenes")}
+              className="mt-6 px-4 py-2 bg-[#798283] text-white rounded-lg hover:bg-[#5a6b6c] transition-colors"
+            >
+              Volver a Órdenes
+            </button>
+          </div>
+        </div>
+      </WideLayout>
+    );
+  }
 
   // State for OT number availability
   const [otNumberAvailable, setOtNumberAvailable] = useState<boolean | null>(
@@ -521,6 +552,22 @@ export const CreateOrderForm: React.FC = () => {
                 <p className="text-sm text-[#798283]/70">
                   {tenant?.nombre || "Sistema de Gestión de Transporte"}
                 </p>
+              </div>
+              <div className="mt-1">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                  <svg
+                    className="mr-1 h-3 w-3"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  Permiso: Crear órdenes
+                </span>
               </div>
             </div>
             <button

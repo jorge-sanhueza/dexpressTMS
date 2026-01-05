@@ -115,12 +115,12 @@ export const ContactosTable: React.FC<ContactosTableProps> = ({
                 {contacto.entidad?.nombre || "-"}
               </TableCell>
               <TableCell>
-                <Badge
-                  variant="secondary"
-                  className="bg-blue-50 text-blue-700 hover:bg-blue-50"
-                >
-                  {contacto.esPersonaNatural ? "Persona Natural" : "Empresa"}
-                </Badge>
+<Badge
+  variant="secondary"
+  className="bg-blue-50 text-blue-700 hover:bg-blue-50 px-4 py-1.5 rounded-md shadow-sm"
+>
+  {contacto.esPersonaNatural ? "Persona" : "Empresa"}
+</Badge>
               </TableCell>
               <TableCell>
                 <Badge

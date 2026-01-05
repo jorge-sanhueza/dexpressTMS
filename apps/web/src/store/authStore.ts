@@ -90,8 +90,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   },
 
   login: async (response: LoginResponse) => {
-    console.log("=== LOGIN DEBUG ===");
-    console.log("Login response user:", response.user);
 
     localStorage.setItem("access_token", response.access_token);
     localStorage.setItem("user", JSON.stringify(response.user));

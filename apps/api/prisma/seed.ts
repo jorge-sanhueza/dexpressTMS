@@ -5,10 +5,188 @@ import {
   TipoAccion,
   EstadoUsuario,
   TipoEntidad,
+  OrigenDireccion,
+  ChoferEstado,
+  PlanificacionEstado,
+  PlanificacionEtapa,
+  TipoOperacion,
+  OrdenEstado,
+  TipoCarga,
+  TipoServicio,
+  TipoModelo,
+  TipoZona,
+  TipoDatoCaracteristica,
+  EstadoRetiro,
+  TipoTarifa,
 } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
+
+// Utility function to generate random Chilean RUT
+function generateChileanRUT(): string {
+  const randomNumber = Math.floor(Math.random() * 25000000) + 1000000;
+  const digits = randomNumber.toString().split('').map(Number);
+  let sum = 0;
+  let multiplier = 2;
+
+  for (let i = digits.length - 1; i >= 0; i--) {
+    sum += digits[i] * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
+  }
+
+  const remainder = sum % 11;
+  const checkDigit = 11 - remainder;
+  let dv: string;
+
+  if (checkDigit === 11) dv = '0';
+  else if (checkDigit === 10) dv = 'K';
+  else dv = checkDigit.toString();
+
+  return `${randomNumber.toLocaleString('en-US').replace(/,/g, '.')}-${dv}`;
+}
+
+// Utility function to generate random phone number
+function generatePhoneNumber(): string {
+  const prefixes = ['+569', '+5699', '+5698', '+5697'];
+  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+  const number = Math.floor(Math.random() * 90000000) + 10000000;
+  return `${prefix}${number}`.substring(0, 12);
+}
+
+// Utility function to generate random email
+function generateEmail(name: string, domain: string = 'demo.cl'): string {
+  const cleanName = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .substring(0, 15);
+  const randomNum = Math.floor(Math.random() * 100);
+  return `${cleanName}${randomNum}@${domain}`;
+}
+
+// Sample data arrays
+const companyNames = [
+  'Logística Integrada',
+  'Transportes Express',
+  'Carga Rápida',
+  'Distribución Nacional',
+  'Flete Seguro',
+  'Logística Avanzada',
+  'Transporte Premium',
+  'Carga Eficiente',
+  'Distribución Global',
+  'Flete Confiable',
+  'Logística Moderna',
+  'Transporte Ágil',
+  'Carga Directa',
+  'Distribución Regional',
+  'Flete Express',
+];
+
+const industrySectors = [
+  'Alimentos y Bebidas',
+  'Tecnología',
+  'Manufactura',
+  'Retail',
+  'Farmacéutico',
+  'Automotriz',
+  'Textil',
+  'Químico',
+  'Construcción',
+  'Agroindustrial',
+  'Electrónica',
+  'Minería',
+  'Papel y Celulosa',
+  'Energía',
+  'Telecomunicaciones',
+];
+
+const firstNames = [
+  'Juan',
+  'María',
+  'Carlos',
+  'Ana',
+  'Pedro',
+  'Laura',
+  'José',
+  'Carmen',
+  'Luis',
+  'Isabel',
+  'Miguel',
+  'Elena',
+  'Francisco',
+  'Patricia',
+  'Jorge',
+  'Sofía',
+];
+
+const lastNames = [
+  'González',
+  'Rodríguez',
+  'Pérez',
+  'Sánchez',
+  'Martínez',
+  'López',
+  'Díaz',
+  'Fernández',
+  'García',
+  'Ramírez',
+  'Torres',
+  'Flores',
+  'Vásquez',
+  'Castro',
+  'Rojas',
+  'Silva',
+];
+
+const streetNames = [
+  'Av. Principal',
+  'Calle Los Alerces',
+  'Av. Libertador',
+  'Calle Los Pinos',
+  'Av. Central',
+  'Calle Los Olivos',
+  'Av. Industrial',
+  'Calle Los Laureles',
+  'Av. Comercial',
+  'Calle Los Cerezos',
+  'Av. Tecnológica',
+  'Calle Los Robles',
+  'Av. Logística',
+  'Calle Los Cipreses',
+  'Av. Distribución',
+];
+
+const streetNumbers = [
+  '123',
+  '456',
+  '789',
+  '101',
+  '202',
+  '303',
+  '404',
+  '505',
+  '606',
+  '707',
+];
+
+const jobTitles = [
+  'Gerente de Logística',
+  'Supervisor de Operaciones',
+  'Coordinador de Transporte',
+  'Jefe de Distribución',
+  'Analista de Logística',
+  'Especialista en Cadena de Suministro',
+  'Encargado de Flota',
+  'Planificador de Rutas',
+  'Controlador de Tráfico',
+  'Asistente de Operaciones',
+  'Coordinador de Carga',
+  'Supervisor de Almacén',
+  'Gerente Comercial',
+  'Ejecutivo de Cuentas',
+  'Asistente Comercial',
+];
 
 async function main() {
   const chileanRegions = [
@@ -623,7 +801,7 @@ async function main() {
     },
   ];
 
-  console.log('Seeding database...');
+  console.log('🌱 Seeding database...');
 
   // Create admin tenant first
   let adminTenant;
@@ -652,179 +830,269 @@ async function main() {
 
   // Create roles for the admin tenant
   const adminRoles = [
+    // System access
     {
       codigo: 'admin_access',
       nombre: 'Acceso Administrativo',
       modulo: 'sistema',
       tipoAccion: TipoAccion.EDITAR,
+      orden: 1,
     },
+
+    // User management
     {
       codigo: 'ver_usuarios',
       nombre: 'Ver Usuarios',
       modulo: 'usuarios',
       tipoAccion: TipoAccion.VER,
+      orden: 2,
     },
     {
       codigo: 'crear_usuarios',
       nombre: 'Crear Usuarios',
       modulo: 'usuarios',
       tipoAccion: TipoAccion.CREAR,
+      orden: 3,
     },
     {
       codigo: 'editar_usuarios',
       nombre: 'Editar Usuarios',
       modulo: 'usuarios',
       tipoAccion: TipoAccion.EDITAR,
+      orden: 4,
     },
     {
       codigo: 'eliminar_usuarios',
       nombre: 'Eliminar Usuarios',
       modulo: 'usuarios',
       tipoAccion: TipoAccion.ELIMINAR,
+      orden: 5,
     },
+
+    // Profile management
     {
       codigo: 'ver_perfiles',
       nombre: 'Ver Perfiles',
       modulo: 'perfiles',
       tipoAccion: TipoAccion.VER,
+      orden: 6,
     },
     {
       codigo: 'crear_perfiles',
       nombre: 'Crear Perfiles',
       modulo: 'perfiles',
       tipoAccion: TipoAccion.CREAR,
+      orden: 7,
     },
     {
       codigo: 'editar_perfiles',
       nombre: 'Editar Perfiles',
       modulo: 'perfiles',
       tipoAccion: TipoAccion.EDITAR,
+      orden: 8,
+    },
+    {
+      codigo: 'eliminar_perfiles',
+      nombre: 'Eliminar Perfiles',
+      modulo: 'perfiles',
+      tipoAccion: TipoAccion.ELIMINAR,
+      orden: 9,
     },
     {
       codigo: 'asignar_roles',
       nombre: 'Asignar Roles',
       modulo: 'perfiles',
       tipoAccion: TipoAccion.EDITAR,
+      orden: 10,
     },
+
+    // Role management
     {
       codigo: 'ver_roles',
       nombre: 'Ver Roles',
       modulo: 'roles',
       tipoAccion: TipoAccion.VER,
+      orden: 11,
     },
     {
       codigo: 'crear_roles',
       nombre: 'Crear Roles',
       modulo: 'roles',
       tipoAccion: TipoAccion.CREAR,
+      orden: 12,
     },
     {
       codigo: 'editar_roles',
       nombre: 'Editar Roles',
       modulo: 'roles',
       tipoAccion: TipoAccion.EDITAR,
+      orden: 13,
     },
     {
       codigo: 'eliminar_roles',
       nombre: 'Eliminar Roles',
       modulo: 'roles',
       tipoAccion: TipoAccion.ELIMINAR,
+      orden: 14,
     },
+
+    // Order management
     {
       codigo: 'ver_ordenes',
       nombre: 'Ver Órdenes',
       modulo: 'ordenes',
       tipoAccion: TipoAccion.VER,
+      orden: 15,
     },
     {
       codigo: 'crear_ordenes',
       nombre: 'Crear Órdenes',
       modulo: 'ordenes',
       tipoAccion: TipoAccion.CREAR,
+      orden: 16,
     },
     {
       codigo: 'editar_ordenes',
       nombre: 'Editar Órdenes',
       modulo: 'ordenes',
       tipoAccion: TipoAccion.EDITAR,
+      orden: 17,
     },
     {
       codigo: 'eliminar_ordenes',
       nombre: 'Eliminar Órdenes',
       modulo: 'ordenes',
       tipoAccion: TipoAccion.ELIMINAR,
+      orden: 18,
     },
+
+    // Customer management
     {
       codigo: 'ver_clientes',
       nombre: 'Ver Clientes',
       modulo: 'clientes',
       tipoAccion: TipoAccion.VER,
+      orden: 19,
     },
     {
       codigo: 'crear_clientes',
       nombre: 'Crear Clientes',
       modulo: 'clientes',
       tipoAccion: TipoAccion.CREAR,
+      orden: 20,
     },
     {
       codigo: 'editar_clientes',
       nombre: 'Editar Clientes',
       modulo: 'clientes',
       tipoAccion: TipoAccion.EDITAR,
+      orden: 21,
     },
     {
       codigo: 'eliminar_clientes',
       nombre: 'Eliminar Clientes',
       modulo: 'clientes',
       tipoAccion: TipoAccion.ELIMINAR,
+      orden: 22,
     },
+
+    // Carrier management
     {
       codigo: 'ver_carriers',
       nombre: 'Ver Carriers',
       modulo: 'carriers',
       tipoAccion: TipoAccion.VER,
+      orden: 23,
     },
     {
       codigo: 'crear_carriers',
       nombre: 'Crear Carriers',
       modulo: 'carriers',
       tipoAccion: TipoAccion.CREAR,
+      orden: 24,
     },
     {
       codigo: 'editar_carriers',
       nombre: 'Editar Carriers',
       modulo: 'carriers',
       tipoAccion: TipoAccion.EDITAR,
+      orden: 25,
     },
     {
       codigo: 'eliminar_carriers',
       nombre: 'Eliminar Carriers',
       modulo: 'carriers',
       tipoAccion: TipoAccion.ELIMINAR,
+      orden: 26,
     },
+
+    // Shipper management
     {
       codigo: 'ver_embarcadores',
       nombre: 'Ver Embarcadores',
       modulo: 'embarcadores',
       tipoAccion: TipoAccion.VER,
+      orden: 27,
     },
     {
       codigo: 'crear_embarcadores',
       nombre: 'Crear Embarcadores',
       modulo: 'embarcadores',
       tipoAccion: TipoAccion.CREAR,
+      orden: 28,
     },
     {
       codigo: 'editar_embarcadores',
       nombre: 'Editar Embarcadores',
       modulo: 'embarcadores',
       tipoAccion: TipoAccion.EDITAR,
+      orden: 29,
     },
     {
       codigo: 'eliminar_embarcadores',
       nombre: 'Eliminar Embarcadores',
       modulo: 'embarcadores',
       tipoAccion: TipoAccion.ELIMINAR,
+      orden: 30,
+    },
+
+    // Dashboard
+    {
+      codigo: 'ver_dashboard',
+      nombre: 'Ver Dashboard',
+      modulo: 'dashboard',
+      tipoAccion: TipoAccion.VER,
+      orden: 31,
+    },
+
+    // Address management
+    {
+      codigo: 'ver_direcciones',
+      nombre: 'Ver Direcciones',
+      modulo: 'direcciones',
+      tipoAccion: TipoAccion.VER,
+      orden: 32,
+    },
+    {
+      codigo: 'crear_direcciones',
+      nombre: 'Crear Direcciones',
+      modulo: 'direcciones',
+      tipoAccion: TipoAccion.CREAR,
+      orden: 33,
+    },
+    {
+      codigo: 'editar_direcciones',
+      nombre: 'Editar Direcciones',
+      modulo: 'direcciones',
+      tipoAccion: TipoAccion.EDITAR,
+      orden: 34,
+    },
+    {
+      codigo: 'desactivar_direcciones',
+      nombre: 'Desactivar Direcciones',
+      modulo: 'direcciones',
+      tipoAccion: TipoAccion.ELIMINAR,
+      orden: 35,
     },
   ];
   const createdRoles: Rol[] = [];
@@ -996,6 +1264,8 @@ async function main() {
   // Create Chilean regions, provinces, and communes with tenant
   console.log('🌎 Creating Chilean regions, provinces, and communes...');
 
+  const allComunas: any[] = [];
+
   for (const regionData of chileanRegions) {
     const region = await prisma.region.create({
       data: {
@@ -1025,7 +1295,7 @@ async function main() {
 
       let comunaOrder = 1;
       for (const comunaNombre of provinciaData.comunas) {
-        await prisma.comuna.create({
+        const comuna = await prisma.comuna.create({
           data: {
             nombre: comunaNombre,
             regionId: region.id,
@@ -1036,9 +1306,12 @@ async function main() {
             tenantId: adminTenant.id,
           },
         });
+        allComunas.push(comuna);
       }
     }
   }
+
+  console.log(`✅ Created ${allComunas.length} communes`);
 
   // Create order-related types
   console.log('📦 Creating order-related types...');
@@ -1078,12 +1351,16 @@ async function main() {
     },
   ];
 
+  const createdTipoCargas: typeof tipoCargasData extends Array<infer T>
+    ? Awaited<ReturnType<typeof prisma.tipoCarga.create>>[]
+    : never = [];
   // Create all tipos carga
   for (const data of tipoCargasData) {
     try {
-      await prisma.tipoCarga.create({
+      const tipoCarga = await prisma.tipoCarga.create({
         data,
       });
+      createdTipoCargas.push(tipoCarga);
       console.log(`✅ Created TipoCarga: ${data.nombre}`);
     } catch (error: any) {
       if (error.code === 'P2002') {
@@ -1139,81 +1416,8 @@ async function main() {
     },
   });
 
-  // Get a comuna for creating entities
-  const santiagoComuna = await prisma.comuna.findFirst({
-    where: {
-      nombre: 'Santiago',
-      tenantId: adminTenant.id,
-    },
-  });
-
-  // Create sample clients, carriers, and embarcadores
-  console.log('🏢 Creating sample business entities...');
-
-  // Sample carrier - FIXED with null check
-  if (!santiagoComuna) {
-    throw new Error('Santiago comuna not found, cannot create carrier');
-  }
-
-  // Sample client
-  const sampleClient = await prisma.cliente.upsert({
-    where: { rut: '76000000-0' },
-    update: {},
-    create: {
-      nombre: 'Cliente Demo S.A.',
-      razonSocial: 'Cliente Demo Sociedad Anónima',
-      rut: '76000000-0',
-      contacto: 'Juan Pérez',
-      email: 'cliente@demo.cl',
-      telefono: '+56912345678',
-      direccion: 'Av. Principal 123',
-      comunaId: santiagoComuna.id,
-      activo: true,
-      tipoEntidad: TipoEntidad.CLIENTE,
-      tenantId: adminTenant.id,
-    },
-  });
-
-  // Sample carrier
-  const sampleCarrier = await prisma.carrier.upsert({
-    where: { rut: '77000000-0' },
-    update: {},
-    create: {
-      nombre: 'Transportes Express S.A.',
-      razonSocial: 'Transportes Express Sociedad Anónima',
-      rut: '77000000-0',
-      contacto: 'María González',
-      email: 'transportes@demo.cl',
-      telefono: '+56987654321',
-      direccion: 'Av. Logística 456',
-      comunaId: santiagoComuna?.id,
-      activo: true,
-      tipoEntidad: TipoEntidad.CARRIER,
-      tenantId: adminTenant.id,
-    },
-  });
-
-  // Sample embarcador
-  const sampleEmbarcador = await prisma.embarcador.upsert({
-    where: { rut: '78000000-0' },
-    update: {},
-    create: {
-      nombre: 'Embarcadores Unidos S.A.',
-      razonSocial: 'Embarcadores Unidos Sociedad Anónima',
-      rut: '78000000-0',
-      contacto: 'Carlos López',
-      email: 'embarcadores@demo.cl',
-      telefono: '+56911223344',
-      direccion: 'Av. Comercial 789',
-      comunaId: santiagoComuna?.id,
-      activo: true,
-      tipoEntidad: TipoEntidad.EMBARCADOR,
-      tenantId: adminTenant.id,
-    },
-  });
-
   // Create sample equipment types and models
-  console.log('🚚 Creating sample equipment types...');
+  console.log('🚚 Creating sample equipment types and models...');
 
   const tipoCamion = await prisma.tipoEquipo.upsert({
     where: { codigo: 'camion' },
@@ -1243,30 +1447,643 @@ async function main() {
     },
   });
 
+  const tipoCamioneta = await prisma.tipoEquipo.upsert({
+    where: { codigo: 'camioneta' },
+    update: {},
+    create: {
+      codigo: 'camioneta',
+      nombre: 'Camioneta',
+      descripcion: 'Vehículo de carga liviana',
+      activo: true,
+      visible: true,
+      orden: 3,
+      tenantId: adminTenant.id,
+    },
+  });
+
   // Create sample transport models
-  const modeloCamionPesado = await prisma.modeloTransporte.create({
-    data: {
+  const modelosTransporte = [
+    {
       codigo: 'camion_pesado_2023',
-      nombre: 'Camión Pesado 2023',
+      nombre: 'Camión Pesado Volvo 2023',
       tipoEquipoId: tipoCamion.id,
-      tipoModelo: 'RAMPLA',
+      tipoModelo: 'RAMPLA' as TipoModelo,
       tonelaje: 15000,
       volumenM3: 80,
       largoMts: 12,
       anchoMts: 2.4,
       altoMts: 2.6,
-      activo: true,
-      visible: true,
       orden: 1,
-      tenantId: adminTenant.id,
     },
-  });
+    {
+      codigo: 'camion_mediano_2022',
+      nombre: 'Camión Mediano Mercedes 2022',
+      tipoEquipoId: tipoCamion.id,
+      tipoModelo: 'SEMI' as TipoModelo,
+      tonelaje: 8000,
+      volumenM3: 50,
+      largoMts: 9,
+      anchoMts: 2.3,
+      altoMts: 2.4,
+      orden: 2,
+    },
+    {
+      codigo: 'furgon_refrigerado_2023',
+      nombre: 'Furgón Refrigerado 2023',
+      tipoEquipoId: tipoFurgon.id,
+      tipoModelo: 'CARRO' as TipoModelo,
+      tonelaje: 3500,
+      volumenM3: 30,
+      largoMts: 6,
+      anchoMts: 2.1,
+      altoMts: 2.2,
+      orden: 3,
+    },
+    {
+      codigo: 'camioneta_2024',
+      nombre: 'Camioneta Ford F-150 2024',
+      tipoEquipoId: tipoCamioneta.id,
+      tipoModelo: 'TRES_CUARTOS' as TipoModelo,
+      tonelaje: 1200,
+      volumenM3: 8,
+      largoMts: 5.8,
+      anchoMts: 2,
+      altoMts: 1.8,
+      orden: 4,
+    },
+  ];
+
+  const createdModelos: typeof modelosTransporte extends Array<infer T>
+    ? Awaited<ReturnType<typeof prisma.modeloTransporte.create>>[]
+    : never = [];
+  for (const modelo of modelosTransporte) {
+    const created = await prisma.modeloTransporte.create({
+      data: {
+        ...modelo,
+        activo: true,
+        visible: true,
+        tenantId: adminTenant.id,
+      },
+    });
+    createdModelos.push(created);
+  }
+
+  console.log(`✅ Created ${createdModelos.length} transport models`);
+
+  // ========== CREATE ENTIDADES (for contacts, clients, carriers, embarcadores) ==========
+  console.log('🏢 Creating entities...');
+
+  const createdEntidades: Awaited<ReturnType<typeof prisma.entidad.create>>[] =
+    [];
+
+  for (let i = 0; i < 50; i++) {
+    const randomComuna =
+      allComunas[Math.floor(Math.random() * allComunas.length)];
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+    const nombre = `${firstName} ${lastName}`;
+
+    const entidad = await prisma.entidad.create({
+      data: {
+        nombre,
+        razonSocial: `${nombre} y Asociados`,
+        rut: generateChileanRUT(),
+        contacto: `${firstName} ${lastName}`,
+        email: generateEmail(nombre),
+        telefono: generatePhoneNumber(),
+        direccion: `${streetNames[Math.floor(Math.random() * streetNames.length)]} ${streetNumbers[Math.floor(Math.random() * streetNumbers.length)]}`,
+        comunaId: randomComuna.id,
+        activo: true,
+        esPersona: Math.random() > 0.5,
+        tipoEntidad: TipoEntidad.PERSONA,
+        tenantId: adminTenant.id,
+      },
+    });
+    createdEntidades.push(entidad);
+  }
+
+  console.log(`✅ Created ${createdEntidades.length} entities`);
+
+  // ========== CREATE CLIENTES (15 clients) ==========
+  console.log('👥 Creating 15 clients...');
+
+  const createdClientes: Awaited<ReturnType<typeof prisma.cliente.create>>[] =
+    [];
+  const clientComunas = allComunas.filter((c) =>
+    [
+      'Santiago',
+      'Providencia',
+      'Las Condes',
+      'Ñuñoa',
+      'La Florida',
+      'Maipú',
+      'Puente Alto',
+      'San Bernardo',
+    ].includes(c.nombre),
+  );
+
+  for (let i = 1; i <= 15; i++) {
+    const companyName =
+      companyNames[Math.floor(Math.random() * companyNames.length)];
+    const industry =
+      industrySectors[Math.floor(Math.random() * industrySectors.length)];
+    const randomComuna =
+      clientComunas[Math.floor(Math.random() * clientComunas.length)];
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+
+    const cliente = await prisma.cliente.create({
+      data: {
+        nombre: `${companyName} ${industry}`,
+        razonSocial: `${companyName} ${industry} S.A.`,
+        rut: generateChileanRUT(),
+        contacto: `${firstName} ${lastName}`,
+        email: generateEmail(companyName, 'cliente.cl'),
+        telefono: generatePhoneNumber(),
+        direccion: `${streetNames[Math.floor(Math.random() * streetNames.length)]} ${streetNumbers[Math.floor(Math.random() * streetNumbers.length)]}`,
+        comunaId: randomComuna.id,
+        activo: true,
+        esPersona: false,
+        tipoEntidad: TipoEntidad.CLIENTE,
+        tenantId: adminTenant.id,
+      },
+    });
+    createdClientes.push(cliente);
+    console.log(`  ✅ Client ${i}: ${cliente.nombre}`);
+  }
+
+  // ========== CREATE CARRIERS (15 carriers) ==========
+  console.log('🚛 Creating 15 carriers...');
+
+  const createdCarriers: Awaited<ReturnType<typeof prisma.carrier.create>>[] =
+    [];
+  const carrierComunas = allComunas.filter((c) =>
+    [
+      'Santiago',
+      'Estación Central',
+      'Quilicura',
+      'Puente Alto',
+      'Maipú',
+      'San Bernardo',
+      'La Florida',
+    ].includes(c.nombre),
+  );
+
+  for (let i = 1; i <= 15; i++) {
+    const companyName = `Transportes ${companyNames[Math.floor(Math.random() * companyNames.length)]}`;
+    const randomComuna =
+      carrierComunas[Math.floor(Math.random() * carrierComunas.length)];
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+
+    const carrier = await prisma.carrier.create({
+      data: {
+        nombre: companyName,
+        razonSocial: `${companyName} S.A.`,
+        rut: generateChileanRUT(),
+        contacto: `${firstName} ${lastName}`,
+        email: generateEmail(companyName, 'transporte.cl'),
+        telefono: generatePhoneNumber(),
+        direccion: `${streetNames[Math.floor(Math.random() * streetNames.length)]} ${streetNumbers[Math.floor(Math.random() * streetNumbers.length)]}`,
+        comunaId: randomComuna.id,
+        activo: true,
+        esPersona: false,
+        tipoEntidad: TipoEntidad.CARRIER,
+        tenantId: adminTenant.id,
+      },
+    });
+    createdCarriers.push(carrier);
+    console.log(`  ✅ Carrier ${i}: ${carrier.nombre}`);
+  }
+
+  // ========== CREATE EMBARCADORES (15 embarcadores) ==========
+  console.log('📦 Creating 15 embarcadores...');
+
+  const createdEmbarcadores: Awaited<
+    ReturnType<typeof prisma.embarcador.create>
+  >[] = [];
+  const embarcadorComunas = allComunas.filter((c) =>
+    [
+      'Santiago',
+      'Providencia',
+      'Las Condes',
+      'Vitacura',
+      'Ñuñoa',
+      'La Reina',
+      'Lo Barnechea',
+    ].includes(c.nombre),
+  );
+
+  for (let i = 1; i <= 15; i++) {
+    const companyName = `Embarcadores ${companyNames[Math.floor(Math.random() * companyNames.length)]}`;
+    const industry =
+      industrySectors[Math.floor(Math.random() * industrySectors.length)];
+    const randomComuna =
+      embarcadorComunas[Math.floor(Math.random() * embarcadorComunas.length)];
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+
+    const embarcador = await prisma.embarcador.create({
+      data: {
+        nombre: `${companyName} ${industry}`,
+        razonSocial: `${companyName} ${industry} Limitada`,
+        rut: generateChileanRUT(),
+        contacto: `${firstName} ${lastName}`,
+        email: generateEmail(companyName, 'embarque.cl'),
+        telefono: generatePhoneNumber(),
+        direccion: `${streetNames[Math.floor(Math.random() * streetNames.length)]} ${streetNumbers[Math.floor(Math.random() * streetNumbers.length)]}`,
+        comunaId: randomComuna.id,
+        activo: true,
+        esPersona: false,
+        tipoEntidad: TipoEntidad.EMBARCADOR,
+        tenantId: adminTenant.id,
+      },
+    });
+    createdEmbarcadores.push(embarcador);
+    console.log(`  ✅ Embarcador ${i}: ${embarcador.nombre}`);
+  }
+
+  // ========== CREATE CONTACTOS (20 contacts) ==========
+  console.log('📇 Creating 20 contacts...');
+
+  const createdContactos: any[] = [];
+  for (let i = 1; i <= 20; i++) {
+    // Use existing entidades (you already created 50)
+    const entity =
+      createdEntidades[Math.floor(Math.random() * createdEntidades.length)];
+
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+    const jobTitle = jobTitles[Math.floor(Math.random() * jobTitles.length)];
+
+    const contacto = await prisma.contacto.create({
+      data: {
+        nombre: `${firstName} ${lastName}`,
+        cargo: jobTitle,
+        contacto: `${firstName} ${lastName}`,
+        direccion:
+          entity.direccion ||
+          `${streetNames[Math.floor(Math.random() * streetNames.length)]} ${streetNumbers[Math.floor(Math.random() * streetNumbers.length)]}`,
+        email: generateEmail(
+          `${firstName}.${lastName}`,
+          entity.email?.split('@')[1] || 'demo.cl',
+        ),
+        telefono: generatePhoneNumber(),
+        rut: generateChileanRUT(),
+        activo: true,
+        esPersonaNatural: true,
+        entidadId: entity.id,
+        tenantId: adminTenant.id,
+        comunaId: entity.comunaId,
+      },
+    });
+    createdContactos.push(contacto);
+    console.log(`  ✅ Contact ${i}: ${contacto.nombre} - ${contacto.cargo}`);
+  }
+
+  // ========== CREATE EQUIPMENT (for carriers) ==========
+  console.log('🚚 Creating equipment for carriers...');
+
+  const createdEquipos: any[] = [];
+  const vehiclePlates = [
+    'AB123CD',
+    'EF456GH',
+    'IJ789KL',
+    'MN012OP',
+    'QR345ST',
+    'UV678WX',
+    'YZ901AB',
+    'CD234EF',
+    'GH567IJ',
+    'KL890MN',
+  ];
+
+  for (let i = 0; i < 10; i++) {
+    const carrier =
+      createdCarriers[Math.floor(Math.random() * createdCarriers.length)];
+    const modelo =
+      createdModelos[Math.floor(Math.random() * createdModelos.length)];
+
+    const equipo = await prisma.equipo.create({
+      data: {
+        nombre: `Vehículo ${i + 1} - ${modelo.nombre}`,
+        patente: vehiclePlates[i] || `XX${1000 + i}YY`,
+        carrierId: carrier.id,
+        modeloTransporteId: modelo.id,
+        tipoEquipoId: modelo.tipoEquipoId,
+        gpsActivo: Math.random() > 0.3,
+        observaciones: `Equipo asignado a ${carrier.nombre}`,
+        activo: true,
+        tenantId: adminTenant.id,
+        vin: `VIN${Math.floor(Math.random() * 1000000000)
+          .toString()
+          .padStart(10, '0')}`,
+      },
+    });
+    createdEquipos.push(equipo);
+  }
+
+  console.log(`✅ Created ${createdEquipos.length} equipment units`);
+
+  // ========== CREATE CHOFERES (drivers) ==========
+  console.log('👨‍✈️ Creating drivers...');
+
+  const createdChoferes: any[] = [];
+  const driverLicenses = ['A1', 'A2', 'A3', 'A4', 'B', 'C', 'D', 'E'];
+
+  for (let i = 1; i <= 15; i++) {
+    const entity =
+      createdEntidades[Math.floor(Math.random() * createdEntidades.length)];
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+
+    const chofer = await prisma.chofer.create({
+      data: {
+        nombre: `${firstName} ${lastName}`,
+        rut: generateChileanRUT(),
+        contacto: `${firstName} ${lastName}`,
+        email: generateEmail(`${firstName}.${lastName}`, 'conductor.cl'),
+        telefono: generatePhoneNumber(),
+        entidadId: entity.id,
+        estado: Math.random() > 0.1 ? 'ACTIVO' : 'SUSPENDIDO',
+        licenciaTipo:
+          driverLicenses[Math.floor(Math.random() * driverLicenses.length)],
+        licenciaVencimiento: new Date(
+          Date.now() + Math.floor(Math.random() * 365 * 24 * 60 * 60 * 1000),
+        ),
+        patenteAsignada:
+          Math.random() > 0.5
+            ? createdEquipos[Math.floor(Math.random() * createdEquipos.length)]
+                ?.patente
+            : null,
+        activo: true,
+        tenantId: adminTenant.id,
+      },
+    });
+    createdChoferes.push(chofer);
+  }
+
+  console.log(`✅ Created ${createdChoferes.length} drivers`);
+
+  // ========== CREATE ADDRESSES ==========
+  console.log('📍 Creating addresses...');
+
+  const createdDirecciones: any[] = [];
+
+  for (let i = 1; i <= 30; i++) {
+    const cliente =
+      createdClientes[Math.floor(Math.random() * createdClientes.length)];
+    const comuna = allComunas[Math.floor(Math.random() * allComunas.length)];
+    const street = streetNames[Math.floor(Math.random() * streetNames.length)];
+    const number =
+      streetNumbers[Math.floor(Math.random() * streetNumbers.length)];
+
+    // Handle null nombre - use a default value
+    const clienteNombre = cliente.nombre || `Cliente ${cliente.rut}`;
+
+    const direccion = await prisma.direccion.create({
+      data: {
+        nombre: `Dirección ${i} - ${clienteNombre.substring(0, 20)}`,
+        direccionTexto: `${street} ${number}, ${comuna.nombre}`,
+        calle: street,
+        numero: number,
+        comunaId: comuna.id,
+        contacto: cliente.contacto,
+        email: cliente.email,
+        telefono: cliente.telefono,
+        frecuencia: Math.floor(Math.random() * 10) + 1,
+        latitud: -33.4 + Math.random() * 1.5,
+        longitud: -70.6 + Math.random() * 1.5,
+        origen: 'MANUAL',
+        esPrincipal: Math.random() > 0.7,
+        referencia:
+          Math.random() > 0.5
+            ? `Referencia ${i}: ${['Cerca del metro', 'Frente al supermercado', 'Al lado del banco', 'Entre calles'][Math.floor(Math.random() * 4)]}`
+            : null,
+        ultimaVezUsada:
+          Math.random() > 0.5
+            ? new Date(
+                Date.now() -
+                  Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000),
+              )
+            : null,
+        activo: true,
+        tenantId: adminTenant.id,
+      },
+    });
+    createdDirecciones.push(direccion);
+  }
+
+  console.log(`✅ Created ${createdDirecciones.length} addresses`);
+
+  // ========== CREATE ORDERS ==========
+  console.log('📝 Creating sample orders...');
+
+  const createdOrdenes: any[] = [];
+  const orderStatuses: OrdenEstado[] = [
+    'PENDIENTE',
+    'PLANIFICADA',
+    'EN_TRANSPORTE',
+    'ENTREGADA',
+    'CANCELADA',
+  ];
+  const tarifaTypes: TipoTarifa[] = ['PESO_VOLUMEN', 'EQUIPO'];
+
+  for (let i = 1; i <= 25; i++) {
+    const cliente =
+      createdClientes[Math.floor(Math.random() * createdClientes.length)];
+    const remitente =
+      createdEntidades[Math.floor(Math.random() * createdEntidades.length)];
+    const destinatario =
+      createdEntidades[Math.floor(Math.random() * createdEntidades.length)];
+    const direccionOrigen =
+      createdDirecciones[Math.floor(Math.random() * createdDirecciones.length)];
+    const direccionDestino =
+      createdDirecciones[Math.floor(Math.random() * createdDirecciones.length)];
+    const tipoCarga =
+      createdTipoCargas[Math.floor(Math.random() * createdTipoCargas.length)];
+    const tipoServicio = [
+      tipoServicioExpress,
+      tipoServicioEstandar,
+      tipoServicioEconomico,
+    ][Math.floor(Math.random() * 3)];
+    const equipo =
+      Math.random() > 0.3
+        ? createdEquipos[Math.floor(Math.random() * createdEquipos.length)]
+        : null;
+
+    const orden = await prisma.orden.create({
+      data: {
+        codigo: `ORD-${2024}-${String(i).padStart(5, '0')}`,
+        numeroOt: `OT-${Date.now()}-${i}`,
+        fecha: new Date(
+          Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000),
+        ),
+        fechaEntregaEstimada: new Date(
+          Date.now() + Math.floor(Math.random() * 15 * 24 * 60 * 60 * 1000),
+        ),
+        estado: orderStatuses[Math.floor(Math.random() * orderStatuses.length)],
+        tipoTarifa: tarifaTypes[Math.floor(Math.random() * tarifaTypes.length)],
+        clienteId: cliente.id,
+        remitenteId: remitente.id,
+        destinatarioId: destinatario.id,
+        direccionOrigenId: direccionOrigen.id,
+        direccionDestinoId: direccionDestino.id,
+        tipoCargaId: tipoCarga.id,
+        tipoServicioId: tipoServicio.id,
+        equipoId: equipo?.id,
+        pesoTotalKg: Math.floor(Math.random() * 10000) + 100,
+        volumenTotalM3: Math.floor(Math.random() * 50) + 1,
+        altoCm: Math.floor(Math.random() * 200) + 50,
+        largoCm: Math.floor(Math.random() * 300) + 100,
+        anchoCm: Math.floor(Math.random() * 200) + 50,
+        observaciones: `Orden ${i}: ${['Urgente', 'Fragil', 'Documentación adjunta', 'Requiere manejo especial', 'Entrega en horario comercial'][Math.floor(Math.random() * 5)]}`,
+        tenantId: adminTenant.id,
+      },
+    });
+    createdOrdenes.push(orden);
+  }
+
+  console.log(`✅ Created ${createdOrdenes.length} orders`);
+
+  // ========== CREATE HUBS ==========
+  console.log('🏭 Creating logistics hubs...');
+
+  const createdHubs: any[] = [];
+  const hubNames = [
+    'Hub Central Santiago',
+    'Hub Norte',
+    'Hub Sur',
+    'Hub Puerto',
+    'Hub Aeropuerto',
+    'Hub Industrial',
+    'Hub Distribución',
+  ];
+  const hubComunas = allComunas.filter((c) =>
+    [
+      'Santiago',
+      'Estación Central',
+      'Quilicura',
+      'Puente Alto',
+      'Maipú',
+      'San Bernardo',
+      'Talcahuano',
+      'Concepción',
+      'Valparaíso',
+      'Viña del Mar',
+    ].includes(c.nombre),
+  );
+
+  for (let i = 0; i < 7; i++) {
+    const comuna = hubComunas[i % hubComunas.length];
+    const entidad =
+      createdEntidades[Math.floor(Math.random() * createdEntidades.length)];
+
+    const hub = await prisma.hub.create({
+      data: {
+        codigo: `HUB-${String.fromCharCode(65 + i)}`,
+        nombre: hubNames[i] || `Hub ${i + 1}`,
+        direccion: `${streetNames[Math.floor(Math.random() * streetNames.length)]} ${Math.floor(Math.random() * 1000) + 1}, ${comuna.nombre}`,
+        comunaId: comuna.id,
+        entidadId: entidad.id,
+        latitud: -33.4 + Math.random() * 1.5,
+        longitud: -70.6 + Math.random() * 1.5,
+        activo: true,
+        visible: true,
+        orden: i + 1,
+        tenantId: adminTenant.id,
+      },
+    });
+    createdHubs.push(hub);
+    console.log(`  ✅ Hub ${i + 1}: ${hub.nombre}`);
+  }
+
+  // ========== CREATE ZONAS ==========
+  console.log('🗺️ Creating zones...');
+
+  const createdZonas: any[] = [];
+  const zoneTypes: TipoZona[] = ['URBANA', 'RURAL', 'INDUSTRIAL', 'HUB'];
+
+  for (let i = 1; i <= 8; i++) {
+    const comunaIds = allComunas
+      .slice(i * 10, i * 10 + 5)
+      .map((c) => c.id)
+      .filter((id) => id);
+
+    const zona = await prisma.zona.create({
+      data: {
+        codigo: `ZONA-${String(i).padStart(3, '0')}`,
+        nombre: `Zona ${i} - ${zoneTypes[i % 4]}`,
+        tipoZona: zoneTypes[i % 4],
+        comunasIds: comunaIds,
+        esOrigen: Math.random() > 0.3,
+        esDestino: Math.random() > 0.3,
+        observaciones: `Zona para ${zoneTypes[i % 4].toLowerCase()}`,
+        activo: true,
+        visible: true,
+        orden: i,
+        tenantId: adminTenant.id,
+      },
+    });
+    createdZonas.push(zona);
+  }
+
+  console.log(`✅ Created ${createdZonas.length} zones`);
+
+  // ========== CREATE COBERTURAS (coverage) ==========
+  console.log('📊 Creating coverage plans...');
+
+  const createdCoberturas: any[] = [];
+
+  for (let i = 0; i < 15; i++) {
+    const entidad =
+      createdEntidades[Math.floor(Math.random() * createdEntidades.length)];
+    const zona = createdZonas[Math.floor(Math.random() * createdZonas.length)];
+    const tipoServicio = [
+      tipoServicioExpress,
+      tipoServicioEstandar,
+      tipoServicioEconomico,
+    ][Math.floor(Math.random() * 3)];
+
+    // Handle null nombre - use a default value
+    const entidadNombre = entidad.nombre || `Entidad ${entidad.rut}`;
+
+    const cobertura = await prisma.cobertura.create({
+      data: {
+        entidadId: entidad.id,
+        zonaId: zona.id,
+        tipoServicioId: tipoServicio.id,
+        valor: Math.floor(Math.random() * 100000) + 5000,
+        vigencia: new Date(
+          Date.now() + Math.floor(Math.random() * 365 * 24 * 60 * 60 * 1000),
+        ),
+        excluyente: Math.random() > 0.7,
+        comentario: `Cobertura ${i + 1} para ${entidadNombre.substring(0, 20)}`,
+        activo: true,
+        tenantId: adminTenant.id,
+      },
+    });
+    createdCoberturas.push(cobertura);
+  }
+
+  console.log(`✅ Created ${createdCoberturas.length} coverage plans`);
 
   console.log('🎉 Database seeded successfully!');
   console.log('================================');
-  console.log('🌎 Created all Chilean regions, provinces, and communes');
-  console.log('📦 Created order types and sample business entities');
-  console.log('🚚 Created equipment types and models');
+  console.log('📊 SEED SUMMARY:');
+  console.log(`🌎 ${allComunas.length} communes created`);
+  console.log(`👥 ${createdClientes.length} clients created`);
+  console.log(`🚛 ${createdCarriers.length} carriers created`);
+  console.log(`📦 ${createdEmbarcadores.length} embarcadores created`);
+  console.log(`📇 ${createdContactos.length} contacts created`);
+  console.log(`🚚 ${createdEquipos.length} equipment units created`);
+  console.log(`👨‍✈️ ${createdChoferes.length} drivers created`);
+  console.log(`📍 ${createdDirecciones.length} addresses created`);
+  console.log(`📝 ${createdOrdenes.length} orders created`);
+  console.log(`🏭 ${createdHubs.length} logistics hubs created`);
+  console.log(`🗺️ ${createdZonas.length} zones created`);
+  console.log(`📊 ${createdCoberturas.length} coverage plans created`);
+  console.log('');
   console.log('👑 Admin User: admin@demo.cl');
   console.log('   Password: 12345678');
   console.log('   Permissions: Full admin access');
