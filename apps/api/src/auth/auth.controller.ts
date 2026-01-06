@@ -8,6 +8,8 @@ import {
   Logger,
   HttpException,
   HttpStatus,
+  UnauthorizedException,
+  Query,
 } from '@nestjs/common';
 import { Auth0Guard } from './guards/auth0.guard';
 import { JwtGuard } from './guards/jwt.guard';
@@ -23,12 +25,24 @@ export class AuthController {
   }
 
   // Use Auth0Guard for external Auth0 tokens
-  @UseGuards(Auth0Guard)
+  /*   @UseGuards(Auth0Guard) */
   @Post('login')
-  async login(@Request() req) {
-    this.logger.log('Auth0 login endpoint called');
-    this.logger.debug('User from request:', req.user);
-    return this.authService.handleAuth0Login(req.user);
+  async emailPasswordLogin(@Body() body: { email: string; password: string }) {
+    try {
+      this.logger.log('Email/password login started for:', body.email);
+
+      // Delegate to service
+      const result = await this.authService.emailPasswordLogin(
+        body.email,
+        body.password,
+      );
+
+      this.logger.log('Login successful');
+      return result;
+    } catch (error) {
+      this.logger.error('Login failed:', error);
+      throw error;
+    }
   }
 
   @Post('test-login')
@@ -91,6 +105,137 @@ export class AuthController {
       profile_id: req.user.profile_id,
       permissions: req.user.permissions,
     };
+  }
+  // Setup initial password endpoint
+  @Post('setup-password')
+  async setupPassword(@Body() body: { userId: string; password: string }) {
+    try {
+      this.logger.log('Password setup request for user:', body.userId);
+
+      // Validate request body
+      if (!body.userId || !body.password) {
+        throw new HttpException(
+          {
+            error: 'User ID and password are required',
+            statusCode: HttpStatus.BAD_REQUEST,
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      await this.authService.setupInitialPassword(body.userId, body.password);
+
+      return {
+        success: true,
+        message: 'Password set successfully',
+      };
+    } catch (error) {
+      this.logger.error('Password setup failed:', error);
+
+      if (error.status === HttpStatus.BAD_REQUEST) {
+        throw error; // Re-throw BadRequestException
+      }
+
+      throw new HttpException(
+        {
+          error: error.message || 'Failed to set password',
+          statusCode: HttpStatus.BAD_REQUEST,
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  // Change password endpoint (requires authentication)
+  @Post('change-password')
+  @UseGuards(JwtGuard)
+  async changePassword(
+    @Request() req,
+    @Body() body: { currentPassword: string; newPassword: string },
+  ) {
+    try {
+      this.logger.log('Password change request for user:', req.user.sub);
+
+      // Validate request body
+      if (!body.currentPassword || !body.newPassword) {
+        throw new HttpException(
+          {
+            error: 'Current password and new password are required',
+            statusCode: HttpStatus.BAD_REQUEST,
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      await this.authService.updatePassword(
+        req.user.sub,
+        body.currentPassword,
+        body.newPassword,
+      );
+
+      return {
+        success: true,
+        message: 'Password changed successfully',
+      };
+    } catch (error) {
+      this.logger.error('Password change failed:', error);
+
+      // Handle different error types
+      if (error.status === HttpStatus.UNAUTHORIZED) {
+        throw error;
+      }
+
+      if (
+        error.status === HttpStatus.BAD_REQUEST ||
+        error.status === HttpStatus.NOT_FOUND
+      ) {
+        throw error;
+      }
+
+      throw new HttpException(
+        {
+          error: 'Failed to change password',
+          statusCode: HttpStatus.BAD_REQUEST,
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  // Seed passwords endpoint (for migration - consider protecting this)
+  // Change from POST to GET and use query parameters
+  @Get('seed-passwords')
+  async seedDefaultPasswords(
+    @Query('defaultPassword') defaultPassword?: string,
+  ) {
+    try {
+      this.logger.log('Seeding default passwords for existing users');
+
+      const result = await this.authService.seedDefaultPasswords(
+        defaultPassword || 'demo123',
+      );
+      
+
+      return {
+        success: true,
+        message: `Passwords seeded for ${result.usersAffected} users`,
+        usersAffected: result.usersAffected,
+      };
+    } catch (error) {
+      this.logger.error('Password seeding failed:', error);
+
+      if (error.status === HttpStatus.BAD_REQUEST) {
+        throw error;
+      }
+
+      throw new HttpException(
+        {
+          error: 'Failed to seed passwords',
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Get('health')

@@ -55,6 +55,7 @@ model Usuario {
   id         String             @id @default(uuid())
   activo     Boolean            @default(true)
   correo     String             @unique
+  password   String?
   nombre     String
   perfilId   String             @map("perfil_id")
   rut        String?

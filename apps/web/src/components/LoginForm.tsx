@@ -19,21 +19,16 @@ export const LoginForm: React.FC = () => {
     setError("");
 
     try {
-      const response = await fetch(
-        API_ENDPOINTS.AUTH.TEST_LOGIN,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email }),
-        }
-      );
-
+      const response = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
       if (!response.ok) {
-        throw new Error("Error al iniciar sesión");
+        throw new Error("Credenciales inválidas. Por favor, intente de nuevo.");
       }
-
       const data: LoginResponse = await response.json();
       await login(data);
       navigate("/dashboard", { replace: true });
@@ -123,6 +118,7 @@ export const LoginForm: React.FC = () => {
               id="password"
               name="password"
               type="password"
+              required
               className="relative block w-full px-4 py-3 border border-[#798283]/30 rounded-lg placeholder-[#798283]/60 text-[#798283] focus:outline-none focus:ring focus:ring-[#D42B22] transition-colors duration-200 bg-white/80"
               placeholder="Ingrese su contraseña"
               value={password}
@@ -163,16 +159,10 @@ export const LoginForm: React.FC = () => {
               )}
             </Button>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-[#798283]/70 bg-white/50 py-2 px-3 rounded-lg border border-[#798283]/20">
-              <strong>Nota de demostración:</strong> La contraseña es opcional.
-              Sistema de autenticación de prueba.
-            </p>
-          </div>
         </form>
 
         <div className="text-center pt-6 border-t border-[#798283]/20">
-          <p className="text-xs text-[#798283]/60">© Dexpress 2025</p>
+          <p className="text-xs text-[#798283]/60"> - </p>
         </div>
       </div>
     </div>

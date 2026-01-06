@@ -3,22 +3,233 @@ import {
   UnauthorizedException,
   Logger,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InternalJwtService, InternalJwtPayload } from './internal-jwt.service';
 import { Auth0User } from '../interfaces/auth0-user.interface';
 import { PrismaService } from 'prisma/prisma.service';
 import { EstadoUsuario, TipoTenant, TipoAccion } from '@prisma/client';
 import { LoginResponse } from '../interfaces/login-response.interface';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly saltRounds = 10;
 
   constructor(
     private prisma: PrismaService,
     private internalJwtService: InternalJwtService,
   ) {
     this.logger.log('AuthService initialized');
+  }
+
+  // Add this method to your AuthService class:
+
+  async emailPasswordLogin(
+    email: string,
+    password: string,
+  ): Promise<LoginResponse> {
+    this.logger.log(`Email/password login attempt for: ${email}`);
+
+    // 1. Validate email/password
+    const user = await this.validateEmailPassword(email, password);
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // 2. Create Auth0User-like object
+    const auth0User: Auth0User = {
+      sub: user.id,
+      email: user.correo,
+      email_verified: true,
+      name: user.nombre,
+      tenant_id: user.tenantId,
+    };
+
+    // 3. Use existing handleAuth0Login method
+    return await this.handleAuth0Login(auth0User);
+  }
+
+  private async validateEmailPassword(email: string, password: string) {
+    const user = await this.prisma.usuario.findFirst({
+      where: {
+        correo: email,
+        activo: true,
+      },
+      include: {
+        perfil: {
+          include: {
+            perfilesRoles: {
+              include: {
+                rol: true,
+              },
+            },
+          },
+        },
+        tenant: true,
+      },
+    });
+
+    if (!user) {
+      this.logger.warn(`No active user found for email: ${email}`);
+      return null;
+    }
+
+    const isValidPassword = await this.validateUserPassword(user, password);
+
+    if (!isValidPassword) {
+      this.logger.warn(`Invalid password for user: ${email}`);
+      return null;
+    }
+
+    return user;
+  }
+
+  private async validateUserPassword(
+    user: any,
+    password: string,
+  ): Promise<boolean> {
+    try {
+      // Check if user has a stored password
+      if (!user.password) {
+        this.logger.warn(`No password set for user: ${user.correo}`);
+        return false;
+      }
+
+      // Compare provided password with stored hash
+      return await bcrypt.compare(password, user.password);
+    } catch (error) {
+      this.logger.error('Error validating password:', error);
+      return false;
+    }
+  }
+
+  private async hashPassword(password: string): Promise<string> {
+    return await bcrypt.hash(password, this.saltRounds);
+  }
+
+  async setupInitialPassword(userId: string, password: string): Promise<void> {
+    try {
+      if (!password || password.length < 6) {
+        throw new BadRequestException(
+          'Password must be at least 6 characters long',
+        );
+      }
+
+      const hashedPassword = await this.hashPassword(password);
+
+      await this.prisma.usuario.update({
+        where: { id: userId },
+        data: {
+          password: hashedPassword,
+          estado: EstadoUsuario.ACTIVO, // Ensure user is active
+        },
+      });
+
+      this.logger.log(`Initial password setup completed for user: ${userId}`);
+    } catch (error) {
+      this.logger.error('Error setting up password:', error);
+      throw new Error('Failed to set up password');
+    }
+  }
+
+  async updatePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    try {
+      // Get user with password
+      const user = await this.prisma.usuario.findUnique({
+        where: { id: userId },
+        select: { id: true, correo: true, password: true },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (!user.password) {
+        throw new BadRequestException('No password set for this user');
+      }
+
+      // Verify current password
+      const isValidCurrent = await bcrypt.compare(
+        currentPassword,
+        user.password,
+      );
+      if (!isValidCurrent) {
+        throw new UnauthorizedException('Current password is incorrect');
+      }
+
+      // Validate new password
+      if (!newPassword || newPassword.length < 6) {
+        throw new BadRequestException(
+          'New password must be at least 6 characters long',
+        );
+      }
+
+      // Hash new password
+      const hashedNewPassword = await this.hashPassword(newPassword);
+
+      // Update password
+      await this.prisma.usuario.update({
+        where: { id: userId },
+        data: { password: hashedNewPassword },
+      });
+
+      this.logger.log(`Password updated for user: ${user.correo}`);
+    } catch (error) {
+      this.logger.error('Error updating password:', error);
+      throw error; // Re-throw for controller to handle
+    }
+  }
+
+  // Seed default passwords for existing users (for migration)
+  async seedDefaultPasswords(
+    defaultPassword: string = 'demo123',
+  ): Promise<{ usersAffected: number }> {
+    try {
+      this.logger.log('Seeding default passwords for existing users');
+
+      // Validate default password
+      if (!defaultPassword || defaultPassword.length < 6) {
+        throw new BadRequestException(
+          'Default password must be at least 6 characters long',
+        );
+      }
+
+      const hashedPassword = await this.hashPassword(defaultPassword);
+
+      // Get all users without passwords
+      const users = await this.prisma.usuario.findMany({
+        where: {
+          OR: [{ password: null }, { password: '' }],
+        },
+      });
+
+      this.logger.log(`Found ${users.length} users without passwords`);
+
+      // Update all users with the hashed password
+      const result = await this.prisma.usuario.updateMany({
+        where: {
+          OR: [{ password: null }, { password: '' }],
+        },
+        data: {
+          password: hashedPassword,
+          estado: EstadoUsuario.ACTIVO,
+        },
+      });
+
+      this.logger.log(`Passwords seeded for ${result.count} users`);
+
+      return { usersAffected: result.count };
+    } catch (error) {
+      this.logger.error('Password seeding failed:', error);
+      throw error;
+    }
   }
 
   async handleAuth0Login(auth0User: Auth0User): Promise<LoginResponse> {
@@ -114,7 +325,7 @@ export class AuthService {
       defaultTenant.id,
     );
 
-    // Create the user - using only fields that exist in the schema
+    // Create the user
     const newUser = await this.prisma.usuario.create({
       data: {
         correo: auth0User.email,
@@ -123,12 +334,13 @@ export class AuthService {
         estado: EstadoUsuario.ACTIVO,
         tenantId: defaultTenant.id,
         perfilId: defaultProfile.id,
-        rut: '12345678-9', // Required field
-        telefono: '+1234567890', // Optional but providing value
+        rut: '12345678-9',
+        telefono: '+1234567890',
+        password: await this.hashPassword('demo123'), // Set default password
       },
     });
 
-    // Now fetch the user with the required relations
+    // Fetch the user with relations
     const userWithRelations = await this.prisma.usuario.findUnique({
       where: { id: newUser.id },
       include: {
