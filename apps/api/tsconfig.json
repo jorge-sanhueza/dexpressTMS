@@ -10,6 +10,11 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    "paths": {
+      "@prisma/*": ["prisma/*"],
+      "@auth/*": ["src/auth/*"],
+      "@/*": ["src/*"]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,

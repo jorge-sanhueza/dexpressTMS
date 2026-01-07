@@ -1,8 +1,8 @@
 export interface UsersFilterDto {
   search?: string;
-  activo?: boolean;
+  activo?: boolean | string;
   estado?: string;
   perfilId?: string;
-  page?: number;
-  limit?: number;
+  page?: number | string;
+  limit?: number | string;
 }

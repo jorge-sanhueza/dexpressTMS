@@ -7,10 +7,10 @@ import {
 } from '@nestjs/common';
 import { InternalJwtService, InternalJwtPayload } from './internal-jwt.service';
 import { Auth0User } from '../interfaces/auth0-user.interface';
-import { PrismaService } from 'prisma/prisma.service';
 import { EstadoUsuario, TipoTenant, TipoAccion } from '@prisma/client';
 import { LoginResponse } from '../interfaces/login-response.interface';
 import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 @Injectable()
 export class AuthService {
@@ -131,7 +131,7 @@ export class AuthService {
       this.logger.log(`Initial password setup completed for user: ${userId}`);
     } catch (error) {
       this.logger.error('Error setting up password:', error);
-      throw new Error('Failed to set up password');
+      throw new BadRequestException('Failed to set up password');
     }
   }
 
