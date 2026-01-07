@@ -1,0 +1,32 @@
+[build]
+  # CRITICAL: Must specify base directory for monorepo
+  base = "apps/web"
+  command = "npm run build"
+  publish = "apps/web/dist"  # Must match actual dist location
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# Required for Vite SPA routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Optional: Proxy API calls to avoid CORS
+[[redirects]]
+  from = "/api/*"
+  to = "https://dexpresstms.onrender.com/:splat"
+  status = 200
+  force = true
+
+# Environment-specific settings
+[context.production]
+  environment = { VITE_API_URL = "https://dexpresstms.onrender.com" }
+
+[context.deploy-preview]
+  environment = { VITE_API_URL = "https://dexpresstms.onrender.com" }
+
+[context.branch-deploy]
+  environment = { VITE_API_URL = "https://dexpresstms.onrender.com" }

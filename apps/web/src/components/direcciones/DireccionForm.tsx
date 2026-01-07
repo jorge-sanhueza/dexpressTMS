@@ -56,7 +56,7 @@ export const DireccionForm: React.FC<DireccionFormProps> = ({
   const longitud = watch("longitud");
   const [manualAddress, setManualAddress] = useState("");
   const [isGeocoding, setIsGeocoding] = useState(false);
-  const [isMapLoading, setIsMapLoading] = useState(false);
+  const [_isMapLoading, setIsMapLoading] = useState(false);
   const geocodeMutation = useGeocodeAddress();
 
   useEffect(() => {

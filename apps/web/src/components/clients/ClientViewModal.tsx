@@ -44,7 +44,7 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
                   {client.activo ? "Activo" : "Inactivo"}
                 </Badge>
                 <Badge variant="outline" className="text-muted-foreground">
-                  {client.tipo}
+                  {client.tipoEntidad}
                 </Badge>
               </div>
             </div>
@@ -178,7 +178,7 @@ export const ClientViewModal: React.FC<ClientViewModalProps> = ({
                       Estado
                     </label>
                     <p className="text-foreground capitalize">
-                      {client.estado}
+                      {client.activo ? "Activo" : "Inactivo"}
                     </p>
                   </div>
 
