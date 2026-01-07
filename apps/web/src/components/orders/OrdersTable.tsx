@@ -136,16 +136,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
     });
   };
 
-  const formatDateTime = (date: Date) => {
-    return new Date(date).toLocaleDateString("es-CL", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   const getTipoTarifaLabel = (tipoTarifa: string) => {
     return tipoTarifa === "PESO_VOLUMEN" ? "Peso/Volumen" : "Equipo";
   };

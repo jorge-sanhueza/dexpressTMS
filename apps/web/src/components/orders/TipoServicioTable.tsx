@@ -1,4 +1,3 @@
-// components/tipoServicio/TipoServicioTable.tsx
 import React from "react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -22,7 +21,6 @@ export const TipoServicioTable: React.FC<TipoServicioTableProps> = ({
   onDeactivate,
   canEdit,
   canDelete,
-  canActivate,
   isLoading = false,
 }) => {
   if (isLoading) {
