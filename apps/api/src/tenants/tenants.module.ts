@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TenantsController } from './tenants.controller';
-import { TenantsService } from './tenants.service';
+import { TenantsService } from './services/tenants.service';
 import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({

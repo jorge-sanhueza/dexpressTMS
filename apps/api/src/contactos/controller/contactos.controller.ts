@@ -14,7 +14,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { JwtGuard } from 'src/auth/guards/jwt.guard';
-import { ContactosService } from '../service/contactos.service';
+import { ContactosService } from '../services/contactos.service';
 import { ContactosFilterDto } from '../dto/contactos-filter.dto';
 import { CreateContactoDto } from '../dto/create-contacto.dto';
 import { UpdateContactoDto } from '../dto/update-contacto.dto';

@@ -5,7 +5,7 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
-import { PrismaService } from 'prisma/prisma.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateClientDto } from '../dto/create-client.dto';
 import { UpdateClientDto } from '../dto/update-client.dto';
 import { ClientsFilterDto } from '../dto/clients-filter.dto';
@@ -369,6 +369,6 @@ export class ClientsService {
       this.prisma.cliente.count({ where: { tenantId, activo: false } }),
     ]);
 
-    return { total, activos, inactivos };
+    return new ClientStatsDto({ total, activos, inactivos });
   }
 }
